@@ -252,3 +252,193 @@ pub fn list_saved_profiles() -> Vec<(String, PathBuf)> {
     }
     profiles
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Macro parsing
+
+    #[test]
+    fn parse_macro_reads_all_action_types() {
+        let actions = parse_macro("P:lctrl,P:c,D:50,R:c,R:lctrl,MEDIA:vol_up,TEXT:Hello");
+
+        assert_eq!(
+            actions,
+            vec![
+                MacroAction::PressKey("lctrl".to_string()),
+                MacroAction::PressKey("c".to_string()),
+                MacroAction::Delay(50),
+                MacroAction::ReleaseKey("c".to_string()),
+                MacroAction::ReleaseKey("lctrl".to_string()),
+                MacroAction::Media("vol_up".to_string()),
+                MacroAction::TypeText("Hello".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_macro_returns_nothing_for_empty_input() {
+        assert!(parse_macro("").is_empty());
+        assert!(parse_macro("   ").is_empty());
+    }
+
+    #[test]
+    fn parse_macro_ignores_spaces_around_tokens() {
+        let actions = parse_macro(" P:a , D:10 ,R:a ");
+
+        assert_eq!(
+            actions,
+            vec![
+                MacroAction::PressKey("a".to_string()),
+                MacroAction::Delay(10),
+                MacroAction::ReleaseKey("a".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_macro_skips_unknown_and_invalid_tokens() {
+        let actions = parse_macro("X:foo,D:abc,D:-5,P:a,garbage");
+
+        assert_eq!(actions, vec![MacroAction::PressKey("a".to_string())]);
+    }
+
+    #[test]
+    fn parse_macro_decodes_line_breaks_in_text() {
+        let actions = parse_macro(r"TEXT:first\nsecond");
+
+        assert_eq!(
+            actions,
+            vec![MacroAction::TypeText("first\nsecond".to_string())]
+        );
+    }
+
+    // Macro compiling
+
+    #[test]
+    fn compile_macro_writes_all_action_types() {
+        let actions = vec![
+            MacroAction::PressKey("lctrl".to_string()),
+            MacroAction::Delay(50),
+            MacroAction::ReleaseKey("lctrl".to_string()),
+            MacroAction::Media("mute".to_string()),
+            MacroAction::TypeText("Hello".to_string()),
+        ];
+
+        assert_eq!(
+            compile_macro(&actions),
+            "P:lctrl,D:50,R:lctrl,MEDIA:mute,TEXT:Hello"
+        );
+    }
+
+    #[test]
+    fn compile_macro_returns_empty_string_for_no_actions() {
+        assert_eq!(compile_macro(&[]), "");
+    }
+
+    #[test]
+    fn compile_macro_encodes_line_breaks_in_text() {
+        let actions = vec![MacroAction::TypeText("first\nsecond".to_string())];
+
+        assert_eq!(compile_macro(&actions), r"TEXT:first\nsecond");
+    }
+
+    // Roundtrip
+
+    fn assert_roundtrip(actions: Vec<MacroAction>) {
+        let compiled = compile_macro(&actions);
+        assert_eq!(parse_macro(&compiled), actions, "compiled: {compiled}");
+    }
+
+    #[test]
+    fn roundtrip_keeps_keys_delays_and_media() {
+        assert_roundtrip(vec![
+            MacroAction::PressKey("lwin".to_string()),
+            MacroAction::PressKey("period".to_string()),
+            MacroAction::Delay(0),
+            MacroAction::Delay(u32::MAX),
+            MacroAction::ReleaseKey("period".to_string()),
+            MacroAction::ReleaseKey("lwin".to_string()),
+            MacroAction::Media("play".to_string()),
+        ]);
+    }
+
+    #[test]
+    fn roundtrip_keeps_plain_text_with_line_breaks() {
+        assert_roundtrip(vec![MacroAction::TypeText("Hello\nWorld".to_string())]);
+    }
+
+    #[test]
+    fn roundtrip_is_stable_when_compiled_twice() {
+        let actions = vec![
+            MacroAction::PressKey("lctrl".to_string()),
+            MacroAction::TypeText("Hello".to_string()),
+        ];
+
+        let first = compile_macro(&actions);
+        let second = compile_macro(&parse_macro(&first));
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    #[ignore = "known bug, see #6"]
+    fn roundtrip_keeps_y_and_z_in_text() {
+        assert_roundtrip(vec![MacroAction::TypeText("xyz XYZ".to_string())]);
+    }
+
+    #[test]
+    #[ignore = "known bug, see #6"]
+    fn roundtrip_keeps_umlauts_in_text() {
+        assert_roundtrip(vec![MacroAction::TypeText("Größe ändern".to_string())]);
+    }
+
+    #[test]
+    #[ignore = "known bug, see #6"]
+    fn roundtrip_keeps_commas_in_text() {
+        assert_roundtrip(vec![
+            MacroAction::TypeText("Hello, world".to_string()),
+            MacroAction::Delay(10),
+        ]);
+    }
+
+    #[test]
+    #[ignore = "known bug, see #6"]
+    fn roundtrip_keeps_backslashes_and_spaces_in_text() {
+        assert_roundtrip(vec![MacroAction::TypeText(r" C:\new\folder ".to_string())]);
+    }
+
+    // Configuration
+
+    #[test]
+    fn config_uses_defaults_for_missing_fields() {
+        let config: FlexPadConfig = serde_json::from_str("{}").unwrap();
+
+        assert_eq!(config.profile_name, "Default_Profile");
+        assert!(config.tiles.is_empty());
+    }
+
+    #[test]
+    fn config_survives_json_roundtrip() {
+        let config = FlexPadConfig::default();
+
+        let json = serde_json::to_string(&config).unwrap();
+        let loaded: FlexPadConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(serde_json::to_string(&loaded).unwrap(), json);
+        assert_eq!(loaded.tiles.len(), 1);
+        assert_eq!(loaded.tiles[0].tile_type, TileType::Button);
+        assert_eq!(
+            loaded.tiles[0].functions["button"].macro_str,
+            "P:lctrl,P:c,D:50,R:c,R:lctrl"
+        );
+    }
+
+    #[test]
+    fn config_rejects_unknown_tile_type() {
+        let json = r#"{"tiles":[{"id":"t","display_name":"T","tile_type":"Joystick","functions":{},"x":0,"y":0}]}"#;
+
+        assert!(serde_json::from_str::<FlexPadConfig>(json).is_err());
+    }
+}
