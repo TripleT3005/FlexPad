@@ -1,6 +1,6 @@
-use iced::widget::canvas::{self, Canvas, Frame, Geometry, Program, Path, Stroke, Action};
-use iced::{Color, Element, Length, Rectangle, Renderer, Theme, Point, Size, mouse};
 use crate::config::CanvasTile;
+use iced::widget::canvas::{self, Action, Canvas, Frame, Geometry, Path, Program, Stroke};
+use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
 #[derive(Debug, Clone)]
 pub enum CanvasMessage {
@@ -52,28 +52,39 @@ impl Program<CanvasMessage> for GridProgram {
                 if let Some(pos) = cursor_pos {
                     let mut clicked_id = None;
                     for tile in self.tiles.iter().rev() {
-                        let rect = Rectangle::new(Point::new(tile.x, tile.y), Size::new(100.0, 60.0));
+                        let rect =
+                            Rectangle::new(Point::new(tile.x, tile.y), Size::new(100.0, 60.0));
                         if rect.contains(pos) {
                             clicked_id = Some(tile.id.clone());
                             break;
                         }
                     }
-                    return Some(Action::publish(CanvasMessage::SelectAndDrag(clicked_id)).and_capture());
+                    return Some(
+                        Action::publish(CanvasMessage::SelectAndDrag(clicked_id)).and_capture(),
+                    );
                 }
             }
             iced::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
                 if self.dragging_tile_id.is_some()
-                    && let Some(pos) = cursor_pos {
-                        let snap: f32 = 30.0;
-                        let new_x = (pos.x / snap).round() * snap;
-                        let new_y = (pos.y / snap).round() * snap;
-                        return Some(Action::publish(CanvasMessage::DragPosition(new_x.max(0.0), new_y.max(0.0))).and_capture());
-                    }
+                    && let Some(pos) = cursor_pos
+                {
+                    let snap: f32 = 30.0;
+                    let new_x = (pos.x / snap).round() * snap;
+                    let new_y = (pos.y / snap).round() * snap;
+                    return Some(
+                        Action::publish(CanvasMessage::DragPosition(
+                            new_x.max(0.0),
+                            new_y.max(0.0),
+                        ))
+                        .and_capture(),
+                    );
+                }
             }
             iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
-                if self.dragging_tile_id.is_some() => {
-                    return Some(Action::publish(CanvasMessage::EndDrag).and_capture());
-                }
+                if self.dragging_tile_id.is_some() =>
+            {
+                return Some(Action::publish(CanvasMessage::EndDrag).and_capture());
+            }
             _ => {}
         }
         None
@@ -111,7 +122,7 @@ impl Program<CanvasMessage> for GridProgram {
             let rect_pos = Point::new(tile.x, tile.y);
 
             let box_path = Path::rectangle(rect_pos, rect_size);
-            
+
             let is_selected = self.selected_tile_id.as_ref() == Some(&tile.id);
             let box_color = if is_selected {
                 Color::from_rgba(0.25, 0.5, 0.9, 0.9)
@@ -133,8 +144,16 @@ impl Program<CanvasMessage> for GridProgram {
             };
             frame.stroke(&box_path, border_stroke);
 
-            let pins_summary: String = tile.functions.values()
-                .map(|f| if f.pin.is_empty() { "-".to_string() } else { f.pin.clone() })
+            let pins_summary: String = tile
+                .functions
+                .values()
+                .map(|f| {
+                    if f.pin.is_empty() {
+                        "-".to_string()
+                    } else {
+                        f.pin.clone()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(", ");
 
@@ -159,9 +178,17 @@ impl Program<CanvasMessage> for GridProgram {
     }
 }
 
-pub fn view_canvas(tiles: Vec<CanvasTile>, selected_tile_id: Option<String>, dragging_tile_id: Option<String>) -> Element<'static, CanvasMessage> {
-    Canvas::new(GridProgram { tiles, selected_tile_id, dragging_tile_id })
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+pub fn view_canvas(
+    tiles: Vec<CanvasTile>,
+    selected_tile_id: Option<String>,
+    dragging_tile_id: Option<String>,
+) -> Element<'static, CanvasMessage> {
+    Canvas::new(GridProgram {
+        tiles,
+        selected_tile_id,
+        dragging_tile_id,
+    })
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }

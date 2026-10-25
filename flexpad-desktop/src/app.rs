@@ -4,17 +4,17 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::config::{
-    FlexPadConfig, CanvasTile, TileType, TileFunction, MacroAction, 
-    parse_macro, compile_macro, list_saved_profiles, load_profile_from_disk, 
-    save_profile_to_disk, load_user_settings, save_user_settings, UserSettings
-};
-use crate::device::{
-    connect_to_port, fetch_config_from_device, scan_flexpad_devices, 
-    set_config_to_device, FlexPadDeviceInfo
-};
 use crate::canvas;
+use crate::config::{
+    CanvasTile, FlexPadConfig, MacroAction, TileFunction, TileType, UserSettings, compile_macro,
+    list_saved_profiles, load_profile_from_disk, load_user_settings, parse_macro,
+    save_profile_to_disk, save_user_settings,
+};
 use crate::constants::PRESETS;
+use crate::device::{
+    FlexPadDeviceInfo, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
+    set_config_to_device,
+};
 use crate::ui::header::view_header;
 use crate::ui::workspace::view_workspace;
 
@@ -62,16 +62,16 @@ pub struct FlexPadApp {
     pub selected_device: Option<FlexPadDeviceInfo>,
     pub connected_device: Option<FlexPadDeviceInfo>,
     pub serial_port: Option<Box<dyn serialport::SerialPort>>,
-    
+
     pub tiles: Vec<CanvasTile>,
     pub selected_tile_id: Option<String>,
     pub dragging_tile_id: Option<String>,
     pub selected_tile_type: Option<TileType>,
-    
+
     pub current_profile_name: String,
     pub saved_profiles: Vec<ProfileItem>,
     pub selected_profile: Option<ProfileItem>,
-    
+
     pub ui: UiState,
 }
 
@@ -123,16 +123,18 @@ impl FlexPadApp {
         let mut current_name = "Default_Profile".to_string();
         let mut initial_selected = None;
 
-        let target_profile = user_settings.last_profile.and_then(|last| {
-            profiles.iter().find(|p| p.name == last).cloned()
-        }).or_else(|| profiles.first().cloned());
+        let target_profile = user_settings
+            .last_profile
+            .and_then(|last| profiles.iter().find(|p| p.name == last).cloned())
+            .or_else(|| profiles.first().cloned());
 
         if let Some(profile) = target_profile
-            && let Ok(cfg) = load_profile_from_disk(&profile.path) {
-                current_name = cfg.profile_name.clone();
-                initial_config = cfg;
-                initial_selected = Some(profile);
-            }
+            && let Ok(cfg) = load_profile_from_disk(&profile.path)
+        {
+            current_name = cfg.profile_name.clone();
+            initial_config = cfg;
+            initial_selected = Some(profile);
+        }
 
         let ui_state = UiState {
             advanced_mode: user_settings.advanced_mode,
@@ -228,17 +230,19 @@ impl FlexPadApp {
             }
             Message::UpdateTileName(name) => {
                 if let Some(id) = &self.selected_tile_id
-                    && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id) {
-                        tile.display_name = name;
-                    }
+                    && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
+                {
+                    tile.display_name = name;
+                }
                 Task::none()
             }
             Message::UpdateTilePin(slot_key, new_pin) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        func.pin = new_pin;
-                    }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    func.pin = new_pin;
+                }
                 Task::none()
             }
             Message::ToggleSlotSection(slot_key) => {
@@ -288,64 +292,70 @@ impl FlexPadApp {
             Message::RawMacroStringChanged(slot_key, raw) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        func.macro_str = raw;
-                    }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    func.macro_str = raw;
+                }
                 Task::none()
             }
             Message::AddMacroAction(slot_key, action) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        let mut actions = parse_macro(&func.macro_str);
-                        actions.push(action);
-                        func.macro_str = compile_macro(&actions);
-                    }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    let mut actions = parse_macro(&func.macro_str);
+                    actions.push(action);
+                    func.macro_str = compile_macro(&actions);
+                }
                 Task::none()
             }
             Message::RemoveMacroAction(slot_key, index) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        let mut actions = parse_macro(&func.macro_str);
-                        if index < actions.len() {
-                            actions.remove(index);
-                            func.macro_str = compile_macro(&actions);
-                        }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    let mut actions = parse_macro(&func.macro_str);
+                    if index < actions.len() {
+                        actions.remove(index);
+                        func.macro_str = compile_macro(&actions);
                     }
+                }
                 Task::none()
             }
             Message::MoveMacroActionUp(slot_key, index) => {
                 if index > 0
                     && let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        let mut actions = parse_macro(&func.macro_str);
-                        if index < actions.len() {
-                            actions.swap(index, index - 1);
-                            func.macro_str = compile_macro(&actions);
-                        }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    let mut actions = parse_macro(&func.macro_str);
+                    if index < actions.len() {
+                        actions.swap(index, index - 1);
+                        func.macro_str = compile_macro(&actions);
                     }
+                }
                 Task::none()
             }
             Message::MoveMacroActionDown(slot_key, index) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        let mut actions = parse_macro(&func.macro_str);
-                        if index + 1 < actions.len() {
-                            actions.swap(index, index + 1);
-                            func.macro_str = compile_macro(&actions);
-                        }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    let mut actions = parse_macro(&func.macro_str);
+                    if index + 1 < actions.len() {
+                        actions.swap(index, index + 1);
+                        func.macro_str = compile_macro(&actions);
                     }
+                }
                 Task::none()
             }
             Message::ApplyPreset(slot_key, macro_str) => {
                 if let Some(id) = &self.selected_tile_id
                     && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
-                    && let Some(func) = tile.functions.get_mut(&slot_key) {
-                        func.macro_str = macro_str;
-                    }
+                    && let Some(func) = tile.functions.get_mut(&slot_key)
+                {
+                    func.macro_str = macro_str;
+                }
                 Task::none()
             }
         }
@@ -386,7 +396,8 @@ impl FlexPadApp {
                 Ok(json_str) => {
                     if let Ok(cfg) = serde_json::from_str::<FlexPadConfig>(&json_str) {
                         self.tiles = cfg.tiles;
-                        let profile_name = self.connected_device
+                        let profile_name = self
+                            .connected_device
                             .as_ref()
                             .map(|dev| dev.device_id.clone())
                             .unwrap_or_else(|| "FlexPad_Config".to_string());
@@ -405,15 +416,20 @@ impl FlexPadApp {
                                 .into_iter()
                                 .map(|(name, p)| ProfileItem { name, path: p })
                                 .collect();
-                            
-                            self.selected_profile = self.saved_profiles.iter().find(|p| p.name == profile_name).cloned();
+
+                            self.selected_profile = self
+                                .saved_profiles
+                                .iter()
+                                .find(|p| p.name == profile_name)
+                                .cloned();
                         }
 
                         save_user_settings(&UserSettings {
                             last_profile: Some(profile_name),
                             advanced_mode: self.ui.advanced_mode,
                         });
-                        self.status_message = "Configuration loaded from device and saved locally.".to_string();
+                        self.status_message =
+                            "Configuration loaded from device and saved locally.".to_string();
                     } else {
                         self.status_message = "Failed to parse JSON.".to_string();
                     }
@@ -433,11 +449,12 @@ impl FlexPadApp {
                 profile_name: self.current_profile_name.clone(),
                 tiles: self.tiles.clone(),
             };
-            
+
             if let Ok(json_str) = serde_json::to_string(&config) {
                 match set_config_to_device(port, &json_str) {
                     Ok(_) => {
-                        self.status_message = "Configuration saved to device successfully!".to_string();
+                        self.status_message =
+                            "Configuration saved to device successfully!".to_string();
                     }
                     Err(e) => {
                         self.status_message = format!("Failed to save config: {}", e);
@@ -451,11 +468,12 @@ impl FlexPadApp {
 
     fn handle_connection_tick(&mut self) {
         if let Some(port) = &mut self.serial_port
-            && port.clear(serialport::ClearBuffer::Input).is_err() {
-                self.serial_port = None;
-                self.connected_device = None;
-                self.status_message = "Device was unplugged! Disconnected.".to_string();
-            }
+            && port.clear(serialport::ClearBuffer::Input).is_err()
+        {
+            self.serial_port = None;
+            self.connected_device = None;
+            self.status_message = "Device was unplugged! Disconnected.".to_string();
+        }
     }
 
     fn handle_profile_selected(&mut self, profile: ProfileItem) {
@@ -466,7 +484,7 @@ impl FlexPadApp {
             self.ui.pending_overwrite = false;
             self.selected_tile_id = None;
             self.ui.expanded_slots.clear();
-            
+
             save_user_settings(&UserSettings {
                 last_profile: Some(cfg.profile_name),
                 advanced_mode: self.ui.advanced_mode,
@@ -477,13 +495,16 @@ impl FlexPadApp {
 
     fn handle_save_profile(&mut self) -> Task<Message> {
         let name_collision = self.saved_profiles.iter().any(|p| {
-            p.name == self.current_profile_name && 
-            Some(p.path.clone()) != self.selected_profile.as_ref().map(|s| s.path.clone())
+            p.name == self.current_profile_name
+                && Some(p.path.clone()) != self.selected_profile.as_ref().map(|s| s.path.clone())
         });
 
         if name_collision && !self.ui.pending_overwrite {
             self.ui.pending_overwrite = true;
-            self.status_message = format!("Warning: Profile '{}' already exists. Click 'Save Profile' again to overwrite.", self.current_profile_name);
+            self.status_message = format!(
+                "Warning: Profile '{}' already exists. Click 'Save Profile' again to overwrite.",
+                self.current_profile_name
+            );
             return Task::none();
         }
 
@@ -496,9 +517,10 @@ impl FlexPadApp {
 
         if let Some(selected) = &self.selected_profile
             && selected.name != self.current_profile_name
-            && selected.path.exists() {
-                let _ = std::fs::remove_file(&selected.path);
-            }
+            && selected.path.exists()
+        {
+            let _ = std::fs::remove_file(&selected.path);
+        }
 
         match save_profile_to_disk(&config) {
             Ok(_) => {
@@ -507,8 +529,12 @@ impl FlexPadApp {
                     .into_iter()
                     .map(|(name, p)| ProfileItem { name, path: p })
                     .collect();
-                self.selected_profile = self.saved_profiles.iter().find(|p| p.name == self.current_profile_name).cloned();
-                
+                self.selected_profile = self
+                    .saved_profiles
+                    .iter()
+                    .find(|p| p.name == self.current_profile_name)
+                    .cloned();
+
                 save_user_settings(&UserSettings {
                     last_profile: Some(self.current_profile_name.clone()),
                     advanced_mode: self.ui.advanced_mode,
@@ -526,7 +552,7 @@ impl FlexPadApp {
         let new_name = format!("{}_Copy", self.current_profile_name);
         self.current_profile_name = new_name.clone();
         self.ui.pending_overwrite = false;
-        
+
         let config = FlexPadConfig {
             profile_name: new_name.clone(),
             tiles: self.tiles.clone(),
@@ -537,8 +563,12 @@ impl FlexPadApp {
                 .into_iter()
                 .map(|(name, p)| ProfileItem { name, path: p })
                 .collect();
-            self.selected_profile = self.saved_profiles.iter().find(|p| p.name == new_name).cloned();
-            
+            self.selected_profile = self
+                .saved_profiles
+                .iter()
+                .find(|p| p.name == new_name)
+                .cloned();
+
             save_user_settings(&UserSettings {
                 last_profile: Some(new_name.clone()),
                 advanced_mode: self.ui.advanced_mode,
@@ -556,10 +586,11 @@ impl FlexPadApp {
             }
             canvas::CanvasMessage::DragPosition(x, y) => {
                 if let Some(id) = &self.dragging_tile_id
-                    && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id) {
-                        tile.x = x;
-                        tile.y = y;
-                    }
+                    && let Some(tile) = self.tiles.iter_mut().find(|t| t.id == *id)
+                {
+                    tile.x = x;
+                    tile.y = y;
+                }
             }
             canvas::CanvasMessage::EndDrag => {
                 self.dragging_tile_id = None;
@@ -623,10 +654,7 @@ impl FlexPadApp {
 
         let workspace = view_workspace(self);
 
-        let content = column![
-            header,
-            workspace,
-        ].spacing(15);
+        let content = column![header, workspace,].spacing(15);
 
         container(content.padding(20))
             .width(Length::Fill)

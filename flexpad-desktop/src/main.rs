@@ -1,9 +1,9 @@
 mod app;
-mod config;
-mod device;
 mod canvas;
-mod ui;
+mod config;
 mod constants;
+mod device;
+mod ui;
 
 use app::FlexPadApp;
 

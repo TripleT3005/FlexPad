@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TileType {
@@ -10,10 +10,7 @@ pub enum TileType {
 }
 
 impl TileType {
-    pub const ALL: &[TileType] = &[
-        TileType::Button,
-        TileType::EC11,
-    ];
+    pub const ALL: &[TileType] = &[TileType::Button, TileType::EC11];
 }
 
 impl std::fmt::Display for TileType {
@@ -78,15 +75,21 @@ pub fn parse_macro(macro_str: &str) -> Vec<MacroAction> {
     for part in macro_str.split(',') {
         let part = part.trim();
         if part.starts_with("P:") {
-            actions.push(MacroAction::PressKey(part.strip_prefix("P:").unwrap().to_string()));
+            actions.push(MacroAction::PressKey(
+                part.strip_prefix("P:").unwrap().to_string(),
+            ));
         } else if part.starts_with("R:") {
-            actions.push(MacroAction::ReleaseKey(part.strip_prefix("R:").unwrap().to_string()));
+            actions.push(MacroAction::ReleaseKey(
+                part.strip_prefix("R:").unwrap().to_string(),
+            ));
         } else if part.starts_with("D:") {
             if let Ok(ms) = part.strip_prefix("D:").unwrap().parse::<u32>() {
                 actions.push(MacroAction::Delay(ms));
             }
         } else if part.starts_with("MEDIA:") {
-            actions.push(MacroAction::Media(part.strip_prefix("MEDIA:").unwrap().to_string()));
+            actions.push(MacroAction::Media(
+                part.strip_prefix("MEDIA:").unwrap().to_string(),
+            ));
         } else if part.starts_with("TEXT:") {
             let text_val = part.strip_prefix("TEXT:").unwrap().replace("\\n", "\n");
             actions.push(MacroAction::TypeText(text_val));
@@ -96,8 +99,9 @@ pub fn parse_macro(macro_str: &str) -> Vec<MacroAction> {
 }
 
 pub fn compile_macro(actions: &[MacroAction]) -> String {
-    actions.iter().map(|action| {
-        match action {
+    actions
+        .iter()
+        .map(|action| match action {
             MacroAction::PressKey(k) => format!("P:{}", k),
             MacroAction::ReleaseKey(k) => format!("R:{}", k),
             MacroAction::Delay(ms) => format!("D:{}", ms),
@@ -107,8 +111,9 @@ pub fn compile_macro(actions: &[MacroAction]) -> String {
                 let encoded = mapped.replace('\n', "\\n");
                 format!("TEXT:{}", encoded)
             }
-        }
-    }).collect::<Vec<String>>().join(",")
+        })
+        .collect::<Vec<String>>()
+        .join(",")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,7 +176,7 @@ pub fn get_base_dir() -> PathBuf {
         .or_else(|_| std::env::var("HOME"))
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("."));
-    
+
     let path = home_dir.join("FlexPad");
     if !path.exists() {
         let _ = fs::create_dir_all(&path);
@@ -218,10 +223,10 @@ pub fn save_profile_to_disk(config: &FlexPadConfig) -> Result<PathBuf, String> {
     let dir = get_profiles_dir();
     let file_name = format!("{}.json", config.profile_name.replace(' ', "_"));
     let file_path = dir.join(file_name);
-    
+
     let json_str = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
     fs::write(&file_path, json_str).map_err(|e| e.to_string())?;
-    
+
     Ok(file_path)
 }
 
@@ -234,14 +239,15 @@ pub fn load_profile_from_disk(file_path: &PathBuf) -> Result<FlexPadConfig, Stri
 pub fn list_saved_profiles() -> Vec<(String, PathBuf)> {
     let dir = get_profiles_dir();
     let mut profiles = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json")
-                && let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    profiles.push((file_stem.to_string(), path));
-                }
+                && let Some(file_stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                profiles.push((file_stem.to_string(), path));
+            }
         }
     }
     profiles
