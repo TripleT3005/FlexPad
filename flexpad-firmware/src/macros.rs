@@ -35,7 +35,6 @@ pub enum MacroError<'a> {
     UnknownMedia(&'a str),
     InvalidDelay(&'a str),
     InvalidText,
-    Unsupported(&'a str),
     UnknownAction(&'a str),
     TooLarge,
 }
@@ -49,7 +48,6 @@ impl Display for MacroError<'_> {
             MacroError::UnknownMedia(name) => write!(f, "unknown_media:{name}"),
             MacroError::InvalidDelay(value) => write!(f, "invalid_delay:{value}"),
             MacroError::InvalidText => f.write_str("invalid_text"),
-            MacroError::Unsupported(kind) => write!(f, "unsupported:{kind}"),
             MacroError::UnknownAction(kind) => write!(f, "unknown_action:{kind}"),
             MacroError::TooLarge => f.write_str("too_large"),
         }
@@ -587,10 +585,6 @@ mod tests {
         assert_eq!(
             MacroError::InvalidStructure("action").to_string(),
             "invalid_structure:action"
-        );
-        assert_eq!(
-            MacroError::Unsupported("text").to_string(),
-            "unsupported:text"
         );
         assert_eq!(MacroError::InvalidJson(3).to_string(), "invalid_json:3");
     }
