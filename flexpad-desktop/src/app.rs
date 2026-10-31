@@ -430,6 +430,9 @@ impl FlexPadApp {
     }
 
     fn handle_load_config(&mut self) -> Task<Message> {
+        if self.is_device_busy() {
+            return Task::none();
+        }
         let Some(port) = self.serial_port.clone() else {
             self.status_message = "Not connected to any device.".to_string();
             return Task::none();
@@ -491,6 +494,9 @@ impl FlexPadApp {
     }
 
     fn handle_set_config(&mut self) -> Task<Message> {
+        if self.is_device_busy() {
+            return Task::none();
+        }
         let json_str = match self.current_profile().to_json() {
             Ok(json_str) => json_str,
             Err(e) => {
@@ -695,4 +701,117 @@ fn in_background<T: Send + 'static>(
         async move { tokio::task::spawn_blocking(work).await },
         move |result| result.map_or(Message::DeviceTaskFailed, done),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_app() -> FlexPadApp {
+        FlexPadApp {
+            status_message: String::new(),
+            available_devices: Vec::new(),
+            selected_device: Some(device()),
+            connected_device: None,
+            serial_port: None,
+            device_task: None,
+            tiles: Vec::new(),
+            selected_tile_id: None,
+            dragging_tile_id: None,
+            selected_component: None,
+            current_profile_name: "Test".to_string(),
+            keyboard_layout: KeyboardLayout::Us,
+            saved_profiles: Vec::new(),
+            selected_profile: None,
+            ui: UiState::default(),
+        }
+    }
+
+    fn device() -> FlexPadDeviceInfo {
+        FlexPadDeviceInfo {
+            port_name: "COM9".to_string(),
+            device_id: "FlexPad-14C19F46A1DC".to_string(),
+        }
+    }
+
+    // Device access
+
+    #[test]
+    fn a_running_access_blocks_further_accesses() {
+        let mut app = test_app();
+
+        let _ = app.update(Message::ScanDevices);
+        let _ = app.update(Message::ConnectDevice);
+        let _ = app.update(Message::LoadConfig);
+        let _ = app.update(Message::SetConfig);
+
+        assert!(app.is_device_busy());
+        assert_eq!(app.device_task, Some(DeviceTask::Scanning));
+        assert_eq!(app.status_message, DeviceTask::Scanning.status());
+    }
+
+    #[test]
+    fn success_ends_the_access() {
+        let mut app = test_app();
+        app.selected_device = None;
+
+        let _ = app.update(Message::ScanDevices);
+        let _ = app.update(Message::DevicesScanned(vec![device()]));
+
+        assert!(!app.is_device_busy());
+        assert_eq!(app.available_devices, [device()]);
+        assert_eq!(app.selected_device, Some(device()));
+        assert_eq!(app.status_message, "Found 1 device(s).");
+    }
+
+    #[test]
+    fn errors_end_the_access() {
+        let mut app = test_app();
+
+        let _ = app.update(Message::ConnectDevice);
+        assert_eq!(app.device_task, Some(DeviceTask::Connecting));
+        let _ = app.update(Message::DeviceConnected(
+            device(),
+            Err("Access denied".to_string()),
+        ));
+        assert!(!app.is_device_busy());
+        assert!(app.connected_device.is_none());
+        assert_eq!(app.status_message, "Connection failed: Access denied");
+
+        app.device_task = Some(DeviceTask::Saving);
+        let _ = app.update(Message::ConfigSet(Err("timeout".to_string())));
+        assert!(!app.is_device_busy());
+        assert_eq!(app.status_message, "Failed to save config: timeout");
+
+        app.device_task = Some(DeviceTask::Loading);
+        let _ = app.update(Message::ConfigLoaded(Err("timeout".to_string())));
+        assert!(!app.is_device_busy());
+        assert_eq!(app.status_message, "Error: timeout. Disconnected.");
+
+        app.device_task = Some(DeviceTask::Loading);
+        let _ = app.update(Message::ConfigLoaded(Ok("[]".to_string())));
+        assert!(!app.is_device_busy());
+        assert!(
+            app.status_message
+                .starts_with("Could not read the device configuration")
+        );
+
+        app.device_task = Some(DeviceTask::Scanning);
+        let _ = app.update(Message::DeviceTaskFailed);
+        assert!(!app.is_device_busy());
+    }
+
+    #[test]
+    fn disconnecting_waits_for_a_running_access() {
+        let mut app = test_app();
+        app.connected_device = Some(device());
+        app.device_task = Some(DeviceTask::Saving);
+
+        let _ = app.update(Message::DisconnectDevice);
+        assert!(app.connected_device.is_some());
+
+        app.device_task = None;
+        let _ = app.update(Message::DisconnectDevice);
+        assert!(app.connected_device.is_none());
+    }
 }
