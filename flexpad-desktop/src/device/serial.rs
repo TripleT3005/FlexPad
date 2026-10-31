@@ -124,12 +124,17 @@ pub fn set_config_to_device(
     let timeout = Duration::from_millis(2000);
 
     while start_time.elapsed() < timeout {
-        if let Some(response) = read_line_from_port(port, Duration::from_millis(500))
-            && (response.contains("CONFIG_SAVED")
-                || response.contains("CONFIG_OK")
-                || response.contains("ACK"))
+        let Some(response) = read_line_from_port(port, Duration::from_millis(500)) else {
+            continue;
+        };
+        if response.contains("CONFIG_SAVED")
+            || response.contains("CONFIG_OK")
+            || response.contains("ACK")
         {
             return Ok(());
+        }
+        if let Some(reason) = response.strip_prefix("CONFIG_ERROR:") {
+            return Err(format!("The device rejected the configuration ({reason})"));
         }
     }
     Err("Timeout waiting for ACK after setting config".to_string())

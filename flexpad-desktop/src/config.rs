@@ -1,26 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum TileType {
-    Button,
-    EC11,
-}
-
-impl TileType {
-    pub const ALL: &[TileType] = &[TileType::Button, TileType::EC11];
-}
-
-impl std::fmt::Display for TileType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TileType::Button => write!(f, "Button"),
-            TileType::EC11 => write!(f, "EC11 Rotary Encoder"),
-        }
-    }
-}
+use crate::profile::{self, Profile};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MacroAction {
@@ -116,61 +98,6 @@ pub fn compile_macro(actions: &[MacroAction]) -> String {
         .join(",")
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TileFunction {
-    pub pin: String,
-    pub macro_str: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasTile {
-    pub id: String,
-    pub display_name: String,
-    pub tile_type: TileType,
-    pub functions: BTreeMap<String, TileFunction>,
-    pub x: f32,
-    pub y: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlexPadConfig {
-    #[serde(default = "default_profile_name")]
-    pub profile_name: String,
-    #[serde(default)]
-    pub tiles: Vec<CanvasTile>,
-}
-
-fn default_profile_name() -> String {
-    "Default_Profile".to_string()
-}
-
-impl Default for FlexPadConfig {
-    fn default() -> Self {
-        let mut default_functions = BTreeMap::new();
-        default_functions.insert(
-            "button".to_string(),
-            TileFunction {
-                pin: "1".to_string(),
-                macro_str: "P:lctrl,P:c,D:50,R:c,R:lctrl".to_string(),
-            },
-        );
-
-        let initial_tile = CanvasTile {
-            id: "tile_1".to_string(),
-            display_name: "Button 1".to_string(),
-            tile_type: TileType::Button,
-            functions: default_functions,
-            x: 50.0,
-            y: 50.0,
-        };
-
-        Self {
-            profile_name: "Default_Profile".to_string(),
-            tiles: vec![initial_tile],
-        }
-    }
-}
-
 pub fn get_base_dir() -> PathBuf {
     let home_dir = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
@@ -219,21 +146,20 @@ pub fn save_user_settings(settings: &UserSettings) {
     }
 }
 
-pub fn save_profile_to_disk(config: &FlexPadConfig) -> Result<PathBuf, String> {
+pub fn save_profile_to_disk(config: &Profile) -> Result<PathBuf, String> {
     let dir = get_profiles_dir();
     let file_name = format!("{}.json", config.profile_name.replace(' ', "_"));
     let file_path = dir.join(file_name);
 
-    let json_str = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    let json_str = config.to_pretty_json()?;
     fs::write(&file_path, json_str).map_err(|e| e.to_string())?;
 
     Ok(file_path)
 }
 
-pub fn load_profile_from_disk(file_path: &PathBuf) -> Result<FlexPadConfig, String> {
+pub fn load_profile_from_disk(file_path: &PathBuf) -> Result<Profile, String> {
     let json_str = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
-    let config: FlexPadConfig = serde_json::from_str(&json_str).map_err(|e| e.to_string())?;
-    Ok(config)
+    profile::parse_profile(&json_str)
 }
 
 pub fn list_saved_profiles() -> Vec<(String, PathBuf)> {
@@ -407,38 +333,5 @@ mod tests {
     #[ignore = "known bug, see #6"]
     fn roundtrip_keeps_backslashes_and_spaces_in_text() {
         assert_roundtrip(vec![MacroAction::TypeText(r" C:\new\folder ".to_string())]);
-    }
-
-    // Configuration
-
-    #[test]
-    fn config_uses_defaults_for_missing_fields() {
-        let config: FlexPadConfig = serde_json::from_str("{}").unwrap();
-
-        assert_eq!(config.profile_name, "Default_Profile");
-        assert!(config.tiles.is_empty());
-    }
-
-    #[test]
-    fn config_survives_json_roundtrip() {
-        let config = FlexPadConfig::default();
-
-        let json = serde_json::to_string(&config).unwrap();
-        let loaded: FlexPadConfig = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(serde_json::to_string(&loaded).unwrap(), json);
-        assert_eq!(loaded.tiles.len(), 1);
-        assert_eq!(loaded.tiles[0].tile_type, TileType::Button);
-        assert_eq!(
-            loaded.tiles[0].functions["button"].macro_str,
-            "P:lctrl,P:c,D:50,R:c,R:lctrl"
-        );
-    }
-
-    #[test]
-    fn config_rejects_unknown_tile_type() {
-        let json = r#"{"tiles":[{"id":"t","display_name":"T","tile_type":"Joystick","functions":{},"x":0,"y":0}]}"#;
-
-        assert!(serde_json::from_str::<FlexPadConfig>(json).is_err());
     }
 }
