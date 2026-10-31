@@ -1,8 +1,10 @@
 # Changelog
 
-All notable changes to FlexPad, grouped by version in the style of [Keep a Changelog](https://keepachangelog.com/). The section of each version is used as its release notes.
+All notable changes to FlexPad, grouped by version in the style of [Keep a Changelog](https://keepachangelog.com/). The section of each version is used as its release notes. Changes on `main` that are not released yet are collected under [Unreleased] and move into the section of the next version.
 
-Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep a Changelog](https://keepachangelog.com/de/). Der Abschnitt einer Version wird als ihre Release-Notizen verwendet.
+Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep a Changelog](https://keepachangelog.com/de/). Der Abschnitt einer Version wird als ihre Release-Notizen verwendet. Änderungen auf `main`, die noch nicht veröffentlicht sind, stehen unter [Unreleased] und wandern mit der nächsten Version in deren Abschnitt.
+
+## [Unreleased]
 
 ## [0.1.0] – 2026-10-31
 
