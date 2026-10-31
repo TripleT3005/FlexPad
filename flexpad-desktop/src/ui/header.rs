@@ -1,19 +1,19 @@
-use crate::app::{Message, ProfileItem};
-use crate::device::FlexPadDeviceInfo;
+use crate::app::{FlexPadApp, Message};
+use crate::keys::KeyboardLayout;
 use iced::widget::{button, column, container, pick_list, row, text, text_input};
 use iced::{Element, Length};
 
-pub fn view_header<'a>(
-    status_message: &'a str,
-    available_devices: &'a [FlexPadDeviceInfo],
-    selected_device: Option<&'a FlexPadDeviceInfo>,
-    connected_device: Option<&'a FlexPadDeviceInfo>,
-    saved_profiles: &'a [ProfileItem],
-    selected_profile: Option<&'a ProfileItem>,
-    current_profile_name: &'a str,
-) -> Element<'a, Message> {
+pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
+    let status_message = app.status_message.as_str();
+    let available_devices = &app.available_devices;
+    let selected_device = app.selected_device.as_ref();
+    let saved_profiles = &app.saved_profiles;
+    let selected_profile = app.selected_profile.as_ref();
+    let current_profile_name = app.current_profile_name.as_str();
+    let keyboard_layout = app.keyboard_layout;
+
     let title = text("FlexPad Configurator").size(24);
-    let is_connected = connected_device.is_some();
+    let is_connected = app.connected_device.is_some();
     let status_indicator = if is_connected {
         text("🟢 Connected").size(14)
     } else {
@@ -52,6 +52,13 @@ pub fn view_header<'a>(
         .width(220)
         .padding(5);
 
+    let layout_picker = pick_list(
+        KeyboardLayout::ALL,
+        Some(keyboard_layout),
+        Message::KeyboardLayoutSelected,
+    )
+    .width(220);
+
     let new_profile_btn = button("New Profile")
         .padding(8)
         .on_press(Message::NewProfile);
@@ -62,6 +69,9 @@ pub fn view_header<'a>(
     let profile_controls_col = column![
         profile_picker,
         name_input,
+        row![text("Keyboard layout:").size(12), layout_picker]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
         row![new_profile_btn, save_profile_btn].spacing(10),
     ]
     .spacing(8);

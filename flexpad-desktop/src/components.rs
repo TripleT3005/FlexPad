@@ -104,7 +104,7 @@ pub const BUTTON: Component = Component {
     functions: &[Function {
         id: "press",
         label: "Press",
-        default_macro: "P:lctrl,P:c,D:50,R:c,R:lctrl",
+        default_macro: "P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft",
     }],
     parameters: &[DEBOUNCE],
 };

@@ -75,13 +75,14 @@ A profile already stored on the device is kept: the image ends before the profil
 ### Usage
 1. Connect the FlexPad via USB and start the app.
 2. **Scan Devices**, select the device and **Connect**.
-3. **Load Config** reads the configuration stored on the device.
-4. Add tiles with **Add Tile** (button or EC11 encoder), drag them into place and select one to edit it in the **Tile Inspector**:
+3. Choose the **Keyboard layout** of the computer the pad is used with; the key names in the macro editor follow it.
+4. **Load Config** reads the configuration stored on the device.
+5. Add tiles with **Add Tile** (button or EC11 encoder), drag them into place and select one to edit it in the **Tile Inspector**:
    - **Pins**: choose the GPIO pin for each connection of the component (only free, usable pins are offered),
    - **Parameters**: debounce time, and for encoders the steps per detent and the direction,
    - **Functions** (e.g. press, turn right, turn left): open one to edit its macro,
    - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the raw macro string.
-5. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
+6. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
 
 ### How it works
 The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
@@ -99,7 +100,7 @@ The app and the device talk over the USB serial port of the board (line-based te
 
 Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key, `TEXT:<text>` type text (not executed yet). Example: `P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft` (copy).
 
-Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The firmware also accepts the older names the app still uses (`lctrl`, `ael`, `kp_1` …). Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
+Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The app shows the keys with the labels of the keyboard layout chosen in the profile (e.g. `KeyY` as "Z" on a German layout); older names from earlier versions (`lctrl`, `ael`, `kp_1` …) are converted when a profile is loaded. Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
 - **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
@@ -221,13 +222,14 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
 ### Bedienung
 1. FlexPad per USB anschließen und die App starten.
 2. **Scan Devices**, das Gerät auswählen und **Connect**.
-3. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
-4. Mit **Add Tile** Kacheln hinzufügen (Taster oder EC11-Encoder), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
+3. Unter **Keyboard layout** das Tastaturlayout des Rechners wählen, an dem das Pad benutzt wird; die Tastennamen im Makro-Editor richten sich danach.
+4. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
+5. Mit **Add Tile** Kacheln hinzufügen (Taster oder EC11-Encoder), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
    - **Pins**: für jeden Anschluss des Bauteils den GPIO-Pin wählen (angeboten werden nur freie, nutzbare Pins),
    - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung,
    - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen): aufklappen, um das Makro zu bearbeiten,
    - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt den rohen Makro-String.
-5. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
+6. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
 
 ### Funktionsweise
 Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
@@ -245,7 +247,7 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (zeile
 
 Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste, `TEXT:<text>` Text tippen (wird noch nicht ausgeführt). Beispiel: `P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft` (Kopieren).
 
-Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die Firmware versteht auch die älteren Namen, die die App noch verwendet (`lctrl`, `ael`, `kp_1` …). Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
+Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die App zeigt die Tasten mit den Beschriftungen des im Profil gewählten Tastaturlayouts (z. B. `KeyY` als „Z“ bei deutschem Layout); ältere Namen früherer Versionen (`lctrl`, `ael`, `kp_1` …) werden beim Laden eines Profils umgestellt. Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
 - **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.

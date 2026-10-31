@@ -6,6 +6,22 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 ## [Unreleased]
 
+### English
+
+#### Added
+- Keyboard layout in the profile (English (US) or German): keys in the configurator are shown with the labels printed on that layout, e.g. "Z" for the key next to "T" on a German keyboard.
+
+#### Changed
+- Keys are stored as physical key positions (`KeyA`, `ControlLeft`, `Semicolon`, …), the same names the firmware uses. Older profiles are converted automatically when loaded.
+
+### Deutsch
+
+#### Neu
+- Tastaturlayout im Profil (English (US) oder German): Tasten werden im Konfigurator mit den Beschriftungen dieses Layouts angezeigt, z. B. „Z“ für die Taste neben „T“ auf einer deutschen Tastatur.
+
+#### Geändert
+- Tasten werden als physische Tastenpositionen gespeichert (`KeyA`, `ControlLeft`, `Semicolon`, …), mit denselben Namen wie in der Firmware. Ältere Profile werden beim Laden automatisch umgestellt.
+
 ## [0.1.0] – 2026-10-31
 
 ### English

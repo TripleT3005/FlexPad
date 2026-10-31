@@ -1,7 +1,8 @@
 use crate::app::{FlexPadApp, Message};
 use crate::components::{self, Component, Function, Parameter, ParameterKind, PinRole};
 use crate::config::{MacroAction, parse_macro};
-use crate::constants::{AVAILABLE_KEYS, FIRMWARE_PINS, MEDIA_ACTIONS, PRESETS};
+use crate::constants::{FIRMWARE_PINS, MEDIA_ACTIONS, PRESETS};
+use crate::keys::{self, KEYS, KeyboardLayout};
 use crate::profile::Tile;
 use iced::widget::{Column, button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Element, Length};
@@ -229,7 +230,8 @@ fn view_macro_editor<'a>(
     } else {
         let total_actions = actions.len();
         for (a_idx, action) in actions.into_iter().enumerate() {
-            let mut item_row = row![text(format!("{}. {}", a_idx + 1, action)).size(11)]
+            let label = action_label(&action, app.keyboard_layout);
+            let mut item_row = row![text(format!("{}. {}", a_idx + 1, label)).size(11)]
                 .spacing(6)
                 .align_y(iced::Alignment::Center);
             if a_idx > 0 {
@@ -246,18 +248,18 @@ fn view_macro_editor<'a>(
         }
     }
 
-    let key_labels: Vec<String> = AVAILABLE_KEYS.iter().map(|k| k.0.to_string()).collect();
-    let selected_key_label = AVAILABLE_KEYS
+    let layout = app.keyboard_layout;
+    let key_labels: Vec<String> = keys::picker_keys(layout)
         .iter()
-        .find(|k| k.1 == app.ui.selected_macro_key)
-        .map(|k| k.0.to_string())
-        .unwrap_or_else(|| AVAILABLE_KEYS[0].0.to_string());
-    let key_picker = pick_list(key_labels, Some(selected_key_label), |lbl| {
-        let key = AVAILABLE_KEYS
+        .map(|k| k.label(layout).to_string())
+        .collect();
+    let selected_key_label = keys::label_for(&app.ui.selected_macro_key, layout);
+    let key_picker = pick_list(key_labels, Some(selected_key_label), move |lbl| {
+        let code = KEYS
             .iter()
-            .find(|k| k.0 == lbl)
-            .map_or("lctrl", |k| k.1);
-        Message::MacroKeySelected(key.to_string())
+            .find(|k| k.label(layout) == lbl)
+            .map_or("ControlLeft", |k| k.code);
+        Message::MacroKeySelected(code.to_string())
     });
     let press_btn = button("Press").on_press(Message::AddMacroAction(
         target(),
@@ -394,5 +396,13 @@ pub fn pin_summary(tile: &Tile) -> String {
         UNASSIGNED.to_string()
     } else {
         pins.join(", ")
+    }
+}
+
+fn action_label(action: &MacroAction, layout: KeyboardLayout) -> String {
+    match action {
+        MacroAction::PressKey(key) => format!("Press: {}", keys::label_for(key, layout)),
+        MacroAction::ReleaseKey(key) => format!("Release: {}", keys::label_for(key, layout)),
+        other => other.to_string(),
     }
 }
