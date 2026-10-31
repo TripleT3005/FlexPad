@@ -47,7 +47,7 @@ Each action is an object with exactly one member:
 | `{ "release": "<key>" }` | Release a key |
 | `{ "delay": <ms> }` | Wait 0–60 000 ms (a whole number) |
 | `{ "media": "<name>" }` | Press and release a media key: `vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`, `stop` (also `AudioVolumeUp`, `AudioVolumeDown`, `AudioVolumeMute`, `MediaTrackNext`, `MediaTrackPrevious`, `MediaPlayPause`, `MediaStop`) |
-| `{ "text": "<text>" }` | Type text, as a normal JSON string (commas, quotes, `\n` and `\\` need no extra escaping); accepted in profiles but not executed yet (#4, #5) |
+| `{ "text": "<text>" }` | Type text, as a normal JSON string (commas, quotes, `\n` and `\\` need no extra escaping); accepted in profiles but not executed yet (#4) |
 
 An empty list (or a missing `actions`) means "nothing". Other members of a function object are ignored; they are reserved for functions that are not macros (#47).
 
@@ -56,6 +56,17 @@ Macros run one after another in the background (up to 8 waiting). After each mac
 ### Macro strings
 
 Before function objects, a function was a string with comma-separated actions: `P:<key>`, `R:<key>`, `D:<ms>`, `MEDIA:<name>` and `TEXT:<text>`, e.g. `"P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft"`. The firmware still accepts such strings in profiles (also in format 1 and the Arduino format) so that a stored profile keeps working after a firmware update; in `TEXT:`, `\n` stands for a line break and a comma ends the text. The app converts them into function objects when a profile is loaded and only writes function objects.
+
+### Text and keyboard layouts
+
+USB keyboards send key positions, not characters; the computer's layout turns them into characters. For a text action, the firmware therefore looks up (once text is typed, #4) every character for the `keyboard_layout` of the profile and sends the key position with Shift or AltGr as needed:
+
+| Layout | Characters |
+|---|---|
+| `us` | Letters `a`–`z`, `A`–`Z`, digits, space, line break (Enter), tab and all printable ASCII symbols |
+| `de` | The same, plus `ä ö ü Ä Ö Ü ß § ° ² ³ € µ ´`; `^`, `´` and `` ` `` and the vowels with these accents (`â é ò …`) are typed with the dead keys |
+
+Characters the layout cannot type are skipped. The app lists them below the text action.
 
 ### Key names
 
@@ -117,7 +128,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 - `functions`: function → [function object](#functions). A missing function or an empty `actions` list means "nothing".
 - `parameters`: missing values use the defaults below; unknown parameters are ignored.
 - `component` names the component the tile was created from (`button`, `ec11`). The app uses it for the display; the firmware ignores it.
-- `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware ignores it so far (it will be used for text actions, #5).
+- `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware uses it to turn the characters of text actions into key presses (see [Text and keyboard layouts](#text-and-keyboard-layouts)). Other values are rejected.
 
 ### Kinds
 
@@ -147,6 +158,7 @@ Profiles without `format` (from app versions before 0.1.0) are still accepted: e
 | `invalid_json:<position>` | Not valid JSON, e.g. a truncated transfer; byte position of the problem |
 | `invalid_structure:<part>` | A part has the wrong type (`root`, `tiles`, `tile`, `pins`, `functions`, `function`, `parameters`) |
 | `unsupported_format` | `format` is not 1 or 2 |
+| `unknown_layout` | `keyboard_layout` is not `us` or `de` |
 | `unknown_kind` / `unknown_role` / `unknown_function` | Not listed in [Kinds](#kinds) |
 | `invalid_parameter:<name>` | Parameter outside its range |
 | `invalid_pin` | Pin is not a number |

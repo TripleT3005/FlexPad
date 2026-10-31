@@ -9,6 +9,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### English
 
 #### Added
+- The configurator lists the characters of a text action that the keyboard layout of the profile cannot type, e.g. umlauts on a US layout.
 - Keyboard layout in the profile (English (US) or German): keys in the configurator are shown with the labels printed on that layout, e.g. "Z" for the key next to "T" on a German keyboard.
 
 #### Changed
@@ -28,6 +29,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### Deutsch
 
 #### Neu
+- Der Konfigurator listet die Zeichen einer Textaktion auf, die das Tastaturlayout des Profils nicht tippen kann, z. B. Umlaute bei US-Layout.
 - Tastaturlayout im Profil (English (US) oder German): Tasten werden im Konfigurator mit den Beschriftungen dieses Layouts angezeigt, z. B. „Z“ für die Taste neben „T“ auf einer deutschen Tastatur.
 
 #### Geändert
