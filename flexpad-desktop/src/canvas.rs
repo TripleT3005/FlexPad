@@ -95,16 +95,25 @@ impl Program<CanvasMessage> for GridProgram {
         &self,
         _state: &Self::State,
         renderer: &Renderer,
-        _theme: &Theme,
+        theme: &Theme,
         bounds: Rectangle,
         _cursor: iced::mouse::Cursor,
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
 
-        let background_color = Color::from_rgb(0.08, 0.09, 0.11);
+        let is_dark = theme.extended_palette().is_dark;
+        let background_color = if is_dark {
+            Color::from_rgb(0.08, 0.09, 0.11)
+        } else {
+            Color::from_rgb(0.94, 0.95, 0.96)
+        };
         frame.fill_rectangle(Point::ORIGIN, bounds.size(), background_color);
 
-        let dot_color = Color::from_rgba(1.0, 1.0, 1.0, 0.15);
+        let dot_color = if is_dark {
+            Color::from_rgba(1.0, 1.0, 1.0, 0.15)
+        } else {
+            Color::from_rgba(0.0, 0.0, 0.0, 0.2)
+        };
         let spacing: f32 = 30.0;
         let dot_radius: f32 = 1.5;
 

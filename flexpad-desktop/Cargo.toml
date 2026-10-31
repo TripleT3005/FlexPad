@@ -2,6 +2,14 @@
 name = "flexpad-desktop"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
+description = "Desktop configurator for the FlexPad macro pad"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "flexpad"
+path = "src/main.rs"
 
 [dependencies]
 iced = { version = "0.14", features = ["canvas", "tokio"] }
@@ -10,3 +18,8 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tokio = { version = "1.53.3", features = ["full"] }
 directories = "6.0.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
