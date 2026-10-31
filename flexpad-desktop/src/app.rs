@@ -11,7 +11,7 @@ use crate::config::{
 };
 use crate::constants::PRESETS;
 use crate::device::{
-    FlexPadDeviceInfo, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
+    FlexPadDeviceInfo, SharedPort, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
     set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
@@ -60,12 +60,32 @@ impl Default for UiState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeviceTask {
+    Scanning,
+    Connecting,
+    Loading,
+    Saving,
+}
+
+impl DeviceTask {
+    fn status(self) -> &'static str {
+        match self {
+            DeviceTask::Scanning => "Scanning for FlexPad devices...",
+            DeviceTask::Connecting => "Connecting to the device...",
+            DeviceTask::Loading => "Loading the configuration from the device...",
+            DeviceTask::Saving => "Saving the configuration to the device...",
+        }
+    }
+}
+
 pub struct FlexPadApp {
     pub status_message: String,
     pub available_devices: Vec<FlexPadDeviceInfo>,
     pub selected_device: Option<FlexPadDeviceInfo>,
     pub connected_device: Option<FlexPadDeviceInfo>,
-    pub serial_port: Option<Box<dyn serialport::SerialPort>>,
+    pub serial_port: Option<SharedPort>,
+    pub device_task: Option<DeviceTask>,
 
     pub tiles: Vec<Tile>,
     pub selected_tile_id: Option<String>,
@@ -88,6 +108,11 @@ pub enum Message {
     DisconnectDevice,
     LoadConfig,
     SetConfig,
+    DevicesScanned(Vec<FlexPadDeviceInfo>),
+    DeviceConnected(FlexPadDeviceInfo, Result<SharedPort, String>),
+    ConfigLoaded(Result<String, String>),
+    ConfigSet(Result<(), String>),
+    DeviceTaskFailed,
     CheckConnectionTick,
     ProfileSelected(ProfileItem),
     SaveCurrentProfile,
@@ -164,6 +189,7 @@ impl FlexPadApp {
                 selected_device: None,
                 connected_device: None,
                 serial_port: None,
+                device_task: None,
                 tiles: initial_profile.tiles,
                 selected_tile_id: None,
                 dragging_tile_id: None,
@@ -212,16 +238,28 @@ impl FlexPadApp {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::ScanDevices => self.handle_scan_devices(),
+            Message::ScanDevices => return self.handle_scan_devices(),
             Message::DeviceSelected(device) => self.selected_device = Some(device),
-            Message::ConnectDevice => self.handle_connect_device(),
+            Message::ConnectDevice => return self.handle_connect_device(),
             Message::DisconnectDevice => {
-                self.serial_port = None;
-                self.connected_device = None;
-                self.status_message = "Disconnected.".to_string();
+                if !self.is_device_busy() {
+                    self.serial_port = None;
+                    self.connected_device = None;
+                    self.status_message = "Disconnected.".to_string();
+                }
             }
-            Message::LoadConfig => self.handle_load_config(),
-            Message::SetConfig => self.handle_set_config(),
+            Message::LoadConfig => return self.handle_load_config(),
+            Message::SetConfig => return self.handle_set_config(),
+            Message::DevicesScanned(devices) => self.handle_devices_scanned(devices),
+            Message::DeviceConnected(device, result) => {
+                self.handle_device_connected(device, result)
+            }
+            Message::ConfigLoaded(result) => self.handle_config_loaded(result),
+            Message::ConfigSet(result) => self.handle_config_set(result),
+            Message::DeviceTaskFailed => {
+                self.device_task = None;
+                self.status_message = "The device access failed unexpectedly.".to_string();
+            }
             Message::CheckConnectionTick => self.handle_connection_tick(),
             Message::ProfileSelected(profile) => self.handle_profile_selected(profile),
             Message::SaveCurrentProfile => self.handle_save_profile(),
@@ -325,9 +363,29 @@ impl FlexPadApp {
         Task::none()
     }
 
-    fn handle_scan_devices(&mut self) {
-        self.status_message = "Scanning for FlexPad devices...".to_string();
-        self.available_devices = scan_flexpad_devices();
+    fn start_device_task(&mut self, task: DeviceTask) -> bool {
+        if self.is_device_busy() {
+            return false;
+        }
+        self.device_task = Some(task);
+        self.status_message = task.status().to_string();
+        true
+    }
+
+    pub fn is_device_busy(&self) -> bool {
+        self.device_task.is_some()
+    }
+
+    fn handle_scan_devices(&mut self) -> Task<Message> {
+        if !self.start_device_task(DeviceTask::Scanning) {
+            return Task::none();
+        }
+        in_background(scan_flexpad_devices, Message::DevicesScanned)
+    }
+
+    fn handle_devices_scanned(&mut self, devices: Vec<FlexPadDeviceInfo>) {
+        self.device_task = None;
+        self.available_devices = devices;
         if self.available_devices.is_empty() {
             self.status_message = "No FlexPad devices found.".to_string();
             self.selected_device = None;
@@ -339,27 +397,55 @@ impl FlexPadApp {
         }
     }
 
-    fn handle_connect_device(&mut self) {
-        if let Some(device) = &self.selected_device {
-            match connect_to_port(&device.port_name) {
-                Ok(port) => {
-                    self.serial_port = Some(port);
-                    self.connected_device = Some(device.clone());
-                    self.status_message = format!("Connected to {}", device.device_id);
-                }
-                Err(e) => {
-                    self.status_message = format!("Connection failed: {}", e);
-                }
+    fn handle_connect_device(&mut self) -> Task<Message> {
+        let Some(device) = self.selected_device.clone() else {
+            return Task::none();
+        };
+        if !self.start_device_task(DeviceTask::Connecting) {
+            return Task::none();
+        }
+        let port_name = device.port_name.clone();
+        in_background(
+            move || connect_to_port(&port_name).map(SharedPort::new),
+            move |result| Message::DeviceConnected(device, result),
+        )
+    }
+
+    fn handle_device_connected(
+        &mut self,
+        device: FlexPadDeviceInfo,
+        result: Result<SharedPort, String>,
+    ) {
+        self.device_task = None;
+        match result {
+            Ok(port) => {
+                self.status_message = format!("Connected to {}", device.device_id);
+                self.serial_port = Some(port);
+                self.connected_device = Some(device);
+            }
+            Err(e) => {
+                self.status_message = format!("Connection failed: {}", e);
             }
         }
     }
 
-    fn handle_load_config(&mut self) {
-        let Some(port) = &mut self.serial_port else {
+    fn handle_load_config(&mut self) -> Task<Message> {
+        let Some(port) = self.serial_port.clone() else {
             self.status_message = "Not connected to any device.".to_string();
-            return;
+            return Task::none();
         };
-        let json_str = match fetch_config_from_device(port) {
+        if !self.start_device_task(DeviceTask::Loading) {
+            return Task::none();
+        }
+        in_background(
+            move || fetch_config_from_device(&mut port.lock()),
+            Message::ConfigLoaded,
+        )
+    }
+
+    fn handle_config_loaded(&mut self, result: Result<String, String>) {
+        self.device_task = None;
+        let json_str = match result {
             Ok(json_str) => json_str,
             Err(e) => {
                 self.serial_port = None;
@@ -404,28 +490,45 @@ impl FlexPadApp {
         self.status_message = "Configuration loaded from device and saved locally.".to_string();
     }
 
-    fn handle_set_config(&mut self) {
+    fn handle_set_config(&mut self) -> Task<Message> {
         let json_str = match self.current_profile().to_json() {
             Ok(json_str) => json_str,
             Err(e) => {
                 self.status_message = format!("Failed to save config: {}", e);
-                return;
+                return Task::none();
             }
         };
-        let Some(port) = &mut self.serial_port else {
+        let Some(port) = self.serial_port.clone() else {
             self.status_message = "Not connected to any device.".to_string();
-            return;
+            return Task::none();
         };
-        self.status_message = match set_config_to_device(port, &json_str) {
-            Ok(_) => "Configuration saved to device.".to_string(),
+        if !self.start_device_task(DeviceTask::Saving) {
+            return Task::none();
+        }
+        in_background(
+            move || set_config_to_device(&mut port.lock(), &json_str),
+            Message::ConfigSet,
+        )
+    }
+
+    fn handle_config_set(&mut self, result: Result<(), String>) {
+        self.device_task = None;
+        self.status_message = match result {
+            Ok(()) => "Configuration saved to device.".to_string(),
             Err(e) => format!("Failed to save config: {}", e),
         };
     }
 
     fn handle_connection_tick(&mut self) {
-        if let Some(port) = &mut self.serial_port
-            && port.clear(serialport::ClearBuffer::Input).is_err()
-        {
+        if self.is_device_busy() {
+            return;
+        }
+        let unplugged = self
+            .serial_port
+            .as_ref()
+            .and_then(SharedPort::try_lock)
+            .is_some_and(|port| port.clear(serialport::ClearBuffer::Input).is_err());
+        if unplugged {
             self.serial_port = None;
             self.connected_device = None;
             self.status_message = "Device was unplugged! Disconnected.".to_string();
@@ -582,4 +685,14 @@ fn uuid_short() -> String {
     let start = SystemTime::now();
     let since_epoch = start.duration_since(UNIX_EPOCH).unwrap_or_default();
     format!("{:x}", since_epoch.subsec_nanos())
+}
+
+fn in_background<T: Send + 'static>(
+    work: impl FnOnce() -> T + Send + 'static,
+    done: impl FnOnce(T) -> Message + Send + 'static,
+) -> Task<Message> {
+    Task::perform(
+        async move { tokio::task::spawn_blocking(work).await },
+        move |result| result.map_or(Message::DeviceTaskFailed, done),
+    )
 }
