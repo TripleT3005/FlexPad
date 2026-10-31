@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 
+pub mod buttons;
 pub mod config;
 pub mod hid;
 pub mod json;

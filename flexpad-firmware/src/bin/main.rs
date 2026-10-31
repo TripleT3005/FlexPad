@@ -5,8 +5,11 @@
 use core::fmt::Write;
 
 use embassy_executor::Spawner;
-use embassy_futures::join::join3;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use embassy_futures::{
+    join::join4,
+    select::{Either, select},
+};
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex};
 use embassy_time::Timer;
 use embassy_usb::{
     Builder,
@@ -23,6 +26,7 @@ use esp_hal::{
     clock::CpuClock,
     delay::Delay,
     efuse,
+    gpio::{AnyPin, Input, InputConfig, Pull},
     peripherals::LPWR,
     system,
     timer::timg::TimerGroup,
@@ -33,7 +37,8 @@ use esp_hal::{
 };
 use esp_storage::{FlashStorage, FlashStorageError};
 use flexpad_firmware::{
-    config::{self, Bindings, ConfigError, MAX_CONFIG_SIZE},
+    buttons::{Debouncer, Edge, POLL_INTERVAL_MS},
+    config::{self, Bindings, ConfigError, INPUT_PINS, MAX_CONFIG_SIZE},
     hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
     macros::{self, Action},
     protocol::{
@@ -56,11 +61,14 @@ const HID_POLL_MS: u8 = 5;
 const MEDIA_PRESS_MS: u64 = 30;
 const MAX_MACRO_LENGTH: usize = 512;
 const MACRO_QUEUE_SIZE: usize = 4;
+const EVENT_QUEUE_SIZE: usize = 16;
 const CONFIG_PARTITION_LABEL: &str = "flexpad";
 const FIRMWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type MacroText = TextBuffer<MAX_MACRO_LENGTH>;
 type Response = TextBuffer<256>;
+type SharedConfig = Mutex<CriticalSectionRawMutex, ConfigState>;
+type Inputs = [Input<'static>; INPUT_PINS.len()];
 
 // Static state
 
@@ -78,7 +86,9 @@ static CONFIG_JSON: ConstStaticCell<[u8; MAX_CONFIG_SIZE]> =
     ConstStaticCell::new([0; MAX_CONFIG_SIZE]);
 static BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
 static SCRATCH_BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
+static CONFIG: StaticCell<SharedConfig> = StaticCell::new();
 static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroText, MACRO_QUEUE_SIZE> = Channel::new();
+static EVENT_QUEUE: Channel<CriticalSectionRawMutex, (u8, Edge), EVENT_QUEUE_SIZE> = Channel::new();
 
 // Entry point
 
@@ -102,7 +112,39 @@ async fn main(_spawner: Spawner) -> ! {
     let serial_number: &'static TextBuffer<32> = serial_number;
     let serial_number = serial_number.as_str();
 
-    let mut config_state = ConfigState::load(FlashStorage::new(peripherals.FLASH));
+    let config: &'static SharedConfig = CONFIG.init(Mutex::new(ConfigState::load(
+        FlashStorage::new(peripherals.FLASH),
+    )));
+
+    let input_pins: [AnyPin<'static>; INPUT_PINS.len()] = [
+        peripherals.GPIO1.into(),
+        peripherals.GPIO2.into(),
+        peripherals.GPIO4.into(),
+        peripherals.GPIO5.into(),
+        peripherals.GPIO6.into(),
+        peripherals.GPIO7.into(),
+        peripherals.GPIO8.into(),
+        peripherals.GPIO9.into(),
+        peripherals.GPIO10.into(),
+        peripherals.GPIO11.into(),
+        peripherals.GPIO12.into(),
+        peripherals.GPIO13.into(),
+        peripherals.GPIO14.into(),
+        peripherals.GPIO15.into(),
+        peripherals.GPIO16.into(),
+        peripherals.GPIO17.into(),
+        peripherals.GPIO18.into(),
+        peripherals.GPIO21.into(),
+        peripherals.GPIO38.into(),
+        peripherals.GPIO39.into(),
+        peripherals.GPIO40.into(),
+        peripherals.GPIO41.into(),
+        peripherals.GPIO42.into(),
+        peripherals.GPIO47.into(),
+        peripherals.GPIO48.into(),
+    ];
+    let inputs: Inputs =
+        input_pins.map(|pin| Input::new(pin, InputConfig::default().with_pull(Pull::Up)));
 
     let usb = Usb::new_fs(peripherals.USB_FS, peripherals.GPIO20, peripherals.GPIO19);
     let driver = Driver::new(usb, EP_OUT_BUFFER.take(), Config::default());
@@ -148,19 +190,25 @@ async fn main(_spawner: Spawner) -> ! {
         },
         line_reader: LINE_READER.take(),
         response: RESPONSE.take(),
-        config: &mut config_state,
+        config,
     };
 
     let serial_future = async {
         loop {
             serial.wait_connection().await;
+            EVENT_QUEUE.clear();
             let _ = session.handle_connection(&mut serial).await;
         }
     };
 
-    match join3(usb_device.run(), serial_future, run_macros(&mut keyboard))
-        .await
-        .0 {}
+    match join4(
+        usb_device.run(),
+        serial_future,
+        run_macros(&mut keyboard),
+        read_buttons(inputs, config),
+    )
+    .await
+    .0 {}
 }
 
 // Serial protocol
@@ -183,7 +231,7 @@ struct Session<'a> {
     info: DeviceInfo<'a>,
     line_reader: &'a mut LineReader<MAX_LINE_LENGTH>,
     response: &'a mut Response,
-    config: &'a mut ConfigState,
+    config: &'a SharedConfig,
 }
 
 impl Session<'_> {
@@ -193,16 +241,26 @@ impl Session<'_> {
     ) -> Result<(), Disconnected> {
         let mut packet = [0u8; MAX_PACKET_SIZE];
         loop {
-            let length = serial.read_packet(&mut packet).await?;
+            let length = match select(serial.read_packet(&mut packet), EVENT_QUEUE.receive()).await
+            {
+                Either::First(result) => result?,
+                Either::Second((pin, edge)) => {
+                    self.response.clear();
+                    let _ = protocol::write_pin_event(pin, edge, self.response);
+                    write_all(serial, self.response.as_bytes()).await?;
+                    continue;
+                }
+            };
             for &byte in &packet[..length] {
-                let Some(reply) = self.handle_byte(byte) else {
+                let Some(reply) = self.handle_byte(byte).await else {
                     continue;
                 };
                 match reply {
                     Reply::Response => write_all(serial, self.response.as_bytes()).await?,
                     Reply::Config => {
+                        let config = self.config.lock().await;
                         write_all(serial, CONFIG_DATA_PREFIX.as_bytes()).await?;
-                        write_all(serial, self.config.json()).await?;
+                        write_all(serial, config.json()).await?;
                         write_all(serial, b"\n").await?;
                     }
                     Reply::Reboot => {
@@ -214,7 +272,7 @@ impl Session<'_> {
         }
     }
 
-    fn handle_byte(&mut self, byte: u8) -> Option<Reply> {
+    async fn handle_byte(&mut self, byte: u8) -> Option<Reply> {
         self.response.clear();
         let line = match self.line_reader.push(byte)? {
             Ok(line) => line,
@@ -227,7 +285,7 @@ impl Session<'_> {
         match command {
             Command::GetConfig => return Some(Reply::Config),
             Command::SetConfig(payload) => {
-                let _ = match self.config.save(payload) {
+                let _ = match self.config.lock().await.save(payload) {
                     Ok(()) => protocol::write_config_saved(self.response),
                     Err(SaveError::Invalid(error)) => {
                         protocol::write_config_error(error, self.response)
@@ -359,14 +417,41 @@ fn find_config_partition(storage: &mut FlashStorage<'static>) -> Option<u32> {
 // Macros
 
 fn queue_macro(payload: &[u8]) -> bool {
-    let Ok(text) = protocol::macro_text(payload) else {
-        return true;
-    };
+    match protocol::macro_text(payload) {
+        Ok(text) => enqueue_macro(text),
+        Err(_) => true,
+    }
+}
+
+fn enqueue_macro(text: &str) -> bool {
     let mut macro_text = MacroText::new();
     if macro_text.write_str(text).is_err() {
         return false;
     }
     MACRO_QUEUE.try_send(macro_text).is_ok()
+}
+
+// Buttons
+
+async fn read_buttons(inputs: Inputs, config: &SharedConfig) -> ! {
+    let mut debouncers = inputs
+        .each_ref()
+        .map(|input| Debouncer::new(input.is_low()));
+    loop {
+        Timer::after_millis(POLL_INTERVAL_MS).await;
+        for ((input, debouncer), &pin) in inputs.iter().zip(debouncers.iter_mut()).zip(&INPUT_PINS)
+        {
+            let Some(edge) = debouncer.update(input.is_low()) else {
+                continue;
+            };
+            let _ = EVENT_QUEUE.try_send((pin, edge));
+            if edge == Edge::Pressed
+                && let Some(text) = config.lock().await.bindings.macro_for_pin(pin)
+            {
+                enqueue_macro(text);
+            }
+        }
+    }
 }
 
 async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE>) -> ! {

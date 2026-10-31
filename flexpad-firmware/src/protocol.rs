@@ -1,5 +1,6 @@
 use core::fmt::{self, Write};
 
+use crate::buttons::Edge;
 use crate::config::{ConfigError, MAX_CONFIG_SIZE};
 use crate::macros::{self, MacroError};
 
@@ -139,6 +140,10 @@ pub fn write_config_error(error: ConfigError, out: &mut impl Write) -> fmt::Resu
 
 pub fn write_storage_error(out: &mut impl Write) -> fmt::Result {
     out.write_str("CONFIG_ERROR:storage\n")
+}
+
+pub fn write_pin_event(pin: u8, edge: Edge, out: &mut impl Write) -> fmt::Result {
+    writeln!(out, "EVENT:PIN:{pin}:{}", edge.as_str())
 }
 
 pub fn write_line_too_long(out: &mut impl Write) -> fmt::Result {
@@ -307,6 +312,15 @@ mod tests {
             "REBOOTING:bootloader\n"
         );
         assert_eq!(response(Command::Unknown), "ERROR:unknown_command\n");
+    }
+
+    #[test]
+    fn pin_events_have_protocol_text() {
+        let mut out = String::new();
+        write_pin_event(4, Edge::Pressed, &mut out).unwrap();
+        write_pin_event(48, Edge::Released, &mut out).unwrap();
+
+        assert_eq!(out, "EVENT:PIN:4:PRESSED\nEVENT:PIN:48:RELEASED\n");
     }
 
     #[test]

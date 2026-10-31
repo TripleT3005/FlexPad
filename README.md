@@ -11,7 +11,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and runs macros sent with `RUN_MACRO` and stores the configuration from the app, but does not read buttons yet.
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and stores the configuration from the app and runs the assigned macros when a button is pressed; EC11 rotation is not evaluated yet ([#7](../../issues/7)).
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -55,6 +55,7 @@ The app and the device talk over the USB serial port of the board (115200 baud, 
 | `SET_CONFIG:<json>` | `CONFIG_SAVED`; the Rust firmware checks the configuration first and answers `CONFIG_ERROR:<reason>` (e.g. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`) without changing the stored one |
 | `RUN_MACRO:<macro>` | Checks the macro and runs it: `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` (e.g. `unknown_key:hyper`, `busy`) (Rust firmware only) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode (Rust firmware only) |
+| – | Sent by the device: `EVENT:PIN:<pin>:PRESSED` or `RELEASED` for every debounced button change, also for unassigned pins (Rust firmware only) |
 
 Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
 
@@ -136,7 +137,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und führt mit `RUN_MACRO` gesendete Makros aus und speichert die Konfiguration aus der App, liest aber noch keine Taster.
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und speichert die Konfiguration aus der App und führt beim Tastendruck die zugeordneten Makros aus; die Drehung von EC11-Encodern wird noch nicht ausgewertet ([#7](../../issues/7)).
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -180,6 +181,7 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (11520
 | `SET_CONFIG:<json>` | `CONFIG_SAVED`; die Rust-Firmware prüft die Konfiguration zuerst und antwortet `CONFIG_ERROR:<grund>` (z. B. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`), ohne die gespeicherte zu ändern |
 | `RUN_MACRO:<makro>` | Prüft das Makro und führt es aus: `MACRO_QUEUED` oder `MACRO_ERROR:<grund>` (z. B. `unknown_key:hyper`, `busy`) (nur Rust-Firmware) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board im Download-Modus neu (nur Rust-Firmware) |
+| – | Vom Gerät gesendet: `EVENT:PIN:<pin>:PRESSED` oder `RELEASED` bei jeder entprellten Tasteränderung, auch für unbelegte Pins (nur Rust-Firmware) |
 
 Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
 
