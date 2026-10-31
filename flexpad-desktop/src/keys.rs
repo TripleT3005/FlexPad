@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 #[path = "../../flexpad-firmware/src/keys.rs"]
 pub(crate) mod firmware_keys;
 
+#[allow(dead_code)]
+#[path = "../../flexpad-firmware/src/layouts.rs"]
+mod firmware_layouts;
+
 // Layouts
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -17,6 +21,25 @@ pub enum KeyboardLayout {
 
 impl KeyboardLayout {
     pub const ALL: &[KeyboardLayout] = &[KeyboardLayout::Us, KeyboardLayout::De];
+
+    fn firmware(self) -> firmware_layouts::KeyboardLayout {
+        match self {
+            KeyboardLayout::Us => firmware_layouts::KeyboardLayout::Us,
+            KeyboardLayout::De => firmware_layouts::KeyboardLayout::De,
+        }
+    }
+
+    pub fn untypeable_characters(self, text: &str) -> String {
+        let mut missing = String::new();
+        for character in text.chars() {
+            if firmware_layouts::keystrokes(self.firmware(), character).is_none()
+                && !missing.contains(character)
+            {
+                missing.push(character);
+            }
+        }
+        missing
+    }
 }
 
 impl std::fmt::Display for KeyboardLayout {
@@ -392,6 +415,15 @@ mod tests {
         assert_eq!(code_for("kp_"), None);
         assert_eq!(code_for(""), None);
         assert_eq!(code_for("ö"), None);
+    }
+
+    // Text
+
+    #[test]
+    fn lists_characters_the_layout_cannot_type() {
+        assert_eq!(KeyboardLayout::Us.untypeable_characters("Größe ä"), "ößä");
+        assert_eq!(KeyboardLayout::De.untypeable_characters("Größe ä"), "");
+        assert_eq!(KeyboardLayout::De.untypeable_characters("😀 ok 😀"), "😀");
     }
 
     #[test]
