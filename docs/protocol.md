@@ -47,7 +47,7 @@ Each action is an object with exactly one member:
 | `{ "release": "<key>" }` | Release a key |
 | `{ "delay": <ms> }` | Wait 0–60 000 ms (a whole number) |
 | `{ "media": "<name>" }` | Press and release a media key: `vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`, `stop` (also `AudioVolumeUp`, `AudioVolumeDown`, `AudioVolumeMute`, `MediaTrackNext`, `MediaTrackPrevious`, `MediaPlayPause`, `MediaStop`) |
-| `{ "text": "<text>" }` | Type text, as a normal JSON string (commas, quotes, `\n` and `\\` need no extra escaping); accepted in profiles but not executed yet (#4) |
+| `{ "text": "<text>" }` | Type text, as a normal JSON string (commas, quotes, `\n` and `\\` need no extra escaping); typed with the `keyboard_layout` of the profile, see [Text and keyboard layouts](#text-and-keyboard-layouts) |
 
 An empty list (or a missing `actions`) means "nothing". Other members of a function object are ignored; they are reserved for functions that are not macros (#47).
 
@@ -59,7 +59,7 @@ Before function objects, a function was a string with comma-separated actions: `
 
 ### Text and keyboard layouts
 
-USB keyboards send key positions, not characters; the computer's layout turns them into characters. For a text action, the firmware therefore looks up (once text is typed, #4) every character for the `keyboard_layout` of the profile and sends the key position with Shift or AltGr as needed:
+USB keyboards send key positions, not characters; the computer's layout turns them into characters. For a text action, the firmware therefore looks up every character for the `keyboard_layout` of the profile and sends the key position with Shift or AltGr as needed:
 
 | Layout | Characters |
 |---|---|
@@ -169,7 +169,7 @@ Profiles without `format` (from app versions before 0.1.0) are still accepted: e
 | `macros_too_large` | All macros together exceed 8 KB |
 | `storage` | Writing to flash failed |
 
-`MACRO_ERROR:<reason>`: `invalid_json:<position>`, `invalid_structure:<part>` (`function`, `actions`, `action`), `unknown_action:<name>`, `unknown_key:<name>`, `unknown_media:<name>`, `invalid_delay:<value>`, `invalid_text`, `unsupported:text` (text actions cannot run yet), `too_large` (more than 512 bytes), `busy` (queue full).
+`MACRO_ERROR:<reason>`: `invalid_json:<position>`, `invalid_structure:<part>` (`function`, `actions`, `action`), `unknown_action:<name>`, `unknown_key:<name>`, `unknown_media:<name>`, `invalid_delay:<value>`, `invalid_text`, `too_large` (more than 512 bytes), `busy` (queue full).
 
 ## Storage
 
