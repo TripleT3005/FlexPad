@@ -1,6 +1,10 @@
 use std::io::{Read, Write};
 use std::time::Duration;
 
+const ESPRESSIF_VID: u16 = 0x303A;
+const SERIAL_PREFIX: &str = "FlexPad-";
+const PORT_SETTLE_MS: u64 = 100;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlexPadDeviceInfo {
     pub port_name: String,
@@ -37,6 +41,18 @@ pub fn read_line_from_port(port: &mut impl Read, timeout: Duration) -> Option<St
     }
 }
 
+pub fn is_flexpad_port(port: &serialport::SerialPortInfo) -> bool {
+    let serialport::SerialPortType::UsbPort(usb) = &port.port_type else {
+        return false;
+    };
+    usb.vid == ESPRESSIF_VID
+        && usb.serial_number.as_deref().is_some_and(|serial| {
+            serial
+                .get(..SERIAL_PREFIX.len())
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case(SERIAL_PREFIX))
+        })
+}
+
 pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
     let mut devices = Vec::new();
     let ports = match serialport::available_ports() {
@@ -44,14 +60,14 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
         Err(_) => return devices,
     };
 
-    for p in ports {
+    for p in ports.into_iter().filter(is_flexpad_port) {
         let port_name = p.port_name;
         if let Ok(mut port) = serialport::new(&port_name, 115200)
             .timeout(Duration::from_millis(200))
             .open()
         {
             let _ = port.write_data_terminal_ready(true);
-            std::thread::sleep(Duration::from_millis(1500));
+            std::thread::sleep(Duration::from_millis(PORT_SETTLE_MS));
             let _ = port.clear(serialport::ClearBuffer::All);
 
             if port.write_all(b"GET_DEVICE_INFO\n").is_ok()
@@ -139,9 +155,51 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    // Line reading
-
     const TIMEOUT: Duration = Duration::from_millis(20);
+
+    // Port filter
+
+    fn usb_port(vid: u16, serial_number: Option<&str>) -> serialport::SerialPortInfo {
+        serialport::SerialPortInfo {
+            port_name: "COM9".to_string(),
+            port_type: serialport::SerialPortType::UsbPort(serialport::UsbPortInfo {
+                vid,
+                pid: 0x1001,
+                serial_number: serial_number.map(str::to_string),
+                manufacturer: None,
+                product: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn accepts_flexpad_serial_numbers_in_any_case() {
+        assert!(is_flexpad_port(&usb_port(
+            0x303A,
+            Some("FLEXPAD-14C19F46A1DC")
+        )));
+        assert!(is_flexpad_port(&usb_port(
+            0x303A,
+            Some("FlexPad-14C19F46A1DC")
+        )));
+    }
+
+    #[test]
+    fn rejects_other_devices() {
+        assert!(!is_flexpad_port(&usb_port(
+            0x303A,
+            Some("14:C1:9F:46:A1:DC")
+        )));
+        assert!(!is_flexpad_port(&usb_port(0x303A, None)));
+        assert!(!is_flexpad_port(&usb_port(0x2341, Some("FlexPad-123"))));
+        assert!(!is_flexpad_port(&usb_port(0x303A, Some("Flex"))));
+        assert!(!is_flexpad_port(&serialport::SerialPortInfo {
+            port_name: "COM1".to_string(),
+            port_type: serialport::SerialPortType::PciPort,
+        }));
+    }
+
+    // Line reading
 
     #[test]
     fn reads_utf8_lines() {
