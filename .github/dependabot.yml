@@ -8,3 +8,7 @@ updates:
     directory: /flexpad-desktop
     schedule:
       interval: "weekly"
+  - package-ecosystem: cargo
+    directory: /flexpad-firmware
+    schedule:
+      interval: "weekly"

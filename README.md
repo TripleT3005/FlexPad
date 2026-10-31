@@ -11,7 +11,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. In the long run, the firmware is to be rewritten in Rust as well ([#22](../../issues/22)).
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` only answers the serial commands so far.
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -53,6 +53,7 @@ The app and the device talk over the USB serial port of the board (115200 baud, 
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
 | `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode (Rust firmware only) |
 
 Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
 
@@ -96,6 +97,30 @@ Requires the [Arduino IDE](https://www.arduino.cc/en/software) or `arduino-cli` 
 
 Flash size and PSRAM must match your module. If the upload does not start, hold **BOOT**, press **RESET** and release **BOOT** to enter download mode.
 
+#### Rust firmware (in development)
+The new firmware in `flexpad-firmware/` uses [esp-hal](https://github.com/esp-rs/esp-hal) and [Embassy](https://embassy.dev/). It needs the Xtensa Rust toolchain and `espflash`:
+
+```
+cargo install espup espflash --locked
+espup install --targets esp32s3
+```
+
+Afterwards, open a new terminal (Linux and macOS: `. ~/export-esp.sh`) and build:
+
+```
+cd flexpad-firmware
+cargo build --release
+cargo +stable test --lib --target <host target>   # protocol tests on your computer, e.g. x86_64-pc-windows-msvc
+```
+
+To flash, the board must be in download mode. If the Rust firmware is already running, send `REBOOT_BOOTLOADER` over the serial port; otherwise hold **BOOT**, press **RESET** and release **BOOT**. Then flash to the new port:
+
+```
+espflash flash --no-stub --before no-reset --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
+```
+
+After flashing, press **RESET** (or unplug the board briefly) to start the firmware.
+
 ### License
 [MIT](LICENSE)
 
@@ -108,7 +133,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Langfristig soll auch die Firmware in Rust geschrieben werden ([#22](../../issues/22)).
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet bisher nur die seriellen Befehle.
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -150,6 +175,7 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (11520
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
 | `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board im Download-Modus neu (nur Rust-Firmware) |
 
 Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
 
@@ -192,6 +218,30 @@ Voraussetzung ist die [Arduino IDE](https://www.arduino.cc/en/software) oder `ar
 3. Den Port des Boards wählen und hochladen. Danach meldet sich das Board als USB-Gerät „FlexPad“.
 
 Flash-Größe und PSRAM müssen zum eigenen Modul passen. Startet der Upload nicht, **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen, um in den Download-Modus zu wechseln.
+
+#### Rust-Firmware (in Entwicklung)
+Die neue Firmware in `flexpad-firmware/` nutzt [esp-hal](https://github.com/esp-rs/esp-hal) und [Embassy](https://embassy.dev/). Sie braucht die Xtensa-Rust-Toolchain und `espflash`:
+
+```
+cargo install espup espflash --locked
+espup install --targets esp32s3
+```
+
+Danach ein neues Terminal öffnen (Linux und macOS: `. ~/export-esp.sh`) und bauen:
+
+```
+cd flexpad-firmware
+cargo build --release
+cargo +stable test --lib --target <host-target>   # Protokoll-Tests auf dem Rechner, z. B. x86_64-pc-windows-msvc
+```
+
+Zum Flashen muss das Board im Download-Modus sein. Läuft bereits die Rust-Firmware, über den seriellen Port `REBOOT_BOOTLOADER` senden; sonst **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen. Dann auf den neuen Port flashen:
+
+```
+espflash flash --no-stub --before no-reset --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
+```
+
+Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet.
 
 ### Lizenz
 [MIT](LICENSE)
