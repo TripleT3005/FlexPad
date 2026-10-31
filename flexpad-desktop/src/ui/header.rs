@@ -14,6 +14,7 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
 
     let title = text("FlexPad Configurator").size(24);
     let is_connected = app.connected_device.is_some();
+    let is_idle = !app.is_device_busy();
     let status_indicator = if is_connected {
         text("🟢 Connected").size(14)
     } else {
@@ -21,7 +22,7 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
     };
     let status_row = row![status_indicator, text(status_message)].spacing(15);
 
-    let scan_btn = button("Scan Devices").on_press(Message::ScanDevices);
+    let scan_btn = button("Scan Devices").on_press_maybe(is_idle.then_some(Message::ScanDevices));
     let device_picker = pick_list(
         available_devices.to_vec(),
         selected_device.cloned(),
@@ -29,13 +30,13 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
     )
     .placeholder("Select device...");
     let conn_btn = if is_connected {
-        button("Disconnect").on_press(Message::DisconnectDevice)
+        button("Disconnect").on_press_maybe(is_idle.then_some(Message::DisconnectDevice))
     } else {
-        button("Connect").on_press(Message::ConnectDevice)
+        button("Connect").on_press_maybe(is_idle.then_some(Message::ConnectDevice))
     };
 
-    let load_btn = button("Load Config").on_press(Message::LoadConfig);
-    let save_btn = button("Set Config").on_press(Message::SetConfig);
+    let load_btn = button("Load Config").on_press_maybe(is_idle.then_some(Message::LoadConfig));
+    let save_btn = button("Set Config").on_press_maybe(is_idle.then_some(Message::SetConfig));
 
     let top_action_row = row![scan_btn, device_picker, conn_btn, load_btn, save_btn,].spacing(10);
 
