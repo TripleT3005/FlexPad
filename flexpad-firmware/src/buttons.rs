@@ -1,7 +1,8 @@
 // Constants
 
 pub const POLL_INTERVAL_MS: u64 = 1;
-pub const DEBOUNCE_SAMPLES: u8 = 10;
+pub const DEFAULT_DEBOUNCE_MS: u8 = 10;
+pub const MAX_DEBOUNCE_MS: u8 = 200;
 
 // Types
 
@@ -26,13 +27,15 @@ impl Edge {
 pub struct Debouncer {
     pressed: bool,
     differing_samples: u8,
+    required_samples: u8,
 }
 
 impl Debouncer {
-    pub const fn new(pressed: bool) -> Self {
+    pub const fn new(pressed: bool, debounce_ms: u8) -> Self {
         Self {
             pressed,
             differing_samples: 0,
+            required_samples: if debounce_ms == 0 { 1 } else { debounce_ms },
         }
     }
 
@@ -46,7 +49,7 @@ impl Debouncer {
             return None;
         }
         self.differing_samples += 1;
-        if self.differing_samples < DEBOUNCE_SAMPLES {
+        if self.differing_samples < self.required_samples {
             return None;
         }
         self.differing_samples = 0;
@@ -73,7 +76,7 @@ mod tests {
 
     #[test]
     fn stable_press_and_release_give_one_edge_each() {
-        let mut debouncer = Debouncer::new(false);
+        let mut debouncer = Debouncer::new(false, DEFAULT_DEBOUNCE_MS);
         let mut samples = vec![true; 30];
         samples.extend(vec![false; 30]);
 
@@ -84,7 +87,7 @@ mod tests {
 
     #[test]
     fn bouncing_contact_gives_a_single_press() {
-        let mut debouncer = Debouncer::new(false);
+        let mut debouncer = Debouncer::new(false, DEFAULT_DEBOUNCE_MS);
         let mut samples = vec![true, false, true, true, false, true, false, false, true];
         samples.extend(vec![true; 20]);
 
@@ -97,9 +100,9 @@ mod tests {
 
     #[test]
     fn short_glitches_are_ignored() {
-        let mut debouncer = Debouncer::new(false);
+        let mut debouncer = Debouncer::new(false, DEFAULT_DEBOUNCE_MS);
         let samples: Vec<bool> = (0..100)
-            .map(|index| index % 12 < DEBOUNCE_SAMPLES as usize - 1)
+            .map(|index| index % 12 < DEFAULT_DEBOUNCE_MS as usize - 1)
             .collect();
 
         assert!(run(&mut debouncer, &samples).is_empty());
@@ -108,9 +111,18 @@ mod tests {
 
     #[test]
     fn initial_state_produces_no_edge() {
-        let mut debouncer = Debouncer::new(true);
+        let mut debouncer = Debouncer::new(true, DEFAULT_DEBOUNCE_MS);
 
         assert!(run(&mut debouncer, &[true; 20]).is_empty());
+    }
+
+    #[test]
+    fn debounce_time_is_configurable() {
+        let mut slow = Debouncer::new(false, 30);
+        let mut instant = Debouncer::new(false, 0);
+
+        assert_eq!(run(&mut slow, &[true; 40]), vec![(29, Edge::Pressed)]);
+        assert_eq!(run(&mut instant, &[true; 3]), vec![(0, Edge::Pressed)]);
     }
 
     #[test]

@@ -11,7 +11,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and stores the configuration from the app and runs the assigned macros when a button is pressed; EC11 rotation is not evaluated yet ([#7](../../issues/7)).
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the Rust firmware in `flexpad-firmware/` already stores the profile and runs the assigned macros for buttons and EC11 encoders, but the desktop app does not write the new profile format yet.
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -46,7 +46,7 @@ There are no prebuilt releases yet. Build the desktop app and flash the firmware
 ### How it works
 The firmware polls the configured pins, debounces them and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The configuration is kept as JSON in a LittleFS partition on the ESP32-S3, so it survives a restart.
 
-The app and the device talk over the USB serial port of the board (115200 baud, line-based text commands, each terminated with `\n`):
+The app and the device talk over the USB serial port of the board (115200 baud, line-based text commands, each terminated with `\n`). The complete protocol and profile format are described in [docs/protocol.md](docs/protocol.md); overview:
 
 | Command | Response |
 |---|---|
@@ -137,7 +137,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und speichert die Konfiguration aus der App und führt beim Tastendruck die zugeordneten Makros aus; die Drehung von EC11-Encodern wird noch nicht ausgewertet ([#7](../../issues/7)).
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die Rust-Firmware in `flexpad-firmware/` speichert bereits das Profil und führt die zugeordneten Makros für Taster und EC11-Encoder aus, die Desktop-App schreibt das neue Profilformat aber noch nicht.
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -172,7 +172,7 @@ Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flas
 ### Funktionsweise
 Die Firmware fragt die konfigurierten Pins ab, entprellt sie und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Die Konfiguration liegt als JSON in einer LittleFS-Partition auf dem ESP32-S3 und bleibt so über einen Neustart erhalten.
 
-App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (115200 Baud, zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen):
+App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (115200 Baud, zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen). Das vollständige Protokoll und das Profilformat beschreibt [docs/protocol.md](docs/protocol.md) (auf Englisch); Überblick:
 
 | Befehl | Antwort |
 |---|---|

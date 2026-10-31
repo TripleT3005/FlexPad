@@ -2,7 +2,10 @@
 #![no_main]
 #![deny(clippy::mem_forget, clippy::large_stack_frames)]
 
-use core::fmt::Write;
+use core::{
+    fmt::Write,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use embassy_executor::Spawner;
 use embassy_futures::{
@@ -37,8 +40,12 @@ use esp_hal::{
 };
 use esp_storage::{FlashStorage, FlashStorageError};
 use flexpad_firmware::{
-    buttons::{Debouncer, Edge, POLL_INTERVAL_MS},
-    config::{self, Bindings, ConfigError, INPUT_PINS, MAX_CONFIG_SIZE},
+    buttons::{DEFAULT_DEBOUNCE_MS, Debouncer, Edge, POLL_INTERVAL_MS},
+    config::{
+        self, Bindings, ConfigError, INPUT_PINS, Layout, MAX_CONFIG_SIZE, MAX_ENCODERS, PinRole,
+        Trigger,
+    },
+    encoder::{DEFAULT_STEPS_PER_DETENT, Decoder, Direction},
     hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
     macros::{self, Action},
     protocol::{
@@ -60,7 +67,7 @@ const HID_PACKET_SIZE: u16 = 16;
 const HID_POLL_MS: u8 = 5;
 const MEDIA_PRESS_MS: u64 = 30;
 const MAX_MACRO_LENGTH: usize = 512;
-const MACRO_QUEUE_SIZE: usize = 4;
+const MACRO_QUEUE_SIZE: usize = 8;
 const EVENT_QUEUE_SIZE: usize = 16;
 const CONFIG_PARTITION_LABEL: &str = "flexpad";
 const FIRMWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -88,7 +95,16 @@ static BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new(
 static SCRATCH_BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
 static CONFIG: StaticCell<SharedConfig> = StaticCell::new();
 static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroText, MACRO_QUEUE_SIZE> = Channel::new();
-static EVENT_QUEUE: Channel<CriticalSectionRawMutex, (u8, Edge), EVENT_QUEUE_SIZE> = Channel::new();
+static EVENT_QUEUE: Channel<CriticalSectionRawMutex, InputEvent, EVENT_QUEUE_SIZE> = Channel::new();
+static CONFIG_GENERATION: AtomicU32 = AtomicU32::new(0);
+
+// Events
+
+#[derive(Clone, Copy)]
+enum InputEvent {
+    Pin(u8, Edge),
+    Encoder(u8, Direction),
+}
 
 // Entry point
 
@@ -205,7 +221,7 @@ async fn main(_spawner: Spawner) -> ! {
         usb_device.run(),
         serial_future,
         run_macros(&mut keyboard),
-        read_buttons(inputs, config),
+        read_inputs(inputs, config),
     )
     .await
     .0 {}
@@ -244,9 +260,16 @@ impl Session<'_> {
             let length = match select(serial.read_packet(&mut packet), EVENT_QUEUE.receive()).await
             {
                 Either::First(result) => result?,
-                Either::Second((pin, edge)) => {
+                Either::Second(event) => {
                     self.response.clear();
-                    let _ = protocol::write_pin_event(pin, edge, self.response);
+                    let _ = match event {
+                        InputEvent::Pin(pin, edge) => {
+                            protocol::write_pin_event(pin, edge, self.response)
+                        }
+                        InputEvent::Encoder(pin_a, direction) => {
+                            protocol::write_encoder_event(pin_a, direction, self.response)
+                        }
+                    };
                     write_all(serial, self.response.as_bytes()).await?;
                     continue;
                 }
@@ -401,6 +424,7 @@ impl ConfigState {
         self.json_length = payload.len();
         self.stored = Some(stored);
         core::mem::swap(&mut self.bindings, &mut self.scratch);
+        CONFIG_GENERATION.fetch_add(1, Ordering::Release);
         Ok(())
     }
 }
@@ -431,26 +455,91 @@ fn enqueue_macro(text: &str) -> bool {
     MACRO_QUEUE.try_send(macro_text).is_ok()
 }
 
-// Buttons
+// Inputs
 
-async fn read_buttons(inputs: Inputs, config: &SharedConfig) -> ! {
-    let mut debouncers = inputs
-        .each_ref()
-        .map(|input| Debouncer::new(input.is_low()));
+struct InputState {
+    layout: Layout,
+    debouncers: [Debouncer; INPUT_PINS.len()],
+    decoders: [Decoder; MAX_ENCODERS],
+}
+
+impl InputState {
+    fn new(layout: Layout, inputs: &Inputs) -> Self {
+        let debouncers = core::array::from_fn(|index| {
+            let debounce_ms = match layout.roles[index] {
+                PinRole::Button { debounce_ms } => debounce_ms,
+                _ => DEFAULT_DEBOUNCE_MS,
+            };
+            Debouncer::new(inputs[index].is_low(), debounce_ms)
+        });
+        let decoders = core::array::from_fn(|index| {
+            let setup = layout.encoders.get(index).copied();
+            match setup.filter(|_| index < layout.encoder_count) {
+                Some(setup) => Decoder::new(
+                    is_high(inputs, setup.a),
+                    is_high(inputs, setup.b),
+                    setup.steps_per_detent,
+                    setup.reverse,
+                ),
+                None => Decoder::new(true, true, DEFAULT_STEPS_PER_DETENT, false),
+            }
+        });
+        Self {
+            layout,
+            debouncers,
+            decoders,
+        }
+    }
+}
+
+fn is_high(inputs: &Inputs, pin: u8) -> bool {
+    config::pin_index(pin).is_none_or(|index| !inputs[index].is_low())
+}
+
+async fn read_inputs(inputs: Inputs, config: &SharedConfig) -> ! {
+    let mut generation = u32::MAX;
+    let mut state = InputState::new(Layout::new(), &inputs);
     loop {
         Timer::after_millis(POLL_INTERVAL_MS).await;
-        for ((input, debouncer), &pin) in inputs.iter().zip(debouncers.iter_mut()).zip(&INPUT_PINS)
-        {
-            let Some(edge) = debouncer.update(input.is_low()) else {
+        let current = CONFIG_GENERATION.load(Ordering::Acquire);
+        if current != generation {
+            generation = current;
+            let layout = *config.lock().await.bindings.layout();
+            state = InputState::new(layout, &inputs);
+        }
+
+        for (index, &pin) in INPUT_PINS.iter().enumerate() {
+            if matches!(
+                state.layout.roles[index],
+                PinRole::EncoderA(_) | PinRole::EncoderB(_)
+            ) {
+                continue;
+            }
+            let Some(edge) = state.debouncers[index].update(inputs[index].is_low()) else {
                 continue;
             };
-            let _ = EVENT_QUEUE.try_send((pin, edge));
-            if edge == Edge::Pressed
-                && let Some(text) = config.lock().await.bindings.macro_for_pin(pin)
-            {
-                enqueue_macro(text);
+            let _ = EVENT_QUEUE.try_send(InputEvent::Pin(pin, edge));
+            if edge == Edge::Pressed {
+                run_trigger(config, Trigger::Press(pin)).await;
             }
         }
+
+        for (index, setup) in state.layout.encoders().iter().enumerate() {
+            let a_high = is_high(&inputs, setup.a);
+            let b_high = is_high(&inputs, setup.b);
+            let Some(direction) = state.decoders[index].update(a_high, b_high) else {
+                continue;
+            };
+            let _ = EVENT_QUEUE.try_send(InputEvent::Encoder(setup.a, direction));
+            let number = u8::try_from(index).unwrap_or(u8::MAX);
+            run_trigger(config, Trigger::Turn(number, direction)).await;
+        }
+    }
+}
+
+async fn run_trigger(config: &SharedConfig, trigger: Trigger) {
+    if let Some(text) = config.lock().await.bindings.macro_for(trigger) {
+        enqueue_macro(text);
     }
 }
 
