@@ -11,7 +11,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` only answers the serial commands so far.
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and runs macros sent with `RUN_MACRO`, but does not read buttons or store a configuration yet.
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -53,9 +53,12 @@ The app and the device talk over the USB serial port of the board (115200 baud, 
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
 | `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `RUN_MACRO:<macro>` | Checks the macro and runs it: `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` (e.g. `unknown_key:hyper`, `busy`) (Rust firmware only) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode (Rust firmware only) |
 
 Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
+
+Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The Rust firmware also accepts the older names used by the app so far (`lctrl`, `ael`, `kp_1` …). Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
 - **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
@@ -133,7 +136,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet bisher nur die seriellen Befehle.
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und führt mit `RUN_MACRO` gesendete Makros aus, liest aber noch keine Taster und speichert noch keine Konfiguration.
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -175,9 +178,12 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (11520
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
 | `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `RUN_MACRO:<makro>` | Prüft das Makro und führt es aus: `MACRO_QUEUED` oder `MACRO_ERROR:<grund>` (z. B. `unknown_key:hyper`, `busy`) (nur Rust-Firmware) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board im Download-Modus neu (nur Rust-Firmware) |
 
 Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
+
+Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die Rust-Firmware versteht auch die bisherigen Namen der App (`lctrl`, `ael`, `kp_1` …). Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
 - **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
