@@ -243,6 +243,18 @@ fn view_macro_editor<'a>(
             item_row =
                 item_row.push(button("X").on_press(Message::RemoveMacroAction(target(), a_idx)));
             macro_list = macro_list.push(item_row);
+            if let MacroAction::Text(value) = action {
+                let missing = app.keyboard_layout.untypeable_characters(value);
+                if !missing.is_empty() {
+                    macro_list = macro_list.push(
+                        text(format!(
+                            "   Cannot be typed with {}: {}",
+                            app.keyboard_layout, missing
+                        ))
+                        .size(10),
+                    );
+                }
+            }
         }
     }
 

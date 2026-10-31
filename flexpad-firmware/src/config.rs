@@ -3,6 +3,7 @@ use core::fmt::{self, Display};
 use crate::buttons::{DEFAULT_DEBOUNCE_MS, MAX_DEBOUNCE_MS};
 use crate::encoder::{DEFAULT_STEPS_PER_DETENT, Direction};
 use crate::json::{JsonError, JsonStr, Parser, remember};
+use crate::layouts::KeyboardLayout;
 use crate::macros::{self, MAX_MACRO_SIZE, MacroError, MacroWriter};
 
 // Constants
@@ -25,6 +26,7 @@ pub enum ConfigError {
     InvalidJson(usize),
     InvalidStructure(&'static str),
     UnsupportedFormat,
+    UnknownLayout,
     UnknownKind,
     UnknownRole,
     UnknownFunction,
@@ -44,6 +46,7 @@ impl Display for ConfigError {
             ConfigError::InvalidJson(position) => write!(f, "invalid_json:{position}"),
             ConfigError::InvalidStructure(what) => write!(f, "invalid_structure:{what}"),
             ConfigError::UnsupportedFormat => f.write_str("unsupported_format"),
+            ConfigError::UnknownLayout => f.write_str("unknown_layout"),
             ConfigError::UnknownKind => f.write_str("unknown_kind"),
             ConfigError::UnknownRole => f.write_str("unknown_role"),
             ConfigError::UnknownFunction => f.write_str("unknown_function"),
@@ -139,6 +142,7 @@ struct MacroEntry {
 
 pub struct Bindings {
     layout: Layout,
+    keyboard_layout: KeyboardLayout,
     entries: [MacroEntry; MAX_MACROS],
     count: usize,
     code: [u8; MACRO_STORAGE_SIZE],
@@ -149,6 +153,7 @@ impl Bindings {
     pub const fn new() -> Self {
         Self {
             layout: Layout::new(),
+            keyboard_layout: KeyboardLayout::Us,
             entries: [MacroEntry {
                 trigger: Trigger::Press(0),
                 start: 0,
@@ -162,12 +167,17 @@ impl Bindings {
 
     pub fn clear(&mut self) {
         self.layout = Layout::new();
+        self.keyboard_layout = KeyboardLayout::Us;
         self.count = 0;
         self.used = 0;
     }
 
     pub fn layout(&self) -> &Layout {
         &self.layout
+    }
+
+    pub fn keyboard_layout(&self) -> KeyboardLayout {
+        self.keyboard_layout
     }
 
     pub fn len(&self) -> usize {
@@ -449,6 +459,8 @@ fn parse_root(json: &[u8], bindings: &mut Bindings) -> Result<(), ConfigError> {
         .object(|parser, key| {
             let result = if key.eq_str("format") {
                 parse_format(parser)
+            } else if key.eq_str("keyboard_layout") {
+                parse_keyboard_layout(parser, bindings)
             } else if key.eq_str("tiles") {
                 parse_tiles(parser, bindings)
             } else if key.eq_str("pins") {
@@ -468,6 +480,19 @@ fn parse_format(parser: &mut Parser<'_>) -> Result<(), ConfigError> {
         Some(1..=SUPPORTED_FORMAT) => Ok(()),
         _ => Err(ConfigError::UnsupportedFormat),
     }
+}
+
+fn parse_keyboard_layout(
+    parser: &mut Parser<'_>,
+    bindings: &mut Bindings,
+) -> Result<(), ConfigError> {
+    if parser.peek() != Some(b'"') {
+        return Err(ConfigError::UnknownLayout);
+    }
+    let name = parser.string()?;
+    bindings.keyboard_layout =
+        KeyboardLayout::from_name(name.as_str()).ok_or(ConfigError::UnknownLayout)?;
+    Ok(())
 }
 
 fn parse_tiles(parser: &mut Parser<'_>, bindings: &mut Bindings) -> Result<(), ConfigError> {
@@ -954,6 +979,30 @@ mod tests {
 
         assert_eq!(bindings.layout().encoders().len(), MAX_ENCODERS);
         assert_eq!(bindings.len(), MAX_ENCODERS * 2);
+    }
+
+    #[test]
+    fn reads_the_keyboard_layout() {
+        assert_eq!(
+            parse(r#"{"format":2,"keyboard_layout":"de","tiles":[]}"#)
+                .unwrap()
+                .keyboard_layout(),
+            KeyboardLayout::De
+        );
+        assert_eq!(
+            parse(r#"{"format":2,"tiles":[]}"#)
+                .unwrap()
+                .keyboard_layout(),
+            KeyboardLayout::Us
+        );
+        assert_eq!(
+            parse(r#"{"keyboard_layout":"fr"}"#).err(),
+            Some(ConfigError::UnknownLayout)
+        );
+        assert_eq!(
+            parse(r#"{"keyboard_layout":5}"#).err(),
+            Some(ConfigError::UnknownLayout)
+        );
     }
 
     // Format 1
