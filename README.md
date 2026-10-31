@@ -1,30 +1,79 @@
-# FlexPad
+# <img src="assets/logo.svg" alt="" width="40" align="center"> FlexPad
 
 [English](#english) · [Deutsch](#deutsch)
 
 ## English
 
-FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial.
+FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial.
 
-> **Work in progress.** FlexPad is not usable yet. Development is paused until the test hardware is available. Known gaps:
-> - **The firmware does not understand the app's current configuration format yet.** The app sends its whole profile (`profile_name`, `tiles[]` with `functions`), while the firmware still expects `{"pins": {"<pin>": "<sequence>"}}`. After uploading a profile from the app, all pins are treated as unassigned.
+> **Work in progress.** FlexPad is not usable yet. Known gaps:
+> - **The firmware does not understand the app's current configuration format yet** ([#2](../../issues/2)). The app sends its whole profile (`profile_name`, `tiles[]` with `functions`), while the firmware still expects `{"pins": {"<pin>": "<sequence>"}}`. After uploading a profile from the app, all pins are treated as unassigned.
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
-> - The device always reports a US keyboard layout. Text on other layouts is only partly mapped (German only).
+> - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans.
+> See the [issues](../../issues) for details and plans. In the long run, the firmware is to be rewritten in Rust as well ([#22](../../issues/22)).
+>
+> Not affiliated with or endorsed by Espressif Systems or Arduino.
 
-### Repository layout
-| Folder | Content |
-|---|---|
-| `esp32-firmware/` | Arduino sketch for the ESP32-S3 (USB HID keyboard and consumer control, configuration stored in LittleFS) and the partition table `partitions.csv` |
-| `flexpad-desktop/` | Desktop configurator in Rust (iced, serialport, serde) |
+### Features
+- Up to 30 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
+- Macros made of key presses and releases, delays, media keys and text
+- Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
+- Profiles stored locally and on the device; the device works without the app once configured
+- No driver, no account, no network access
 
 ### Hardware
-- ESP32-S3 board with native USB, developed with an ESP32-S3 dev module with 16 MB flash and octal PSRAM
-- Buttons between a GPIO pin and GND (internal pull-ups are used)
-- Monitored pins: 1, 2, 4–18, 21, 33–42, 47, 48. On modules with octal PSRAM or octal flash, some of these pins are used internally (see the issues).
+| Part | Notes |
+|---|---|
+| ESP32-S3 board with native USB | Developed with an ESP32-S3 dev module with 16 MB flash and 8 MB octal PSRAM (N16R8) |
+| Push buttons | One side to a GPIO pin, the other side to GND. Internal pull-ups are used, no resistors needed. |
+| EC11 rotary encoder (optional) | Pins A and B to two GPIO pins, the middle pin C to GND. The push button of the encoder like a normal button. |
 
-### Building and flashing the firmware
+**Usable pins:** 1, 2, 4–18, 21, 33–42, 47, 48. GPIO 0, 3, 45 and 46 (strapping pins) and 19/20 (USB) are left out on purpose. On modules with octal PSRAM (such as N16R8), GPIO 35–37 are used internally and should not be wired; on modules with octal flash also 33 and 34 ([#14](../../issues/14)).
+
+### Installation
+There are no prebuilt releases yet. Build the desktop app and flash the firmware as described under [Building](#building).
+
+### Usage
+1. Connect the FlexPad via USB and start the app.
+2. **Scan Devices**, select the device and **Connect**.
+3. **Load Config** reads the configuration stored on the device.
+4. Add tiles with **Add Tile** (button or EC11 encoder), drag them into place and select one to edit it in the **Tile Inspector**:
+   - choose the GPIO pin(s) the tile is wired to,
+   - build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the raw macro string.
+5. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
+
+### How it works
+The firmware polls the configured pins, debounces them and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The configuration is kept as JSON in a LittleFS partition on the ESP32-S3, so it survives a restart.
+
+The app and the device talk over the USB serial port of the board (115200 baud, line-based text commands, each terminated with `\n`):
+
+| Command | Response |
+|---|---|
+| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
+| `GET_CONFIG` | `CONFIG_DATA:<json>` |
+| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+
+Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
+
+### Privacy
+- **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
+- The app only talks to serial ports on your computer. To find FlexPad devices it currently opens every serial port and sends `GET_DEVICE_INFO` ([#15](../../issues/15)).
+- Profiles and settings are stored in the folder `FlexPad` in your home directory. The device stores only the configuration you send to it.
+- The device identifies itself with a serial number derived from the chip's MAC address.
+
+### Building
+#### Desktop app
+Requires [Rust](https://www.rust-lang.org/tools/install) 1.85 or newer (edition 2024). On Linux, the serial port library also needs `libudev` (e.g. `sudo apt install libudev-dev pkg-config`).
+
+```
+cd flexpad-desktop
+cargo run --release
+```
+
+`cargo test` runs the unit tests; CI checks formatting, `clippy` and tests on Windows, Linux and macOS.
+
+#### Firmware
 Requires the [Arduino IDE](https://www.arduino.cc/en/software) or `arduino-cli` with the Espressif ESP32 core and the library [ArduinoJson](https://arduinojson.org/) (version 7).
 
 1. Open `esp32-firmware/esp32-firmware.ino`. `partitions.csv` must stay in the same folder; it reserves two 6 MB app partitions and a 3 MB `storage` partition for the configuration.
@@ -45,55 +94,83 @@ Requires the [Arduino IDE](https://www.arduino.cc/en/software) or `arduino-cli` 
 
 3. Select the board's port and upload. Afterwards the board shows up as the USB device "FlexPad".
 
-Flash size and PSRAM must match your module.
-
-### Building the desktop app
-Requires [Rust](https://www.rust-lang.org/tools/install) 1.85 or newer (edition 2024). On Linux, the serial port library also needs `libudev` (e.g. `sudo apt install libudev-dev pkg-config`).
-
-```
-cd flexpad-desktop
-cargo run --release
-```
-
-Profiles and settings are stored in the folder `FlexPad` in your home directory.
-
-### Serial protocol
-Line-based text commands at 115200 baud, each terminated with `\n`:
-
-| Command | Response |
-|---|---|
-| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
-| `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
-
-Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
+Flash size and PSRAM must match your module. If the upload does not start, hold **BOOT**, press **RESET** and release **BOOT** to enter download mode.
 
 ### License
 [MIT](LICENSE)
 
 ## Deutsch
 
-FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt beim Tastendruck Tastenfolgen aus. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät.
+FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät.
 
-> **In Arbeit.** FlexPad ist noch nicht einsatzbereit. Die Entwicklung ruht, bis die Test-Hardware da ist. Bekannte Lücken:
-> - **Die Firmware versteht das aktuelle Konfigurationsformat der App noch nicht.** Die App sendet ihr komplettes Profil (`profile_name`, `tiles[]` mit `functions`), die Firmware erwartet aber noch `{"pins": {"<pin>": "<sequenz>"}}`. Nach dem Übertragen eines Profils aus der App gelten alle Pins als unbelegt.
+> **In Arbeit.** FlexPad ist noch nicht einsatzbereit. Bekannte Lücken:
+> - **Die Firmware versteht das aktuelle Konfigurationsformat der App noch nicht** ([#2](../../issues/2)). Die App sendet ihr komplettes Profil (`profile_name`, `tiles[]` mit `functions`), die Firmware erwartet aber noch `{"pins": {"<pin>": "<sequenz>"}}`. Nach dem Übertragen eines Profils aus der App gelten alle Pins als unbelegt.
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
-> - Das Gerät meldet sich immer mit US-Tastaturlayout. Text für andere Layouts wird nur teilweise umgesetzt (nur Deutsch).
+> - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues).
+> Details und Pläne stehen in den [Issues](../../issues). Langfristig soll auch die Firmware in Rust geschrieben werden ([#22](../../issues/22)).
+>
+> Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
-### Aufbau
-| Ordner | Inhalt |
-|---|---|
-| `esp32-firmware/` | Arduino-Sketch für den ESP32-S3 (USB-HID-Tastatur und Mediensteuerung, Konfiguration in LittleFS) und die Partitionstabelle `partitions.csv` |
-| `flexpad-desktop/` | Desktop-Konfigurator in Rust (iced, serialport, serde) |
+### Funktionen
+- Bis zu 30 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
+- Makros aus Drücken und Loslassen von Tasten, Pausen, Medientasten und Text
+- Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
+- Profile lokal und auf dem Gerät gespeichert; einmal eingerichtet, arbeitet das Gerät ohne die App
+- Kein Treiber, kein Konto, keine Netzwerkzugriffe
 
 ### Hardware
-- ESP32-S3-Board mit nativem USB, entwickelt mit einem ESP32-S3-Dev-Module mit 16 MB Flash und Octal-PSRAM
-- Taster zwischen einem GPIO-Pin und GND (die internen Pull-ups werden genutzt)
-- Überwachte Pins: 1, 2, 4–18, 21, 33–42, 47, 48. Auf Modulen mit Octal-PSRAM oder Octal-Flash sind einige davon intern belegt (siehe Issues).
+| Bauteil | Hinweise |
+|---|---|
+| ESP32-S3-Board mit nativem USB | Entwickelt mit einem ESP32-S3-Dev-Module mit 16 MB Flash und 8 MB Octal-PSRAM (N16R8) |
+| Taster | Eine Seite an einen GPIO-Pin, die andere an GND. Die internen Pull-ups werden genutzt, Widerstände sind nicht nötig. |
+| EC11-Drehencoder (optional) | Pins A und B an zwei GPIO-Pins, der mittlere Pin C an GND. Der Taster des Encoders wie ein normaler Taster. |
 
-### Firmware bauen und flashen
+**Nutzbare Pins:** 1, 2, 4–18, 21, 33–42, 47, 48. GPIO 0, 3, 45 und 46 (Strapping-Pins) sowie 19/20 (USB) sind bewusst ausgenommen. Auf Modulen mit Octal-PSRAM (z. B. N16R8) sind GPIO 35–37 intern belegt und sollten nicht verdrahtet werden, bei Modulen mit Octal-Flash zusätzlich 33 und 34 ([#14](../../issues/14)).
+
+### Installation
+Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flashen wie unter [Bauen](#bauen) beschrieben.
+
+### Bedienung
+1. FlexPad per USB anschließen und die App starten.
+2. **Scan Devices**, das Gerät auswählen und **Connect**.
+3. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
+4. Mit **Add Tile** Kacheln hinzufügen (Taster oder EC11-Encoder), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
+   - den oder die GPIO-Pins wählen, an denen die Kachel angeschlossen ist,
+   - das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt den rohen Makro-String.
+5. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
+
+### Funktionsweise
+Die Firmware fragt die konfigurierten Pins ab, entprellt sie und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Die Konfiguration liegt als JSON in einer LittleFS-Partition auf dem ESP32-S3 und bleibt so über einen Neustart erhalten.
+
+App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (115200 Baud, zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen):
+
+| Befehl | Antwort |
+|---|---|
+| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
+| `GET_CONFIG` | `CONFIG_DATA:<json>` |
+| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+
+Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
+
+### Datenschutz
+- **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
+- Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie derzeit jeden seriellen Port und sendet `GET_DEVICE_INFO` ([#15](../../issues/15)).
+- Profile und Einstellungen liegen im Ordner `FlexPad` im Benutzerverzeichnis. Das Gerät speichert nur die Konfiguration, die man ihm schickt.
+- Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
+
+### Bauen
+#### Desktop-App
+Voraussetzung ist [Rust](https://www.rust-lang.org/tools/install) 1.85 oder neuer (Edition 2024). Unter Linux braucht die Seriell-Bibliothek zusätzlich `libudev` (z. B. `sudo apt install libudev-dev pkg-config`).
+
+```
+cd flexpad-desktop
+cargo run --release
+```
+
+`cargo test` führt die Unit-Tests aus; die CI prüft Formatierung, `clippy` und Tests unter Windows, Linux und macOS.
+
+#### Firmware
 Voraussetzung ist die [Arduino IDE](https://www.arduino.cc/en/software) oder `arduino-cli` mit dem ESP32-Core von Espressif und der Bibliothek [ArduinoJson](https://arduinojson.org/) (Version 7).
 
 1. `esp32-firmware/esp32-firmware.ino` öffnen. `partitions.csv` muss im selben Ordner liegen; sie reserviert zwei App-Partitionen mit je 6 MB und eine 3 MB große `storage`-Partition für die Konfiguration.
@@ -114,28 +191,7 @@ Voraussetzung ist die [Arduino IDE](https://www.arduino.cc/en/software) oder `ar
 
 3. Den Port des Boards wählen und hochladen. Danach meldet sich das Board als USB-Gerät „FlexPad“.
 
-Flash-Größe und PSRAM müssen zum eigenen Modul passen.
-
-### Desktop-App bauen
-Voraussetzung ist [Rust](https://www.rust-lang.org/tools/install) 1.85 oder neuer (Edition 2024). Unter Linux braucht die Seriell-Bibliothek zusätzlich `libudev` (z. B. `sudo apt install libudev-dev pkg-config`).
-
-```
-cd flexpad-desktop
-cargo run --release
-```
-
-Profile und Einstellungen liegen im Ordner `FlexPad` im Benutzerverzeichnis.
-
-### Serielles Protokoll
-Zeilenbasierte Textbefehle mit 115200 Baud, jeweils mit `\n` abgeschlossen:
-
-| Befehl | Antwort |
-|---|---|
-| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
-| `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
-
-Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
+Flash-Größe und PSRAM müssen zum eigenen Modul passen. Startet der Upload nicht, **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen, um in den Download-Modus zu wechseln.
 
 ### Lizenz
 [MIT](LICENSE)
