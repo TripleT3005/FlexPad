@@ -2,6 +2,7 @@ use core::fmt::{self, Write};
 
 use crate::buttons::Edge;
 use crate::config::{ConfigError, MAX_CONFIG_SIZE};
+use crate::encoder::Direction;
 use crate::macros::{self, MacroError};
 
 // Constants
@@ -144,6 +145,10 @@ pub fn write_storage_error(out: &mut impl Write) -> fmt::Result {
 
 pub fn write_pin_event(pin: u8, edge: Edge, out: &mut impl Write) -> fmt::Result {
     writeln!(out, "EVENT:PIN:{pin}:{}", edge.as_str())
+}
+
+pub fn write_encoder_event(pin_a: u8, direction: Direction, out: &mut impl Write) -> fmt::Result {
+    writeln!(out, "EVENT:ENCODER:{pin_a}:{}", direction.as_str())
 }
 
 pub fn write_line_too_long(out: &mut impl Write) -> fmt::Result {
@@ -321,6 +326,15 @@ mod tests {
         write_pin_event(48, Edge::Released, &mut out).unwrap();
 
         assert_eq!(out, "EVENT:PIN:4:PRESSED\nEVENT:PIN:48:RELEASED\n");
+    }
+
+    #[test]
+    fn encoder_events_have_protocol_text() {
+        let mut out = String::new();
+        write_encoder_event(15, Direction::Right, &mut out).unwrap();
+        write_encoder_event(15, Direction::Left, &mut out).unwrap();
+
+        assert_eq!(out, "EVENT:ENCODER:15:RIGHT\nEVENT:ENCODER:15:LEFT\n");
     }
 
     #[test]
