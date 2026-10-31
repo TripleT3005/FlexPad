@@ -6,9 +6,9 @@
 
 FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial.
 
-> **Work in progress.** FlexPad is not usable yet. Known gaps:
-> - **The firmware does not understand the app's current configuration format yet** ([#2](../../issues/2)). The app sends its whole profile (`profile_name`, `tiles[]` with `functions`), while the firmware still expects `{"pins": {"<pin>": "<sequence>"}}`. After uploading a profile from the app, all pins are treated as unassigned.
-> - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
+> **Work in progress.** FlexPad works with the Rust firmware for buttons and EC11 encoders, but is not finished yet. Known gaps:
+> - Use the Rust firmware in `flexpad-firmware/`; the Arduino sketch in `esp32-firmware/` does not understand the current profile format and will be removed.
+> - `TEXT:` actions are not typed yet, and commas inside text break the macro ([#6](../../issues/6)).
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
 > See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)). The Rust firmware in `flexpad-firmware/` and the desktop app already work together for buttons and EC11 encoders (profile format 2); the Arduino sketch does not understand this format.
@@ -134,9 +134,9 @@ After flashing, press **RESET** (or unplug the board briefly) to start the firmw
 
 FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät.
 
-> **In Arbeit.** FlexPad ist noch nicht einsatzbereit. Bekannte Lücken:
-> - **Die Firmware versteht das aktuelle Konfigurationsformat der App noch nicht** ([#2](../../issues/2)). Die App sendet ihr komplettes Profil (`profile_name`, `tiles[]` mit `functions`), die Firmware erwartet aber noch `{"pins": {"<pin>": "<sequenz>"}}`. Nach dem Übertragen eines Profils aus der App gelten alle Pins als unbelegt.
-> - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
+> **In Arbeit.** FlexPad funktioniert mit der Rust-Firmware für Taster und EC11-Encoder, ist aber noch nicht fertig. Bekannte Lücken:
+> - Die Rust-Firmware in `flexpad-firmware/` verwenden; der Arduino-Sketch in `esp32-firmware/` versteht das aktuelle Profilformat nicht und wird entfernt.
+> - `TEXT:`-Aktionen werden noch nicht getippt, und Kommas im Text zerstückeln das Makro ([#6](../../issues/6)).
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
 > Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)). Rust-Firmware in `flexpad-firmware/` und Desktop-App arbeiten für Taster und EC11-Encoder bereits zusammen (Profilformat 2); der Arduino-Sketch versteht dieses Format nicht.
