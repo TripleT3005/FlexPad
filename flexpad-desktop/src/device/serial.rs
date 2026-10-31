@@ -39,6 +39,7 @@ impl std::fmt::Debug for SharedPort {
 pub struct FlexPadDeviceInfo {
     pub port_name: String,
     pub device_id: String,
+    pub firmware_version: Option<String>,
 }
 
 impl std::fmt::Display for FlexPadDeviceInfo {
@@ -105,14 +106,14 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
                 && response.contains("DEVICE_INFO:FlexPad")
             {
                 let parts: Vec<&str> = response.split(',').collect();
-                let device_id = if parts.len() > 1 {
-                    parts[1].to_string()
-                } else {
-                    "FlexPad-Unknown".to_string()
-                };
+                let device_id = parts
+                    .get(1)
+                    .map_or_else(|| "FlexPad-Unknown".to_string(), |id| id.to_string());
+                let firmware_version = parts.get(2).map(|version| version.trim().to_string());
                 devices.push(FlexPadDeviceInfo {
                     port_name,
                     device_id,
+                    firmware_version,
                 });
             }
         }
