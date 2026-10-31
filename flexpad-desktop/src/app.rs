@@ -6,8 +6,8 @@ use std::time::Duration;
 use crate::canvas;
 use crate::components::{self, Component};
 use crate::config::{
-    UserSettings, list_saved_profiles, load_profile_from_disk, load_user_settings, profile_path,
-    save_profile_to_disk, save_user_settings,
+    UserSettings, app_dirs, list_saved_profiles, load_profile_from_disk, load_user_settings,
+    migrate_legacy_files, profile_path, save_profile_to_disk, save_user_settings,
 };
 use crate::constants::PRESETS;
 use crate::device::{
@@ -119,12 +119,20 @@ pub enum Message {
 
 impl FlexPadApp {
     pub fn new() -> (Self, Task<Message>) {
+        let moved_files = migrate_legacy_files();
         let profiles = load_profile_items();
 
         let user_settings = load_user_settings();
         let mut initial_profile = Profile::default();
         let mut initial_selected = None;
-        let mut status_message = "Ready. Click 'Scan' to search for devices.".to_string();
+        let mut status_message = if moved_files > 0 {
+            format!(
+                "Moved {moved_files} file(s) from the old FlexPad folder to {}.",
+                app_dirs().data.display()
+            )
+        } else {
+            "Ready. Click 'Scan' to search for devices.".to_string()
+        };
 
         let target_profile = user_settings
             .last_profile

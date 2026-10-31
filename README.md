@@ -61,7 +61,7 @@ Each download has a `.sha256` file to verify it.
 
 Example: `FlexPad-0.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
 
-Profiles and settings are stored per user and are not set by the installer. Uninstalling removes the program and its shortcuts but keeps your profiles in the folder `FlexPad` in your home directory.
+Profiles and settings are stored per user and are not set by the installer. Uninstalling removes the program and its shortcuts but keeps your profiles and settings (see [Privacy](#privacy) for the folders).
 
 #### Firmware
 `FlexPad-firmware-<version>-esp32s3.bin` contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
@@ -105,7 +105,7 @@ Key names describe the physical key position on a US keyboard, using the names o
 ### Privacy
 - **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
 - The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched.
-- Profiles and settings are stored in the folder `FlexPad` in your home directory. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
+- Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
 
 ### Building
@@ -208,7 +208,7 @@ Zu jedem Download gibt es eine `.sha256`-Datei, um ihn zu prüfen.
 
 Beispiel: `FlexPad-0.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
 
-Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht gesetzt. Die Deinstallation entfernt Programm und Verknüpfungen, lässt die Profile im Ordner `FlexPad` im Benutzerverzeichnis aber stehen.
+Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht gesetzt. Die Deinstallation entfernt Programm und Verknüpfungen, lässt Profile und Einstellungen aber stehen (Ordner siehe [Datenschutz](#datenschutz)).
 
 #### Firmware
 `FlexPad-firmware-<Version>-esp32s3.bin` enthält Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
@@ -252,7 +252,7 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 ### Datenschutz
 - **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
 - Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt.
-- Profile und Einstellungen liegen im Ordner `FlexPad` im Benutzerverzeichnis. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
+- Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
 
 ### Bauen
