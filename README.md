@@ -16,7 +16,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
 ### Features
-- Up to 30 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
+- Up to 25 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
 - Macros made of key presses and releases, delays, media keys and text
 - Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
 - Profiles stored locally and on the device; the device works without the app once configured
@@ -29,7 +29,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 | Push buttons | One side to a GPIO pin, the other side to GND. Internal pull-ups are used, no resistors needed. |
 | EC11 rotary encoder (optional) | Pins A and B to two GPIO pins, the middle pin C to GND. The push button of the encoder like a normal button. |
 
-**Usable pins:** 1, 2, 4–18, 21, 33–42, 47, 48. GPIO 0, 3, 45 and 46 (strapping pins) and 19/20 (USB) are left out on purpose. On modules with octal PSRAM (such as N16R8), GPIO 35–37 are used internally and should not be wired; on modules with octal flash also 33 and 34 ([#14](../../issues/14)).
+**Usable pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 inputs). Left out on purpose: GPIO 0, 3, 45 and 46 (strapping pins), 19/20 (USB) and 33–37, which modules with octal PSRAM or octal flash (such as N16R8) use internally.
 
 ### Installation
 There are no prebuilt releases yet. Build the desktop app and flash the firmware as described under [Building](#building).
@@ -138,7 +138,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
 ### Funktionen
-- Bis zu 30 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
+- Bis zu 25 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
 - Makros aus Drücken und Loslassen von Tasten, Pausen, Medientasten und Text
 - Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
 - Profile lokal und auf dem Gerät gespeichert; einmal eingerichtet, arbeitet das Gerät ohne die App
@@ -151,7 +151,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 | Taster | Eine Seite an einen GPIO-Pin, die andere an GND. Die internen Pull-ups werden genutzt, Widerstände sind nicht nötig. |
 | EC11-Drehencoder (optional) | Pins A und B an zwei GPIO-Pins, der mittlere Pin C an GND. Der Taster des Encoders wie ein normaler Taster. |
 
-**Nutzbare Pins:** 1, 2, 4–18, 21, 33–42, 47, 48. GPIO 0, 3, 45 und 46 (Strapping-Pins) sowie 19/20 (USB) sind bewusst ausgenommen. Auf Modulen mit Octal-PSRAM (z. B. N16R8) sind GPIO 35–37 intern belegt und sollten nicht verdrahtet werden, bei Modulen mit Octal-Flash zusätzlich 33 und 34 ([#14](../../issues/14)).
+**Nutzbare Pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 Eingänge). Bewusst ausgenommen: GPIO 0, 3, 45 und 46 (Strapping-Pins), 19/20 (USB) und 33–37, die Module mit Octal-PSRAM oder Octal-Flash (z. B. N16R8) intern nutzen.
 
 ### Installation
 Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flashen wie unter [Bauen](#bauen) beschrieben.
