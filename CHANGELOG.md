@@ -9,6 +9,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### English
 
 #### Added
+- Text actions are typed by the device, for the keyboard layout chosen in the profile (English (US) or German), including umlauts, AltGr symbols such as `@` and `€` and accented letters via dead keys. Characters the layout cannot type are skipped.
 - The configurator lists the characters of a text action that the keyboard layout of the profile cannot type, e.g. umlauts on a US layout.
 - Keyboard layout in the profile (English (US) or German): keys in the configurator are shown with the labels printed on that layout, e.g. "Z" for the key next to "T" on a German keyboard.
 
@@ -29,6 +30,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### Deutsch
 
 #### Neu
+- Textaktionen werden vom Gerät getippt, passend zum im Profil gewählten Tastaturlayout (English (US) oder German), einschließlich Umlauten, AltGr-Zeichen wie `@` und `€` und Buchstaben mit Akzent über Tottasten. Zeichen, die das Layout nicht tippen kann, werden übersprungen.
 - Der Konfigurator listet die Zeichen einer Textaktion auf, die das Tastaturlayout des Profils nicht tippen kann, z. B. Umlaute bei US-Layout.
 - Tastaturlayout im Profil (English (US) oder German): Tasten werden im Konfigurator mit den Beschriftungen dieses Layouts angezeigt, z. B. „Z“ für die Taste neben „T“ auf einer deutschen Tastatur.
 
