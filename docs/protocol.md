@@ -115,7 +115,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 
 ### Format 1
 
-Profiles without `format` (from the app so far) are still accepted: each entry of `functions` is an object `{ "pin": "<pin>", "macro_str": "<macro>" }` and is treated as a button with default debounce. The old Arduino format `{ "pins": { "<pin>": "<macro>" } }` is accepted as well. Both are only meant for the transition.
+Profiles without `format` (from the app so far) are still accepted: each entry of `functions` is an object `{ "pin": "<pin>", "macro_str": "<macro>" }` and is treated as a button with default debounce. The format of the former Arduino firmware `{ "pins": { "<pin>": "<macro>" } }` is accepted as well. Both are only meant for the transition.
 
 ## Errors
 

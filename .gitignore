@@ -1,13 +1,6 @@
 # Rust build output
 target/
 
-# Arduino / PlatformIO build output
-build/
-.pio/
-*.bin
-*.elf
-*.map
-
 # Editors
 .vscode/
 .idea/
