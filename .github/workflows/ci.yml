@@ -53,3 +53,46 @@ jobs:
 
       - name: Test
         run: cargo test --locked
+
+  firmware:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flexpad-firmware
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        working-directory: .
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/espup
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            flexpad-firmware/target
+          key: firmware-${{ runner.os }}-${{ hashFiles('flexpad-firmware/Cargo.lock', 'flexpad-firmware/rust-toolchain.toml') }}
+          restore-keys: firmware-${{ runner.os }}-
+
+      - name: Install ESP32-S3 toolchain
+        working-directory: .
+        run: |
+          command -v espup || cargo install espup --locked
+          espup install --targets esp32s3 --export-file "$HOME/export-esp.sh"
+
+      - name: Test protocol on host
+        run: cargo +stable test --locked --lib --target x86_64-unknown-linux-gnu
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Lint
+        run: . "$HOME/export-esp.sh" && cargo clippy --release --locked -- -D warnings
+
+      - name: Build
+        run: . "$HOME/export-esp.sh" && cargo build --release --locked
