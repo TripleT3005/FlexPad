@@ -730,7 +730,7 @@ mod tests {
     fn device() -> FlexPadDeviceInfo {
         FlexPadDeviceInfo {
             port_name: "COM9".to_string(),
-            device_id: "FlexPad-14C19F46A1DC".to_string(),
+            device_id: "FlexPad-0123456789AB".to_string(),
         }
     }
 
