@@ -20,7 +20,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - Keys are stored as physical key positions (`KeyA`, `ControlLeft`, `Semicolon`, …), the same names the firmware uses. Older profiles are converted automatically when loaded.
 - Macros are stored in the profile as a list of actions instead of a comma-separated string. Older profiles are converted when loaded, and the firmware still runs profiles stored on the device before the update. **Advanced View** now shows the macro as JSON.
 - Text in macros is stored exactly as typed; umlauts are no longer replaced by `ae`, `oe` etc.
-- Settings and profiles are stored in the usual folder of each system (`%APPDATA%FlexPad` on Windows, `~/Library/Application Support/FlexPad` on macOS, `~/.config/flexpad` and `~/.local/share/flexpad` on Linux) instead of a visible `FlexPad` folder in the home directory. Existing files are moved once on start.
+- Settings and profiles are stored in the usual folder of each system (`%APPDATA%\FlexPad` on Windows, `~/Library/Application Support/FlexPad` on macOS, `~/.config/flexpad` and `~/.local/share/flexpad` on Linux) instead of a visible `FlexPad` folder in the home directory. Existing files are moved once on start.
 
 #### Fixed
 - Text actions no longer change with every edit of the macro (`y` and `z` swapped back and forth).
@@ -42,7 +42,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - Tasten werden als physische Tastenpositionen gespeichert (`KeyA`, `ControlLeft`, `Semicolon`, …), mit denselben Namen wie in der Firmware. Ältere Profile werden beim Laden automatisch umgestellt.
 - Makros werden im Profil als Liste von Aktionen statt als kommagetrennter String gespeichert. Ältere Profile werden beim Laden umgewandelt, und die Firmware führt Profile, die vor dem Update auf dem Gerät gespeichert wurden, weiterhin aus. **Advanced View** zeigt das Makro jetzt als JSON.
 - Text in Makros wird genau so gespeichert, wie er eingegeben wurde; Umlaute werden nicht mehr durch `ae`, `oe` usw. ersetzt.
-- Einstellungen und Profile liegen im üblichen Ordner des jeweiligen Systems (`%APPDATA%FlexPad` unter Windows, `~/Library/Application Support/FlexPad` unter macOS, `~/.config/flexpad` und `~/.local/share/flexpad` unter Linux) statt in einem sichtbaren Ordner `FlexPad` im Benutzerverzeichnis. Vorhandene Dateien werden beim Start einmalig verschoben.
+- Einstellungen und Profile liegen im üblichen Ordner des jeweiligen Systems (`%APPDATA%\FlexPad` unter Windows, `~/Library/Application Support/FlexPad` unter macOS, `~/.config/flexpad` und `~/.local/share/flexpad` unter Linux) statt in einem sichtbaren Ordner `FlexPad` im Benutzerverzeichnis. Vorhandene Dateien werden beim Start einmalig verschoben.
 
 #### Behoben
 - Textaktionen ändern sich nicht mehr bei jeder Bearbeitung des Makros (`y` und `z` wurden hin- und hergetauscht).
