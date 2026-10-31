@@ -1,3 +1,5 @@
+use crate::macros::Preset;
+
 // Types
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,7 +12,7 @@ pub struct PinRole {
 pub struct Function {
     pub id: &'static str,
     pub label: &'static str,
-    pub default_macro: &'static str,
+    pub default_macro: Preset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,7 +106,7 @@ pub const BUTTON: Component = Component {
     functions: &[Function {
         id: "press",
         label: "Press",
-        default_macro: "P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft",
+        default_macro: Preset::Chord(&["ControlLeft", "KeyC"]),
     }],
     parameters: &[DEBOUNCE],
 };
@@ -131,17 +133,17 @@ pub const EC11: Component = Component {
         Function {
             id: "turn_right",
             label: "Turn right",
-            default_macro: "MEDIA:vol_up",
+            default_macro: Preset::Media("vol_up"),
         },
         Function {
             id: "turn_left",
             label: "Turn left",
-            default_macro: "MEDIA:vol_down",
+            default_macro: Preset::Media("vol_down"),
         },
         Function {
             id: "press",
             label: "Press",
-            default_macro: "MEDIA:mute",
+            default_macro: Preset::Media("mute"),
         },
     ],
     parameters: &[

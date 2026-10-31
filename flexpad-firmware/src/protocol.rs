@@ -3,7 +3,7 @@ use core::fmt::{self, Write};
 use crate::buttons::Edge;
 use crate::config::{ConfigError, MAX_CONFIG_SIZE};
 use crate::encoder::Direction;
-use crate::macros::{self, MacroError};
+use crate::macros::{Action, MacroBuffer, MacroError};
 
 // Constants
 
@@ -96,11 +96,15 @@ pub fn parse_command(line: &[u8]) -> Command<'_> {
     }
 }
 
-pub fn macro_text(payload: &[u8]) -> Result<&str, MacroError<'_>> {
-    let text =
-        core::str::from_utf8(payload).map_err(|_| MacroError::UnknownAction("invalid_utf8"))?;
-    macros::validate(text)?;
-    Ok(text)
+pub fn compile_macro(payload: &[u8]) -> Result<MacroBuffer, MacroError<'_>> {
+    let buffer = MacroBuffer::compile(payload)?;
+    if buffer
+        .actions()
+        .any(|action| matches!(action, Action::Text(_)))
+    {
+        return Err(MacroError::Unsupported("text"));
+    }
+    Ok(buffer)
 }
 
 // Responses
@@ -122,7 +126,7 @@ pub fn write_response(
             PRODUCT_NAME, info.serial_number, info.firmware_version
         ),
         Command::GetConfig | Command::SetConfig(_) => Ok(()),
-        Command::RunMacro(payload) => match macro_text(payload) {
+        Command::RunMacro(payload) => match compile_macro(payload) {
             Ok(_) => out.write_str("MACRO_QUEUED\n"),
             Err(error) => writeln!(out, "MACRO_ERROR:{error}"),
         },
@@ -277,8 +281,8 @@ mod tests {
             Command::RebootBootloader
         );
         assert_eq!(
-            parse_command(b"RUN_MACRO:P:a,R:a"),
-            Command::RunMacro(b"P:a,R:a")
+            parse_command(b"RUN_MACRO:{\"actions\":[]}"),
+            Command::RunMacro(b"{\"actions\":[]}")
         );
         assert_eq!(parse_command(b"get_config"), Command::Unknown);
         assert_eq!(parse_command(b""), Command::Unknown);
@@ -353,20 +357,28 @@ mod tests {
     #[test]
     fn run_macro_validates_before_queueing() {
         assert_eq!(
-            response(Command::RunMacro(b"P:lctrl,P:c,D:50,R:c,R:lctrl")),
+            response(Command::RunMacro(
+                br#"{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"}]}"#
+            )),
             "MACRO_QUEUED\n"
         );
         assert_eq!(
-            response(Command::RunMacro(b"P:lctrl,P:hyper")),
+            response(Command::RunMacro(
+                br#"{"actions":[{"press":"ControlLeft"},{"press":"hyper"}]}"#
+            )),
             "MACRO_ERROR:unknown_key:hyper\n"
         );
         assert_eq!(
-            response(Command::RunMacro(b"TEXT:hi")),
-            "MACRO_ERROR:unsupported:TEXT\n"
+            response(Command::RunMacro(br#"{"actions":[{"text":"hi"}]}"#)),
+            "MACRO_ERROR:unsupported:text\n"
         );
         assert_eq!(
-            response(Command::RunMacro(&[0xFF])),
-            "MACRO_ERROR:unknown_action:invalid_utf8\n"
+            response(Command::RunMacro(b"P:a,R:a")),
+            "MACRO_ERROR:invalid_structure:function\n"
+        );
+        assert_eq!(
+            response(Command::RunMacro(b"{\"actions\":[{\"press\":\"\xFF\"}]}")),
+            "MACRO_ERROR:invalid_json:22\n"
         );
     }
 

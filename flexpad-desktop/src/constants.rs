@@ -1,3 +1,5 @@
+use crate::macros::Preset;
+
 pub const FIRMWARE_PINS: &[u8] = &[
     1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 38, 39, 40, 41, 42, 47, 48,
 ];
@@ -11,82 +13,67 @@ pub const MEDIA_ACTIONS: &[(&str, &str)] = &[
     ("Play/Pause", "play"),
 ];
 
-pub const PRESETS: &[(&str, &str)] = &[
-    (
-        "Copy [Universal]",
-        "P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft",
-    ),
-    (
-        "Paste [Universal]",
-        "P:ControlLeft,P:KeyV,D:50,R:KeyV,R:ControlLeft",
-    ),
-    (
-        "Cut [Universal]",
-        "P:ControlLeft,P:KeyX,D:50,R:KeyX,R:ControlLeft",
-    ),
-    (
-        "Find [Universal]",
-        "P:ControlLeft,P:KeyF,D:50,R:KeyF,R:ControlLeft",
-    ),
+pub const PRESETS: &[(&str, Preset)] = &[
+    ("Copy [Universal]", Preset::Chord(&["ControlLeft", "KeyC"])),
+    ("Paste [Universal]", Preset::Chord(&["ControlLeft", "KeyV"])),
+    ("Cut [Universal]", Preset::Chord(&["ControlLeft", "KeyX"])),
+    ("Find [Universal]", Preset::Chord(&["ControlLeft", "KeyF"])),
     (
         "New Tab [Universal]",
-        "P:ControlLeft,P:KeyT,D:50,R:KeyT,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "KeyT"]),
     ),
     (
         "Close Tab [Universal]",
-        "P:ControlLeft,P:KeyW,D:50,R:KeyW,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "KeyW"]),
     ),
     (
         "Select All [Universal]",
-        "P:ControlLeft,P:KeyA,D:50,R:KeyA,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "KeyA"]),
     ),
     (
         "Task Manager [Windows]",
-        "P:ControlLeft,P:ShiftLeft,P:Escape,D:50,R:Escape,R:ShiftLeft,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "ShiftLeft", "Escape"]),
     ),
-    (
-        "Lock PC [Windows]",
-        "P:MetaLeft,P:KeyL,D:50,R:KeyL,R:MetaLeft",
-    ),
+    ("Lock PC [Windows]", Preset::Chord(&["MetaLeft", "KeyL"])),
     (
         "Lock PC [Linux Gnome]",
-        "P:ControlLeft,P:AltLeft,P:KeyL,D:50,R:KeyL,R:AltLeft,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "AltLeft", "KeyL"]),
     ),
     (
         "File Explorer [Windows]",
-        "P:MetaLeft,P:KeyE,D:50,R:KeyE,R:MetaLeft",
+        Preset::Chord(&["MetaLeft", "KeyE"]),
     ),
     (
         "Emoji Picker [Windows]",
-        "P:MetaLeft,P:Period,D:50,R:Period,R:MetaLeft",
+        Preset::Chord(&["MetaLeft", "Period"]),
     ),
     (
         "Close Window [Win/Linux]",
-        "P:AltLeft,P:F4,D:50,R:F4,R:AltLeft",
+        Preset::Chord(&["AltLeft", "F4"]),
     ),
     (
         "Open Terminal [Linux]",
-        "P:ControlLeft,P:AltLeft,P:KeyT,D:50,R:KeyT,R:AltLeft,R:ControlLeft",
+        Preset::Chord(&["ControlLeft", "AltLeft", "KeyT"]),
     ),
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::macros::MacroAction;
 
     // Presets
 
     #[test]
     fn presets_use_position_names_known_to_the_firmware() {
-        for (name, macro_str) in PRESETS {
-            assert_eq!(&crate::keys::migrate_macro(macro_str), macro_str, "{name}");
-            for token in macro_str.split(',') {
-                if let Some(key) = token
-                    .strip_prefix("P:")
-                    .or_else(|| token.strip_prefix("R:"))
-                {
+        for (name, preset) in PRESETS {
+            let mut migrated = preset.to_macro();
+            migrated.migrate_keys();
+            assert_eq!(migrated, preset.to_macro(), "{name}");
+            for action in preset.to_macro().actions {
+                if let MacroAction::Press(key) | MacroAction::Release(key) = action {
                     assert!(
-                        crate::keys::firmware_keys::key_from_name(key).is_some(),
+                        crate::keys::firmware_keys::key_from_name(&key).is_some(),
                         "{name}: {key}"
                     );
                 }

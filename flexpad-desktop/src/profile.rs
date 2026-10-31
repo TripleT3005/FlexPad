@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::{self, BUTTON, Component, EC11};
 use crate::constants::FIRMWARE_PINS;
-use crate::keys::{self, KeyboardLayout};
+use crate::keys::KeyboardLayout;
+use crate::macros::{self, Macro, MacroAction};
 
 // Constants
 
@@ -26,7 +27,7 @@ pub struct Tile {
     #[serde(default)]
     pub parameters: BTreeMap<String, serde_json::Value>,
     #[serde(default)]
-    pub functions: BTreeMap<String, String>,
+    pub functions: BTreeMap<String, Macro>,
     pub x: f32,
     pub y: f32,
 }
@@ -47,7 +48,7 @@ impl Tile {
             functions: component
                 .functions
                 .iter()
-                .map(|function| (function.id.to_string(), function.default_macro.to_string()))
+                .map(|function| (function.id.to_string(), function.default_macro.to_macro()))
                 .collect(),
             x,
             y,
@@ -77,8 +78,10 @@ impl Tile {
         })
     }
 
-    pub fn macro_for(&self, function: &str) -> &str {
-        self.functions.get(function).map_or("", String::as_str)
+    pub fn macro_for(&self, function: &str) -> &[MacroAction] {
+        self.functions
+            .get(function)
+            .map_or(&[], |value| value.actions.as_slice())
     }
 }
 
@@ -129,23 +132,44 @@ impl Default for Profile {
 // Loading
 
 pub fn parse_profile(json: &str) -> Result<Profile, String> {
-    let value: serde_json::Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
+    let mut value: serde_json::Value =
+        serde_json::from_str(json).map_err(|error| error.to_string())?;
     if !value.is_object() {
         return Err("The profile is not a JSON object.".to_string());
     }
     let mut profile: Profile = match value.get("format") {
         None => migrate_legacy(value)?,
         Some(format) if format.as_u64() == Some(u64::from(FORMAT)) => {
+            migrate_macro_strings(&mut value);
             serde_json::from_value(value).map_err(|error| error.to_string())?
         }
         Some(format) => return Err(format!("Unsupported profile format: {format}")),
     };
     for tile in &mut profile.tiles {
-        for macro_str in tile.functions.values_mut() {
-            *macro_str = keys::migrate_macro(macro_str);
+        for function in tile.functions.values_mut() {
+            function.migrate_keys();
         }
     }
     Ok(profile)
+}
+
+fn migrate_macro_strings(value: &mut serde_json::Value) {
+    let Some(tiles) = value
+        .get_mut("tiles")
+        .and_then(serde_json::Value::as_array_mut)
+    else {
+        return;
+    };
+    let functions = tiles
+        .iter_mut()
+        .filter_map(|tile| tile.get_mut("functions"))
+        .filter_map(serde_json::Value::as_object_mut);
+    for function in functions.flat_map(|functions| functions.values_mut()) {
+        if let Some(macro_str) = function.as_str() {
+            *function = serde_json::to_value(macros::parse_legacy(macro_str))
+                .unwrap_or(serde_json::Value::Null);
+        }
+    }
 }
 
 // Legacy formats
@@ -215,7 +239,7 @@ fn migrate_legacy(value: serde_json::Value) -> Result<Profile, String> {
         );
         tile.set_pin("switch", usable_pin(pin));
         tile.functions
-            .insert("press".to_string(), macro_text.clone());
+            .insert("press".to_string(), macros::parse_legacy(macro_text));
         tiles.push(tile);
     }
     Ok(Profile::new(
@@ -242,18 +266,19 @@ fn migrate_tile(legacy: LegacyTile) -> Tile {
         for (&(_, role, function), (pin, macro_text)) in slots.iter().zip(&legacy.pins) {
             tile.set_pin(role, usable_pin(pin));
             tile.functions
-                .insert(function.to_string(), macro_text.clone());
+                .insert(function.to_string(), macros::parse_legacy(macro_text));
         }
         return tile;
     }
     for &(slot, role, function) in slots {
         let Some(old) = legacy.functions.get(slot) else {
-            tile.functions.insert(function.to_string(), String::new());
+            tile.functions
+                .insert(function.to_string(), Macro::default());
             continue;
         };
         tile.set_pin(role, usable_pin(&old.pin));
         tile.functions
-            .insert(function.to_string(), old.macro_str.clone());
+            .insert(function.to_string(), macros::parse_legacy(&old.macro_str));
     }
     tile
 }
@@ -261,6 +286,9 @@ fn migrate_tile(legacy: LegacyTile) -> Tile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn legacy(macro_str: &str) -> Vec<MacroAction> {
+        macros::parse_legacy(macro_str).actions
+    }
 
     // Format 2
 
@@ -275,8 +303,8 @@ mod tests {
             Some(serde_json::json!(4))
         );
         assert_eq!(tile.parameter("reverse"), Some(serde_json::json!(false)));
-        assert_eq!(tile.macro_for("turn_right"), "MEDIA:vol_up");
-        assert_eq!(tile.macro_for("unknown"), "");
+        assert_eq!(tile.macro_for("turn_right"), legacy("MEDIA:vol_up"));
+        assert!(tile.macro_for("unknown").is_empty());
     }
 
     #[test]
@@ -294,13 +322,41 @@ mod tests {
 
     #[test]
     fn matches_the_firmware_example() {
-        let json = r#"{"format":2,"profile_name":"Desk","tiles":[{"id":"tile_2","display_name":"Volume","component":"ec11","kind":"encoder","pins":{"a":15,"b":16,"switch":17},"parameters":{"steps_per_detent":4,"reverse":false,"debounce_ms":10},"functions":{"turn_right":"MEDIA:vol_up","turn_left":"MEDIA:vol_down","press":"MEDIA:mute"},"x":200.0,"y":50.0}]}"#;
+        let json = r#"{"format":2,"profile_name":"Desk","keyboard_layout":"us","tiles":[{"id":"tile_2","display_name":"Volume","component":"ec11","kind":"encoder","pins":{"a":15,"b":16,"switch":17},"parameters":{"steps_per_detent":4,"reverse":false,"debounce_ms":10},"functions":{"turn_right":{"actions":[{"media":"vol_up"}]},"turn_left":{"actions":[{"media":"vol_down"}]},"press":{"actions":[{"media":"mute"}]}},"x":200.0,"y":50.0}]}"#;
 
         let profile = parse_profile(json).unwrap();
 
         assert_eq!(profile.tiles[0].pin("b"), Some(16));
         assert_eq!(profile.tiles[0].component(), Some(&EC11));
+        assert_eq!(profile.tiles[0].macro_for("press"), legacy("MEDIA:mute"));
         assert_eq!(parse_profile(&profile.to_json().unwrap()).unwrap(), profile);
+    }
+
+    #[test]
+    fn converts_macro_strings_of_format_2() {
+        let json = r#"{"format":2,"profile_name":"P","tiles":[{"id":"t","display_name":"T","component":"button","kind":"button","pins":{"switch":4},"functions":{"press":"P:lctrl,TEXT:Hallo, Welt,D:10,R:lctrl"},"x":0.0,"y":0.0}]}"#;
+
+        let profile = parse_profile(json).unwrap();
+
+        assert_eq!(
+            profile.tiles[0].macro_for("press"),
+            [
+                MacroAction::Press("ControlLeft".to_string()),
+                MacroAction::Text("Hallo, Welt".to_string()),
+                MacroAction::Delay(10),
+                MacroAction::Release("ControlLeft".to_string()),
+            ]
+        );
+        assert!(profile.to_json().unwrap().contains(
+            r#""functions":{"press":{"actions":[{"press":"ControlLeft"},{"text":"Hallo, Welt"},{"delay":10},{"release":"ControlLeft"}]}}"#
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_function_objects() {
+        let json = r#"{"format":2,"profile_name":"P","tiles":[{"id":"t","display_name":"T","component":"button","kind":"button","functions":{"press":{"actions":[{"jump":1}]}},"x":0.0,"y":0.0}]}"#;
+
+        assert!(parse_profile(json).is_err());
     }
 
     #[test]
@@ -344,7 +400,7 @@ mod tests {
         assert_eq!(button.pin("switch"), Some(4));
         assert_eq!(
             button.macro_for("press"),
-            "P:ControlLeft,P:KeyC,R:KeyC,R:ControlLeft"
+            legacy("P:ControlLeft,P:KeyC,R:KeyC,R:ControlLeft")
         );
         assert_eq!((button.x, button.y), (10.0, 20.0));
         let encoder = &profile.tiles[1];
@@ -353,9 +409,9 @@ mod tests {
             (encoder.pin("a"), encoder.pin("b"), encoder.pin("switch")),
             (Some(15), Some(16), None)
         );
-        assert_eq!(encoder.macro_for("turn_right"), "MEDIA:vol_up");
-        assert_eq!(encoder.macro_for("turn_left"), "MEDIA:vol_down");
-        assert_eq!(encoder.macro_for("press"), "MEDIA:mute");
+        assert_eq!(encoder.macro_for("turn_right"), legacy("MEDIA:vol_up"));
+        assert_eq!(encoder.macro_for("turn_left"), legacy("MEDIA:vol_down"));
+        assert_eq!(encoder.macro_for("press"), legacy("MEDIA:mute"));
         assert_eq!(
             encoder.parameter("steps_per_detent"),
             Some(serde_json::json!(4))
@@ -374,7 +430,7 @@ mod tests {
                 .tiles
                 .iter()
                 .any(|tile| tile.pin("switch") == Some(15)
-                    && tile.macro_for("press") == "MEDIA:mute")
+                    && tile.macro_for("press") == legacy("MEDIA:mute"))
         );
         assert!(profile.tiles.iter().all(|tile| tile.kind == "button"));
     }
@@ -398,7 +454,7 @@ mod tests {
         let unusable = profile
             .tiles
             .iter()
-            .find(|tile| tile.macro_for("press") == "P:F12,R:F12")
+            .find(|tile| tile.macro_for("press") == legacy("P:F12,R:F12"))
             .unwrap();
         assert_eq!(unusable.pin("switch"), None);
         assert!(
@@ -419,9 +475,9 @@ mod tests {
         let profile = parse_profile(json).unwrap();
 
         assert_eq!(profile.tiles[0].pin("switch"), Some(15));
-        assert_eq!(profile.tiles[0].macro_for("press"), "MEDIA:mute");
+        assert_eq!(profile.tiles[0].macro_for("press"), legacy("MEDIA:mute"));
         assert_eq!(profile.tiles[1].pin("switch"), Some(42));
-        assert_eq!(profile.tiles[1].macro_for("press"), "P:F12,R:F12");
+        assert_eq!(profile.tiles[1].macro_for("press"), legacy("P:F12,R:F12"));
     }
 
     #[test]
@@ -433,7 +489,7 @@ mod tests {
         assert_eq!(profile.keyboard_layout, KeyboardLayout::De);
         assert_eq!(
             profile.tiles[0].macro_for("press"),
-            "P:ControlLeft,P:KeyZ,R:KeyZ,R:ControlLeft"
+            legacy("P:ControlLeft,P:KeyZ,R:KeyZ,R:ControlLeft")
         );
         assert!(
             profile

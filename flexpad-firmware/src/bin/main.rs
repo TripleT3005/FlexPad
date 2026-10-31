@@ -2,10 +2,7 @@
 #![no_main]
 #![deny(clippy::mem_forget, clippy::large_stack_frames)]
 
-use core::{
-    fmt::Write,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 use embassy_executor::Spawner;
 use embassy_futures::{
@@ -47,7 +44,7 @@ use flexpad_firmware::{
     },
     encoder::{DEFAULT_STEPS_PER_DETENT, Decoder, Direction},
     hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
-    macros::{self, Action},
+    macros::{Action, MacroBuffer},
     protocol::{
         self, CONFIG_DATA_PREFIX, Command, DeviceInfo, EMPTY_CONFIG, LineReader, MAX_LINE_LENGTH,
         PRODUCT_NAME, TextBuffer,
@@ -66,13 +63,11 @@ const MAX_PACKET_SIZE: usize = 64;
 const HID_PACKET_SIZE: u16 = 16;
 const HID_POLL_MS: u8 = 5;
 const MEDIA_PRESS_MS: u64 = 30;
-const MAX_MACRO_LENGTH: usize = 512;
 const MACRO_QUEUE_SIZE: usize = 8;
 const EVENT_QUEUE_SIZE: usize = 16;
 const CONFIG_PARTITION_LABEL: &str = "flexpad";
 const FIRMWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-type MacroText = TextBuffer<MAX_MACRO_LENGTH>;
 type Response = TextBuffer<256>;
 type SharedConfig = Mutex<CriticalSectionRawMutex, ConfigState>;
 type Inputs = [Input<'static>; INPUT_PINS.len()];
@@ -94,7 +89,8 @@ static CONFIG_JSON: ConstStaticCell<[u8; MAX_CONFIG_SIZE]> =
 static BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
 static SCRATCH_BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
 static CONFIG: StaticCell<SharedConfig> = StaticCell::new();
-static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroText, MACRO_QUEUE_SIZE> = Channel::new();
+static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroBuffer, MACRO_QUEUE_SIZE> =
+    Channel::new();
 static EVENT_QUEUE: Channel<CriticalSectionRawMutex, InputEvent, EVENT_QUEUE_SIZE> = Channel::new();
 static CONFIG_GENERATION: AtomicU32 = AtomicU32::new(0);
 
@@ -441,18 +437,14 @@ fn find_config_partition(storage: &mut FlashStorage<'static>) -> Option<u32> {
 // Macros
 
 fn queue_macro(payload: &[u8]) -> bool {
-    match protocol::macro_text(payload) {
-        Ok(text) => enqueue_macro(text),
+    match protocol::compile_macro(payload) {
+        Ok(buffer) => MACRO_QUEUE.try_send(buffer).is_ok(),
         Err(_) => true,
     }
 }
 
-fn enqueue_macro(text: &str) -> bool {
-    let mut macro_text = MacroText::new();
-    if macro_text.write_str(text).is_err() {
-        return false;
-    }
-    MACRO_QUEUE.try_send(macro_text).is_ok()
+fn enqueue_macro(code: &[u8]) -> bool {
+    MacroBuffer::from_code(code).is_some_and(|buffer| MACRO_QUEUE.try_send(buffer).is_ok())
 }
 
 // Inputs
@@ -538,16 +530,16 @@ async fn read_inputs(inputs: Inputs, config: &SharedConfig) -> ! {
 }
 
 async fn run_trigger(config: &SharedConfig, trigger: Trigger) {
-    if let Some(text) = config.lock().await.bindings.macro_for(trigger) {
-        enqueue_macro(text);
+    if let Some(code) = config.lock().await.bindings.macro_for(trigger) {
+        enqueue_macro(code);
     }
 }
 
 async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE>) -> ! {
     let mut state = KeyboardState::new();
     loop {
-        let macro_text = MACRO_QUEUE.receive().await;
-        for action in macros::actions(macro_text.as_str()).flatten() {
+        let buffer = MACRO_QUEUE.receive().await;
+        for action in buffer.actions() {
             match action {
                 Action::Press(key) => {
                     state.press(key);
@@ -563,6 +555,7 @@ async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE
                     Timer::after_millis(MEDIA_PRESS_MS).await;
                     let _ = keyboard.write(&consumer_report(0)).await;
                 }
+                Action::Text(_) => {}
             }
         }
         if !state.is_empty() {

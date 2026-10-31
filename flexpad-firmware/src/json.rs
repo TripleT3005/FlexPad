@@ -25,8 +25,33 @@ impl<'a> JsonStr<'a> {
         self.raw
     }
 
+    pub fn as_str(&self) -> &'a str {
+        core::str::from_utf8(self.raw).unwrap_or_default()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.raw.is_empty()
+    }
+
+    pub fn tokens(&self, separator: u8) -> impl Iterator<Item = JsonStr<'a>> + use<'a> {
+        self.raw
+            .split(move |&byte| byte == separator)
+            .map(|raw| JsonStr {
+                raw: raw.trim_ascii(),
+            })
+            .filter(|token| !token.is_empty())
+    }
+
+    pub fn split_once(&self, separator: u8) -> Option<(JsonStr<'a>, JsonStr<'a>)> {
+        let index = self.raw.iter().position(|&byte| byte == separator)?;
+        Some((
+            JsonStr {
+                raw: &self.raw[..index],
+            },
+            JsonStr {
+                raw: &self.raw[index + 1..],
+            },
+        ))
     }
 
     pub fn eq_str(&self, text: &str) -> bool {
@@ -220,6 +245,13 @@ impl<'a> Parser<'a> {
         Ok(core::str::from_utf8(&self.bytes[start..self.position]).unwrap_or_default())
     }
 
+    pub fn raw_value(&mut self) -> JsonResult<&'a [u8]> {
+        self.skip_whitespace();
+        let start = self.position;
+        self.skip_value()?;
+        Ok(&self.bytes[start..self.position])
+    }
+
     pub fn skip_value(&mut self) -> JsonResult<()> {
         match self.peek() {
             Some(b'{') => self.object(|parser, _| parser.skip_value()),
@@ -299,6 +331,11 @@ impl<'a> Parser<'a> {
             Err(self.error())
         }
     }
+}
+
+pub fn remember<E>(slot: &mut Option<E>, error: E, parser: &Parser<'_>) -> JsonError {
+    slot.get_or_insert(error);
+    parser.error()
 }
 
 pub fn validate(bytes: &[u8]) -> JsonResult<()> {
@@ -386,6 +423,26 @@ mod tests {
         let mut parser = Parser::new(br#""\ud83d""#);
         let mut out = String::new();
         assert!(parser.string().unwrap().unescape_into(&mut out).is_err());
+    }
+
+    #[test]
+    fn splits_raw_strings_into_tokens() {
+        let mut parser = Parser::new(br#"" P:a , ,TEXT:x\\ny,""#);
+        let text = parser.string().unwrap();
+
+        let tokens: Vec<&str> = text.tokens(b',').map(|token| token.as_str()).collect();
+        let (kind, value) = text.tokens(b',').nth(1).unwrap().split_once(b':').unwrap();
+
+        assert_eq!(tokens, ["P:a", r"TEXT:x\\ny"]);
+        assert_eq!((kind.as_str(), value.as_str()), ("TEXT", r"x\\ny"));
+    }
+
+    #[test]
+    fn returns_raw_values() {
+        let mut parser = Parser::new(br#" {"a":[1, "x"]} "#);
+
+        assert_eq!(parser.raw_value(), Ok(&br#"{"a":[1, "x"]}"#[..]));
+        assert_eq!(parser.finish(), Ok(()));
     }
 
     #[test]

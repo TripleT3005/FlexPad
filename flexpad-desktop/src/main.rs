@@ -8,6 +8,7 @@ mod constants;
 mod device;
 mod icon;
 mod keys;
+mod macros;
 mod profile;
 mod release;
 mod ui;
