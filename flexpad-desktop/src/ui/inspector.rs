@@ -249,7 +249,10 @@ fn view_macro_editor<'a>(
     }
 
     let layout = app.keyboard_layout;
-    let key_labels: Vec<String> = KEYS.iter().map(|k| k.label(layout).to_string()).collect();
+    let key_labels: Vec<String> = keys::picker_keys(layout)
+        .iter()
+        .map(|k| k.label(layout).to_string())
+        .collect();
     let selected_key_label = keys::label_for(&app.ui.selected_macro_key, layout);
     let key_picker = pick_list(key_labels, Some(selected_key_label), move |lbl| {
         let code = KEYS

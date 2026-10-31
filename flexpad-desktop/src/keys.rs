@@ -243,6 +243,23 @@ pub fn code_for(name: &str) -> Option<&'static str> {
     find(&wanted).map(|key| key.code)
 }
 
+pub fn picker_keys(layout: KeyboardLayout) -> Vec<&'static Key> {
+    let is_letter = |key: &Key| {
+        let mut chars = key.label(layout).chars();
+        matches!((chars.next(), chars.next()), (Some(c), None) if c.is_alphabetic())
+    };
+    let letters_start = KEYS.iter().position(&is_letter).unwrap_or(KEYS.len());
+    let mut keys: Vec<(usize, &'static Key)> = KEYS.iter().enumerate().collect();
+    keys.sort_by_key(|&(index, key)| {
+        if is_letter(key) {
+            (letters_start, Some(key.label(layout)))
+        } else {
+            (index, None)
+        }
+    });
+    keys.into_iter().map(|(_, key)| key).collect()
+}
+
 pub fn label_for(name: &str, layout: KeyboardLayout) -> String {
     code_for(name)
         .and_then(find)
@@ -326,6 +343,48 @@ mod tests {
         assert_eq!(label_for("IntlBackslash", KeyboardLayout::De), "<");
         assert_eq!(label_for("KeyY", KeyboardLayout::Us), "Y");
         assert_eq!(label_for("Semicolon", KeyboardLayout::Us), ";");
+    }
+
+    // Picker order
+
+    fn picker_labels(layout: KeyboardLayout) -> Vec<&'static str> {
+        picker_keys(layout)
+            .iter()
+            .map(|k| k.label(layout))
+            .collect()
+    }
+
+    #[test]
+    fn picker_offers_every_key_once() {
+        for &layout in KeyboardLayout::ALL {
+            let mut codes: Vec<_> = picker_keys(layout).iter().map(|k| k.code).collect();
+            codes.sort_unstable();
+            let mut expected: Vec<_> = KEYS.iter().map(|k| k.code).collect();
+            expected.sort_unstable();
+            assert_eq!(codes, expected);
+        }
+    }
+
+    #[test]
+    fn picker_keeps_the_us_order() {
+        let codes: Vec<_> = picker_keys(KeyboardLayout::Us)
+            .iter()
+            .map(|k| k.code)
+            .collect();
+        let expected: Vec<_> = KEYS.iter().map(|k| k.code).collect();
+        assert_eq!(codes, expected);
+    }
+
+    #[test]
+    fn picker_sorts_german_letters_by_label() {
+        let labels = picker_labels(KeyboardLayout::De);
+        let start = labels.iter().position(|&l| l == "A").unwrap();
+        let letters: Vec<_> = labels[start..start + 30].to_vec();
+        let mut expected: Vec<_> = ('A'..='Z').map(|c| c.to_string()).collect();
+        expected.extend(["Ä", "Ö", "Ü", "ß"].map(String::from));
+        assert_eq!(letters, expected);
+        assert_eq!(labels[start - 1], "0");
+        assert_eq!(labels[start + 30], "´");
     }
 
     // Legacy names
