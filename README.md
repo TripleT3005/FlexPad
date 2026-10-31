@@ -4,21 +4,21 @@
 
 ## English
 
-FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial.
+FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial. The firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> **Work in progress.** FlexPad works with the Rust firmware for buttons and EC11 encoders, but is not finished yet. Known gaps:
-> - Use the Rust firmware in `flexpad-firmware/`; the Arduino sketch in `esp32-firmware/` does not understand the current profile format and will be removed.
+> **Work in progress.** Buttons and EC11 encoders work, but FlexPad is not finished yet. Known gaps:
 > - `TEXT:` actions are not typed yet, and commas inside text break the macro ([#6](../../issues/6)).
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)). The Rust firmware in `flexpad-firmware/` and the desktop app already work together for buttons and EC11 encoders (profile format 2); the Arduino sketch does not understand this format.
+> See the [issues](../../issues) for details and plans.
 >
-> Not affiliated with or endorsed by Espressif Systems or Arduino.
+> Not affiliated with or endorsed by Espressif Systems.
 
 ### Features
 - Up to 25 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
 - Macros made of key presses and releases, delays, media keys and text
 - Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
+- Debounce time, encoder resolution and direction adjustable per tile
 - Profiles stored locally and on the device; the device works without the app once configured
 - No driver, no account, no network access
 
@@ -46,22 +46,22 @@ There are no prebuilt releases yet. Build the desktop app and flash the firmware
 5. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
 
 ### How it works
-The firmware polls the configured pins, debounces them and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The configuration is kept as JSON in a LittleFS partition on the ESP32-S3, so it survives a restart.
+The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
 
-The app and the device talk over the USB serial port of the board (115200 baud, line-based text commands, each terminated with `\n`). The complete protocol and profile format are described in [docs/protocol.md](docs/protocol.md); overview:
+The app and the device talk over the USB serial port of the board (line-based text commands, each terminated with `\n`). The complete protocol and profile format are described in [docs/protocol.md](docs/protocol.md); overview:
 
 | Command | Response |
 |---|---|
-| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
-| `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED`; the Rust firmware checks the configuration first and answers `CONFIG_ERROR:<reason>` (e.g. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`) without changing the stored one |
-| `RUN_MACRO:<macro>` | Checks the macro and runs it: `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` (e.g. `unknown_key:hyper`, `busy`) (Rust firmware only) |
-| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode (Rust firmware only) |
-| – | Sent by the device: `EVENT:PIN:<pin>:PRESSED` or `RELEASED` for every debounced button change, also for unassigned pins (Rust firmware only) |
+| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>,<firmware version>` |
+| `GET_CONFIG` | `CONFIG_DATA:<profile JSON>` |
+| `SET_CONFIG:<profile JSON>` | `CONFIG_SAVED`, or `CONFIG_ERROR:<reason>` (e.g. `unusable_pin:35`, `duplicate_pin:4`) without changing the stored profile |
+| `RUN_MACRO:<macro>` | Runs a macro for testing: `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` |
+| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode for flashing |
+| – | Sent by the device: `EVENT:PIN:<pin>:PRESSED`/`RELEASED` and `EVENT:ENCODER:<pin a>:RIGHT`/`LEFT` |
 
-Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` type text (app only so far). Example: `P:lctrl,P:c,D:50,R:c,R:lctrl` (copy).
+Macros are comma-separated actions: `P:<key>` press, `R:<key>` release, `D:<ms>` delay, `MEDIA:<action>` media key, `TEXT:<text>` type text (not executed yet). Example: `P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft` (copy).
 
-Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The Rust firmware also accepts the older names used by the app so far (`lctrl`, `ael`, `kp_1` …). Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
+Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The firmware also accepts the older names the app still uses (`lctrl`, `ael`, `kp_1` …). Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
 - **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
@@ -81,30 +81,7 @@ cargo run --release
 `cargo test` runs the unit tests; CI checks formatting, `clippy` and tests on Windows, Linux and macOS.
 
 #### Firmware
-Requires the [Arduino IDE](https://www.arduino.cc/en/software) or `arduino-cli` with the Espressif ESP32 core and the library [ArduinoJson](https://arduinojson.org/) (version 7).
-
-1. Open `esp32-firmware/esp32-firmware.ino`. `partitions.csv` must stay in the same folder; it reserves two 6 MB app partitions and a 3 MB `storage` partition for the configuration.
-2. Select these settings in the **Tools** menu:
-
-| Setting | Value |
-|---|---|
-| Board | ESP32S3 Dev Module |
-| USB CDC On Boot | Enabled |
-| CPU Frequency | 240 MHz (WiFi) |
-| Flash Mode | QIO 80 MHz |
-| Flash Size | 16 MB (128 Mb) |
-| Partition Scheme | Custom |
-| PSRAM | OPI PSRAM |
-| USB Mode | USB-OTG (TinyUSB) |
-| Upload Mode | USB-OTG CDC (TinyUSB) |
-| USB Firmware MSC On Boot / USB DFU On Boot / JTAG Adapter | Disabled |
-
-3. Select the board's port and upload. Afterwards the board shows up as the USB device "FlexPad".
-
-Flash size and PSRAM must match your module. If the upload does not start, hold **BOOT**, press **RESET** and release **BOOT** to enter download mode.
-
-#### Rust firmware (in development)
-The new firmware in `flexpad-firmware/` uses [esp-hal](https://github.com/esp-rs/esp-hal) and [Embassy](https://embassy.dev/). It needs the Xtensa Rust toolchain and `espflash`:
+The firmware in `flexpad-firmware/` needs the Xtensa Rust toolchain and `espflash`:
 
 ```
 cargo install espup espflash --locked
@@ -119,34 +96,34 @@ cargo build --release
 cargo +stable test --lib --target <host target>   # protocol tests on your computer, e.g. x86_64-pc-windows-msvc
 ```
 
-To flash, the board must be in download mode. If the Rust firmware is already running, send `REBOOT_BOOTLOADER` over the serial port; otherwise hold **BOOT**, press **RESET** and release **BOOT**. Then flash to the new port:
+To flash, the board must be in download mode. If the FlexPad firmware is already running, send `REBOOT_BOOTLOADER` over the serial port; otherwise hold **BOOT**, press **RESET** and release **BOOT**. Then flash to the new port:
 
 ```
 espflash flash --no-stub --before no-reset --after watchdog-reset --partition-table partitions.csv --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
 ```
 
-After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The configuration is stored in its own partition `flexpad` (64 KB, two slots with checksum).
+After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The profile is stored in its own partition `flexpad` (64 KB) and is kept when a new firmware is flashed.
 
 ### License
 [MIT](LICENSE)
 
 ## Deutsch
 
-FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät.
+FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät. Auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> **In Arbeit.** FlexPad funktioniert mit der Rust-Firmware für Taster und EC11-Encoder, ist aber noch nicht fertig. Bekannte Lücken:
-> - Die Rust-Firmware in `flexpad-firmware/` verwenden; der Arduino-Sketch in `esp32-firmware/` versteht das aktuelle Profilformat nicht und wird entfernt.
+> **In Arbeit.** Taster und EC11-Encoder funktionieren, FlexPad ist aber noch nicht fertig. Bekannte Lücken:
 > - `TEXT:`-Aktionen werden noch nicht getippt, und Kommas im Text zerstückeln das Makro ([#6](../../issues/6)).
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)). Rust-Firmware in `flexpad-firmware/` und Desktop-App arbeiten für Taster und EC11-Encoder bereits zusammen (Profilformat 2); der Arduino-Sketch versteht dieses Format nicht.
+> Details und Pläne stehen in den [Issues](../../issues).
 >
-> Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
+> Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
 
 ### Funktionen
 - Bis zu 25 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
 - Makros aus Drücken und Loslassen von Tasten, Pausen, Medientasten und Text
 - Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
+- Entprellzeit, Encoder-Auflösung und Drehrichtung pro Kachel einstellbar
 - Profile lokal und auf dem Gerät gespeichert; einmal eingerichtet, arbeitet das Gerät ohne die App
 - Kein Treiber, kein Konto, keine Netzwerkzugriffe
 
@@ -174,22 +151,22 @@ Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flas
 5. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
 
 ### Funktionsweise
-Die Firmware fragt die konfigurierten Pins ab, entprellt sie und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Die Konfiguration liegt als JSON in einer LittleFS-Partition auf dem ESP32-S3 und bleibt so über einen Neustart erhalten.
+Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
 
-App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (115200 Baud, zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen). Das vollständige Protokoll und das Profilformat beschreibt [docs/protocol.md](docs/protocol.md) (auf Englisch); Überblick:
+App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen). Das vollständige Protokoll und das Profilformat beschreibt [docs/protocol.md](docs/protocol.md) (auf Englisch); Überblick:
 
 | Befehl | Antwort |
 |---|---|
-| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
-| `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED`; die Rust-Firmware prüft die Konfiguration zuerst und antwortet `CONFIG_ERROR:<grund>` (z. B. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`), ohne die gespeicherte zu ändern |
-| `RUN_MACRO:<makro>` | Prüft das Makro und führt es aus: `MACRO_QUEUED` oder `MACRO_ERROR:<grund>` (z. B. `unknown_key:hyper`, `busy`) (nur Rust-Firmware) |
-| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board im Download-Modus neu (nur Rust-Firmware) |
-| – | Vom Gerät gesendet: `EVENT:PIN:<pin>:PRESSED` oder `RELEASED` bei jeder entprellten Tasteränderung, auch für unbelegte Pins (nur Rust-Firmware) |
+| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>,<Firmware-Version>` |
+| `GET_CONFIG` | `CONFIG_DATA:<Profil-JSON>` |
+| `SET_CONFIG:<Profil-JSON>` | `CONFIG_SAVED` oder `CONFIG_ERROR:<grund>` (z. B. `unusable_pin:35`, `duplicate_pin:4`), ohne das gespeicherte Profil zu ändern |
+| `RUN_MACRO:<makro>` | Führt ein Makro zum Testen aus: `MACRO_QUEUED` oder `MACRO_ERROR:<grund>` |
+| `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board zum Flashen im Download-Modus neu |
+| – | Vom Gerät gesendet: `EVENT:PIN:<pin>:PRESSED`/`RELEASED` und `EVENT:ENCODER:<pin a>:RIGHT`/`LEFT` |
 
-Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste (`vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`), `TEXT:<text>` Text tippen (bisher nur in der App). Beispiel: `P:lctrl,P:c,D:50,R:c,R:lctrl` (Kopieren).
+Makros sind kommagetrennte Aktionen: `P:<taste>` drücken, `R:<taste>` loslassen, `D:<ms>` warten, `MEDIA:<aktion>` Medientaste, `TEXT:<text>` Text tippen (wird noch nicht ausgeführt). Beispiel: `P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft` (Kopieren).
 
-Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die Rust-Firmware versteht auch die bisherigen Namen der App (`lctrl`, `ael`, `kp_1` …). Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
+Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die Firmware versteht auch die älteren Namen, die die App noch verwendet (`lctrl`, `ael`, `kp_1` …). Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
 - **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
@@ -209,30 +186,7 @@ cargo run --release
 `cargo test` führt die Unit-Tests aus; die CI prüft Formatierung, `clippy` und Tests unter Windows, Linux und macOS.
 
 #### Firmware
-Voraussetzung ist die [Arduino IDE](https://www.arduino.cc/en/software) oder `arduino-cli` mit dem ESP32-Core von Espressif und der Bibliothek [ArduinoJson](https://arduinojson.org/) (Version 7).
-
-1. `esp32-firmware/esp32-firmware.ino` öffnen. `partitions.csv` muss im selben Ordner liegen; sie reserviert zwei App-Partitionen mit je 6 MB und eine 3 MB große `storage`-Partition für die Konfiguration.
-2. Im Menü **Werkzeuge** diese Einstellungen wählen:
-
-| Einstellung | Wert |
-|---|---|
-| Board | ESP32S3 Dev Module |
-| USB CDC On Boot | Enabled |
-| CPU Frequency | 240 MHz (WiFi) |
-| Flash Mode | QIO 80 MHz |
-| Flash Size | 16 MB (128 Mb) |
-| Partition Scheme | Custom |
-| PSRAM | OPI PSRAM |
-| USB Mode | USB-OTG (TinyUSB) |
-| Upload Mode | USB-OTG CDC (TinyUSB) |
-| USB Firmware MSC On Boot / USB DFU On Boot / JTAG Adapter | Disabled |
-
-3. Den Port des Boards wählen und hochladen. Danach meldet sich das Board als USB-Gerät „FlexPad“.
-
-Flash-Größe und PSRAM müssen zum eigenen Modul passen. Startet der Upload nicht, **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen, um in den Download-Modus zu wechseln.
-
-#### Rust-Firmware (in Entwicklung)
-Die neue Firmware in `flexpad-firmware/` nutzt [esp-hal](https://github.com/esp-rs/esp-hal) und [Embassy](https://embassy.dev/). Sie braucht die Xtensa-Rust-Toolchain und `espflash`:
+Die Firmware in `flexpad-firmware/` braucht die Xtensa-Rust-Toolchain und `espflash`:
 
 ```
 cargo install espup espflash --locked
@@ -247,13 +201,13 @@ cargo build --release
 cargo +stable test --lib --target <host-target>   # Protokoll-Tests auf dem Rechner, z. B. x86_64-pc-windows-msvc
 ```
 
-Zum Flashen muss das Board im Download-Modus sein. Läuft bereits die Rust-Firmware, über den seriellen Port `REBOOT_BOOTLOADER` senden; sonst **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen. Dann auf den neuen Port flashen:
+Zum Flashen muss das Board im Download-Modus sein. Läuft bereits die FlexPad-Firmware, über den seriellen Port `REBOOT_BOOTLOADER` senden; sonst **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen. Dann auf den neuen Port flashen:
 
 ```
 espflash flash --no-stub --before no-reset --after watchdog-reset --partition-table partitions.csv --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
 ```
 
-Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Die Konfiguration liegt in einer eigenen Partition `flexpad` (64 KB, zwei Speicherplätze mit Prüfsumme).
+Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Das Profil liegt in einer eigenen Partition `flexpad` (64 KB) und bleibt beim Flashen einer neuen Firmware erhalten.
 
 ### Lizenz
 [MIT](LICENSE)
