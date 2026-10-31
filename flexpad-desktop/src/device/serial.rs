@@ -13,34 +13,28 @@ impl std::fmt::Display for FlexPadDeviceInfo {
     }
 }
 
-pub fn read_line_from_port(
-    port: &mut Box<dyn serialport::SerialPort>,
-    timeout: Duration,
-) -> Option<String> {
+pub fn read_line_from_port(port: &mut impl Read, timeout: Duration) -> Option<String> {
     let start_time = std::time::Instant::now();
-    let mut line = String::new();
+    let mut line = Vec::new();
     let mut buffer = [0; 1];
 
-    loop {
-        if start_time.elapsed() > timeout {
-            break;
-        }
+    while start_time.elapsed() <= timeout {
         match port.read(&mut buffer) {
-            Ok(n) if n > 0 => {
-                let ch = buffer[0] as char;
-                if ch == '\n' {
-                    break;
-                }
-                if ch != '\r' {
-                    line.push(ch);
-                }
-            }
+            Ok(n) if n > 0 => match buffer[0] {
+                b'\n' => break,
+                b'\r' => {}
+                byte => line.push(byte),
+            },
             _ => {
                 std::thread::sleep(Duration::from_millis(5));
             }
         }
     }
-    if line.is_empty() { None } else { Some(line) }
+    if line.is_empty() {
+        None
+    } else {
+        Some(String::from_utf8_lossy(&line).into_owned())
+    }
 }
 
 pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
@@ -138,4 +132,56 @@ pub fn set_config_to_device(
         }
     }
     Err("Timeout waiting for ACK after setting config".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    // Line reading
+
+    const TIMEOUT: Duration = Duration::from_millis(20);
+
+    #[test]
+    fn reads_utf8_lines() {
+        let mut port =
+            Cursor::new("CONFIG_DATA:{\"profile_name\":\"Größe äöü 😀\"}\r\nNEXT\n".as_bytes());
+
+        assert_eq!(
+            read_line_from_port(&mut port, TIMEOUT).as_deref(),
+            Some("CONFIG_DATA:{\"profile_name\":\"Größe äöü 😀\"}")
+        );
+        assert_eq!(
+            read_line_from_port(&mut port, TIMEOUT).as_deref(),
+            Some("NEXT")
+        );
+    }
+
+    #[test]
+    fn returns_none_without_data() {
+        let mut port = Cursor::new(Vec::new());
+
+        assert_eq!(read_line_from_port(&mut port, TIMEOUT), None);
+    }
+
+    #[test]
+    fn replaces_invalid_bytes_instead_of_failing() {
+        let mut port = Cursor::new(vec![b'O', 0xFF, b'K', b'\n']);
+
+        assert_eq!(
+            read_line_from_port(&mut port, TIMEOUT).as_deref(),
+            Some("O\u{FFFD}K")
+        );
+    }
+
+    #[test]
+    fn returns_partial_line_after_timeout() {
+        let mut port = Cursor::new(b"DEVICE_INFO:Flex".to_vec());
+
+        assert_eq!(
+            read_line_from_port(&mut port, TIMEOUT).as_deref(),
+            Some("DEVICE_INFO:Flex")
+        );
+    }
 }
