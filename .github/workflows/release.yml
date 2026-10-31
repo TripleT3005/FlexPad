@@ -1,0 +1,337 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - CHANGELOG.md
+      - installer/**
+      - flexpad-desktop/build.rs
+      - flexpad-firmware/partitions.csv
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' flexpad-desktop/Cargo.toml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "::error::flexpad-desktop/Cargo.toml has no package version"
+            exit 1
+          fi
+          for found in \
+            "flexpad-firmware/Cargo.toml=$(sed -n 's/^version = "\(.*\)"$/\1/p' flexpad-firmware/Cargo.toml | head -n 1)" \
+            "CHANGELOG.md (newest section)=$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | head -n 1)"; do
+            if [ "${found#*=}" != "$version" ]; then
+              echo "::error::${found%%=*} has version ${found#*=}, but flexpad-desktop/Cargo.toml has $version"
+              exit 1
+            fi
+          done
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: version
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            suffix: -portable
+            binary: flexpad.exe
+            packaged: FlexPad.exe
+          - os: ubuntu-latest
+            platform: linux-x64
+            suffix: ""
+            binary: flexpad
+            packaged: flexpad
+          - os: macos-latest
+            platform: macos-arm64
+            suffix: ""
+            binary: flexpad
+            packaged: FlexPad
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - name: Build app
+        working-directory: flexpad-desktop
+        run: cargo build --release --locked
+
+      - name: Package
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          name="FlexPad-${{ needs.version.outputs.version }}-${{ matrix.platform }}${{ matrix.suffix }}"
+          mkdir -p "dist/$name"
+          cp "flexpad-desktop/target/release/${{ matrix.binary }}" "dist/$name/${{ matrix.packaged }}"
+          cp LICENSE README.md CHANGELOG.md "dist/$name/"
+          cd dist
+          case "${{ runner.os }}" in
+            Windows) 7z a -tzip -bso0 "$name.zip" "$name" && archive="$name.zip" ;;
+            *) tar -czf "$name.tar.gz" "$name" && archive="$name.tar.gz" ;;
+          esac
+          sha256sum "$archive" > "$archive.sha256"
+
+      - name: Package Linux packages
+        if: runner.os == 'Linux'
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          package_version="${VERSION//-/\~}"
+          stage="$RUNNER_TEMP/package/root"
+          mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/usr/share/doc/flexpad"
+          install -m 755 flexpad-desktop/target/release/flexpad "$stage/usr/bin/flexpad"
+          install -m 644 installer/linux/flexpad.desktop "$stage/usr/share/applications/flexpad.desktop"
+          for icon in flexpad-desktop/target/release/icons/*.png; do
+            size=$(basename "$icon" .png)
+            install -D -m 644 "$icon" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/flexpad.png"
+          done
+          install -D -m 644 assets/logo.svg "$stage/usr/share/icons/hicolor/scalable/apps/flexpad.svg"
+          install -m 644 LICENSE README.md CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
+
+          deb="dist/flexpad_${package_version}_amd64.deb"
+          deb_root="$RUNNER_TEMP/package/deb"
+          mkdir -p "$deb_root/DEBIAN"
+          cp -R "$stage/." "$deb_root/"
+          size=$(du -sk "$deb_root" | cut -f 1)
+          sed -e "s/APP_VERSION/$package_version/" -e "s/INSTALLED_SIZE/$size/" installer/linux/control > "$deb_root/DEBIAN/control"
+          dpkg-deb --root-owner-group --build "$deb_root" "$deb"
+
+          sudo apt-get install -y --no-install-recommends rpm > /dev/null
+          rpm_top="$RUNNER_TEMP/package/rpmbuild"
+          sed "s/APP_VERSION/$package_version/" installer/linux/flexpad.spec > "$RUNNER_TEMP/package/flexpad.spec"
+          rpmbuild -bb --quiet --define "_topdir $rpm_top" --define "_sourcedir $RUNNER_TEMP/package" "$RUNNER_TEMP/package/flexpad.spec"
+          cp "$rpm_top"/RPMS/x86_64/*.rpm dist/
+
+          cd dist
+          for package in *.deb *.rpm; do
+            sha256sum "$package" > "$package.sha256"
+          done
+
+      - name: Check Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          dpkg-deb --info dist/*.deb
+          rpm -qpi dist/*.rpm
+          rpm -qpR dist/*.rpm | grep -q 'libudev.so.1'
+          rpm -qlp dist/*.rpm | grep -q '^/usr/share/icons/hicolor/256x256/apps/flexpad.png$'
+          sudo apt-get install -y ./dist/*.deb
+          test -x /usr/bin/flexpad
+          test -f /usr/share/applications/flexpad.desktop
+          desktop-file-validate /usr/share/applications/flexpad.desktop || true
+          if ldd /usr/bin/flexpad | grep 'not found'; then
+            echo "::error::The installed app has missing libraries"
+            exit 1
+          fi
+
+      - name: Package macOS app
+        if: runner.os == 'macOS'
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          name="FlexPad-$VERSION-${{ matrix.platform }}"
+          app="dist/$name/FlexPad.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp "flexpad-desktop/target/release/${{ matrix.binary }}" "$app/Contents/MacOS/FlexPad"
+          cp flexpad-desktop/target/release/FlexPad.icns "$app/Contents/Resources/FlexPad.icns"
+          sed "s/APP_VERSION/$VERSION/g" installer/macos/Info.plist > "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          cp LICENSE README.md CHANGELOG.md "dist/$name/"
+          ln -s /Applications "dist/$name/Applications"
+          hdiutil create -volname FlexPad -srcfolder "dist/$name" -ov -format UDZO "dist/$name.dmg"
+          cd dist
+          shasum -a 256 "$name.dmg" > "$name.dmg.sha256"
+
+      - name: Build installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --no-progress -y
+          }
+          & $compiler /Qp "/DAppVersion=$env:VERSION" installer\FlexPad.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Set-Location dist
+          $setup = "FlexPad-$env:VERSION-windows-x64-setup.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash *$setup" | Out-File -Encoding ascii -NoNewline "$setup.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.exe
+            dist/*.dmg
+            dist/*.deb
+            dist/*.rpm
+            dist/*.sha256
+          if-no-files-found: error
+
+  firmware:
+    needs: version
+    if: needs.version.outputs.exists == 'false' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/espup
+            ~/.cargo/bin/espflash
+          key: firmware-tools-${{ runner.os }}-${{ hashFiles('flexpad-firmware/rust-toolchain.toml') }}
+
+      - name: Install ESP32-S3 toolchain
+        run: |
+          command -v espup || cargo install espup --locked
+          command -v espflash || cargo install espflash --locked
+          espup install --targets esp32s3 --export-file "$HOME/export-esp.sh"
+
+      - name: Build firmware image
+        working-directory: flexpad-firmware
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          . "$HOME/export-esp.sh"
+          cargo build --release --locked
+          mkdir -p ../dist
+          image="FlexPad-firmware-$VERSION-esp32s3.bin"
+          espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb \
+            --partition-table partitions.csv \
+            target/xtensa-esp32s3-none-elf/release/flexpad-firmware "../dist/$image"
+          cd ../dist
+          test "$(head -c 1 "$image" | od -An -tx1 | tr -d ' ')" = "e9"
+          sha256sum "$image" > "$image.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware
+          path: |
+            dist/*.bin
+            dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    needs: [version, build, firmware]
+    if: github.event_name != 'pull_request' && needs.version.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md | sed '/./,$!d' > "$RUNNER_TEMP/changelog.md"
+          if [ ! -s "$RUNNER_TEMP/changelog.md" ]; then
+            echo "::error::CHANGELOG.md has no text for version $VERSION"
+            exit 1
+          fi
+
+          cd dist
+          prerelease=""
+          case "$VERSION" in 0.*|*-*) prerelease="--prerelease" ;; esac
+
+          gh release create "$TAG" ./* \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/changelog.md" \
+            $prerelease
+
+          if [ -z "$VT_API_KEY" ]; then
+            echo "::warning::The repository secret VT_API_KEY is not set, so the release has no VirusTotal scan"
+            exit 0
+          fi
+
+          {
+            gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body
+            echo
+            echo "---"
+            echo
+            echo "### VirusTotal Scan Report"
+            echo "Scanned on: $(date -u +%Y-%m-%d)"
+            echo
+            for archive in *.zip *.tar.gz *.exe *.dmg *.deb *.rpm *.bin; do
+              [ -e "$archive" ] || continue
+              curl --fail --silent --show-error \
+                --header "x-apikey: $VT_API_KEY" \
+                --form "file=@$archive" \
+                https://www.virustotal.com/api/v3/files > /dev/null
+              hash=$(cut -d ' ' -f 1 "$archive.sha256")
+              echo "- **$archive:** [Scan Report](https://www.virustotal.com/gui/file/$hash)"
+            done
+          } > notes.md
+
+          gh release edit "$TAG" --repo "${{ github.repository }}" --notes-file notes.md

@@ -1,0 +1,13 @@
+Package: flexpad
+Version: APP_VERSION
+Architecture: amd64
+Maintainer: TripleT3005 <97241354+TripleT3005@users.noreply.github.com>
+Installed-Size: INSTALLED_SIZE
+Depends: libc6, libgcc-s1, libudev1, libxkbcommon0, libxkbcommon-x11-0
+Section: utils
+Priority: optional
+Homepage: https://github.com/TripleT3005/FlexPad
+Description: Configurator for the FlexPad macro pad
+ Desktop app to place buttons and rotary encoders of an ESP32-S3 based
+ macro pad on a canvas, assign GPIO pins and macros, and send the
+ configuration to the device over USB serial.
