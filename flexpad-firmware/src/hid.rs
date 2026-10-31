@@ -1,4 +1,5 @@
 use crate::keys::Key;
+use crate::layouts::{KeyboardLayout, Stroke, keystrokes};
 
 // Report descriptors
 
@@ -141,6 +142,34 @@ impl KeyboardState {
     }
 }
 
+// Text
+
+pub fn stroke_report(stroke: Option<Stroke>) -> [u8; MAX_REPORT_SIZE] {
+    let mut report = [0; MAX_REPORT_SIZE];
+    report[0] = KEYBOARD_REPORT_ID;
+    if let Some(stroke) = stroke {
+        report[1] = stroke.modifiers;
+        report[3] = stroke.usage;
+    }
+    report
+}
+
+pub fn text_reports(
+    layout: KeyboardLayout,
+    text: &str,
+) -> impl Iterator<Item = [u8; MAX_REPORT_SIZE]> + '_ {
+    text.chars()
+        .filter_map(move |character| keystrokes(layout, character))
+        .flat_map(|strokes| {
+            strokes
+                .dead_key
+                .into_iter()
+                .chain([strokes.key])
+                .flat_map(|stroke| [Some(stroke), None])
+        })
+        .map(stroke_report)
+}
+
 // Consumer control
 
 pub fn consumer_report(usage: u16) -> [u8; 3] {
@@ -234,5 +263,37 @@ mod tests {
         }
         assert_eq!(index, REPORT_DESCRIPTOR.len());
         assert_eq!(depth, 0);
+    }
+
+    // Text
+
+    fn report(modifiers: u8, usage: u8) -> [u8; MAX_REPORT_SIZE] {
+        [KEYBOARD_REPORT_ID, modifiers, 0, usage, 0, 0, 0, 0, 0]
+    }
+
+    #[test]
+    fn text_presses_and_releases_every_character() {
+        let reports: Vec<_> = text_reports(KeyboardLayout::De, "Zy").collect();
+
+        assert_eq!(
+            reports,
+            [
+                report(0x02, 0x1C),
+                report(0, 0),
+                report(0, 0x1D),
+                report(0, 0),
+            ]
+        );
+    }
+
+    #[test]
+    fn text_uses_dead_keys_and_skips_unknown_characters() {
+        let reports: Vec<_> = text_reports(KeyboardLayout::De, "é😀").collect();
+
+        assert_eq!(
+            reports,
+            [report(0, 0x2E), report(0, 0), report(0, 0x08), report(0, 0),]
+        );
+        assert_eq!(text_reports(KeyboardLayout::Us, "ä").count(), 0);
     }
 }
