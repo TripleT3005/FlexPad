@@ -39,7 +39,7 @@ jobs:
           fi
           for found in \
             "flexpad-firmware/Cargo.toml=$(sed -n 's/^version = "\(.*\)"$/\1/p' flexpad-firmware/Cargo.toml | head -n 1)" \
-            "CHANGELOG.md (newest section)=$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | head -n 1)"; do
+            "CHANGELOG.md (newest section)=$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | grep -vx Unreleased | head -n 1)"; do
             if [ "${found#*=}" != "$version" ]; then
               echo "::error::${found%%=*} has version ${found#*=}, but flexpad-desktop/Cargo.toml has $version"
               exit 1
@@ -57,6 +57,10 @@ jobs:
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
+            if awk '/^## \[Unreleased\]/ { found = 1; next } /^## \[/ { found = 0 } found && NF' CHANGELOG.md | grep -q .; then
+              echo "::error::CHANGELOG.md still has entries under [Unreleased]; move them into the section for ${{ steps.version.outputs.version }}"
+              exit 1
+            fi
           fi
 
   build:
