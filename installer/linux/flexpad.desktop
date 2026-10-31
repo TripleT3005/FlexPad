@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=FlexPad
+Comment=Configure the FlexPad macro pad
+Comment[de]=Das FlexPad-Makropad konfigurieren
+Exec=flexpad
+Icon=flexpad
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=Macro;Keyboard;ESP32;Macropad;
+StartupNotify=true

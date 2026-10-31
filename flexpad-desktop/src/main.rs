@@ -8,6 +8,7 @@ mod constants;
 mod device;
 mod icon;
 mod profile;
+mod release;
 mod ui;
 
 use app::FlexPadApp;

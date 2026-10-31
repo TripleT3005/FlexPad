@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: FlexPad
+Source: https://github.com/TripleT3005/FlexPad
+
+Files: *
+Copyright: TripleT3005
+License: MIT
+ See /usr/share/doc/flexpad/LICENSE for the full license text.

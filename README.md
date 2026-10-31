@@ -32,7 +32,45 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 **Usable pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 inputs). Left out on purpose: GPIO 0, 3, 45 and 46 (strapping pins), 19/20 (USB) and 33–37, which modules with octal PSRAM or octal flash (such as N16R8) use internally.
 
 ### Installation
-There are no prebuilt releases yet. Build the desktop app and flash the firmware as described under [Building](#building).
+Download the app and the firmware from [Releases](../../releases).
+
+#### App
+**Windows:** run `FlexPad-<version>-windows-x64-setup.exe`. It installs for the current user without administrator rights (to `%LOCALAPPDATA%\Programs\FlexPad`); "Install for all users" installs to `C:\Program Files\FlexPad` and asks for administrator rights. Options: Start menu entry (on), desktop shortcut (off). Instead of the installer you can use the portable archive `…-windows-x64-portable.zip`.
+
+**macOS:** open `…-macos-arm64.dmg` (Apple silicon) and drag FlexPad into the Applications folder.
+
+**Linux:** on Debian, Ubuntu, Linux Mint and similar, install `flexpad_<version>_amd64.deb` (e.g. `sudo apt install ./flexpad_0.1.0_amd64.deb`); on Fedora, openSUSE and similar, install `flexpad-<version>-1.x86_64.rpm` (e.g. `sudo dnf install ./flexpad-0.1.0-1.x86_64.rpm`). Both add FlexPad to the application menu. For other distributions, extract `…-linux-x64.tar.gz` and start `flexpad`; it needs `libudev`. To access the USB serial port, your user must be in the group `dialout` (Debian, Ubuntu, Fedora) or `uucp` (Arch): `sudo usermod -aG dialout $USER`, then log in again.
+
+The app is not signed, so the system may warn on the first start:
+- **Windows:** SmartScreen → "More info" → "Run anyway"
+- **macOS:** the app is not notarized by Apple. On the first start macOS refuses to open it; then choose System Settings → Privacy & Security → "Open Anyway" (on older versions: right-click the app → "Open"). This is needed only once.
+
+Each download has a `.sha256` file to verify it.
+
+#### Installer parameters
+| Parameter | Effect |
+|---|---|
+| `/CURRENTUSER` | Install for the current user only (default) |
+| `/ALLUSERS` | Install for all users (asks for administrator rights) |
+| `/DIR="C:\Path"` | Installation folder |
+| `/SILENT`, `/VERYSILENT` | Without wizard (with or without progress window) |
+| `/SUPPRESSMSGBOXES` | No message boxes in silent mode |
+| `/TASKS="desktopicon"` | Add a desktop shortcut; without the parameter there is none |
+| `/NOICONS` | No Start menu entry |
+| `/LOG="C:\Path\setup.log"` | Write a log file |
+
+Example: `FlexPad-0.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
+
+Profiles and settings are stored per user and are not set by the installer. Uninstalling removes the program and its shortcuts but keeps your profiles in the folder `FlexPad` in your home directory.
+
+#### Firmware
+`FlexPad-firmware-<version>-esp32s3.bin` contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
+
+1. Put the board into download mode: hold **BOOT**, press **RESET**, release **BOOT**. If the FlexPad firmware is already running, sending `REBOOT_BOOTLOADER` over its serial port does the same.
+2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<version>-esp32s3.bin`
+3. Press **RESET** (or unplug the board briefly). The board then shows up as "FlexPad".
+
+A profile already stored on the device is kept: the image ends before the profile partition.
 
 ### Usage
 1. Connect the FlexPad via USB and start the app.
@@ -104,6 +142,9 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 
 After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The profile is stored in its own partition `flexpad` (64 KB) and is kept when a new firmware is flashed.
 
+#### Releases
+A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` (a test and the release workflow check that both and the newest changelog section match) together with a section for it in [CHANGELOG.md](CHANGELOG.md) creates a release when merged into `main`; the changelog section becomes the release notes. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases. The repository secret `VT_API_KEY` (VirusTotal) is optional.
+
 ### License
 [MIT](LICENSE)
 
@@ -137,7 +178,45 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 **Nutzbare Pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 Eingänge). Bewusst ausgenommen: GPIO 0, 3, 45 und 46 (Strapping-Pins), 19/20 (USB) und 33–37, die Module mit Octal-PSRAM oder Octal-Flash (z. B. N16R8) intern nutzen.
 
 ### Installation
-Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flashen wie unter [Bauen](#bauen) beschrieben.
+App und Firmware gibt es unter [Releases](../../releases).
+
+#### App
+**Windows:** `FlexPad-<Version>-windows-x64-setup.exe` ausführen. Es installiert für den aktuellen Benutzer ohne Administratorrechte (nach `%LOCALAPPDATA%\Programs\FlexPad`); „Für alle Benutzer installieren“ installiert nach `C:\Program Files\FlexPad` und fragt nach Administratorrechten. Optionen: Startmenü-Eintrag (an), Desktop-Verknüpfung (aus). Statt des Installers geht auch das portable Archiv `…-windows-x64-portable.zip`.
+
+**macOS:** `…-macos-arm64.dmg` (Apple Silicon) öffnen und FlexPad in den Ordner Programme ziehen.
+
+**Linux:** Unter Debian, Ubuntu, Linux Mint und ähnlichen `flexpad_<Version>_amd64.deb` installieren (z. B. `sudo apt install ./flexpad_0.1.0_amd64.deb`), unter Fedora, openSUSE und ähnlichen `flexpad-<Version>-1.x86_64.rpm` (z. B. `sudo dnf install ./flexpad-0.1.0-1.x86_64.rpm`). Beide tragen FlexPad ins Anwendungsmenü ein. Für andere Distributionen `…-linux-x64.tar.gz` entpacken und `flexpad` starten; es braucht `libudev`. Für den Zugriff auf den USB-Seriell-Port muss der eigene Benutzer in der Gruppe `dialout` (Debian, Ubuntu, Fedora) bzw. `uucp` (Arch) sein: `sudo usermod -aG dialout $USER`, danach neu anmelden.
+
+Die Anwendung ist nicht signiert, deshalb warnt das System beim ersten Start eventuell:
+- **Windows:** SmartScreen → „Weitere Informationen“ → „Trotzdem ausführen“
+- **macOS:** Die App ist nicht von Apple beglaubigt. Beim ersten Start verweigert macOS das Öffnen; dann unter Systemeinstellungen → Datenschutz & Sicherheit „Dennoch öffnen“ wählen (bei älteren Versionen: Rechtsklick auf die App → „Öffnen“). Das ist nur einmal nötig.
+
+Zu jedem Download gibt es eine `.sha256`-Datei, um ihn zu prüfen.
+
+#### Installer-Parameter
+| Parameter | Wirkung |
+|---|---|
+| `/CURRENTUSER` | Nur für den aktuellen Benutzer installieren (Standard) |
+| `/ALLUSERS` | Für alle Benutzer installieren (fragt nach Administratorrechten) |
+| `/DIR="C:\Pfad"` | Installationsordner |
+| `/SILENT`, `/VERYSILENT` | Ohne Assistent (mit oder ohne Fortschrittsfenster) |
+| `/SUPPRESSMSGBOXES` | Keine Meldungsfenster bei stiller Installation |
+| `/TASKS="desktopicon"` | Desktop-Verknüpfung anlegen; ohne den Parameter gibt es keine |
+| `/NOICONS` | Kein Startmenü-Eintrag |
+| `/LOG="C:\Pfad\setup.log"` | Protokolldatei schreiben |
+
+Beispiel: `FlexPad-0.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
+
+Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht gesetzt. Die Deinstallation entfernt Programm und Verknüpfungen, lässt die Profile im Ordner `FlexPad` im Benutzerverzeichnis aber stehen.
+
+#### Firmware
+`FlexPad-firmware-<Version>-esp32s3.bin` enthält Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
+
+1. Das Board in den Download-Modus bringen: **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen. Läuft bereits die FlexPad-Firmware, geht das auch, indem man über ihren seriellen Port `REBOOT_BOOTLOADER` sendet.
+2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<Version>-esp32s3.bin`
+3. **RESET** drücken (oder das Board kurz abziehen). Danach meldet sich das Board als „FlexPad“.
+
+Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil-Partition.
 
 ### Bedienung
 1. FlexPad per USB anschließen und die App starten.
@@ -208,6 +287,9 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 ```
 
 Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Das Profil liegt in einer eigenen Partition `flexpad` (64 KB) und bleibt beim Flashen einer neuen Firmware erhalten.
+
+#### Releases
+Eine neue Version in `flexpad-desktop/Cargo.toml` und `flexpad-firmware/Cargo.toml` (ein Test und der Release-Workflow prüfen, dass beide und der neueste Changelog-Abschnitt übereinstimmen) zusammen mit einem Abschnitt dafür in der [CHANGELOG.md](CHANGELOG.md) erzeugt beim Merge in `main` ein Release; der Changelog-Abschnitt wird zu den Release-Notizen. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion. Das Repository-Secret `VT_API_KEY` (VirusTotal) ist optional.
 
 ### Lizenz
 [MIT](LICENSE)
