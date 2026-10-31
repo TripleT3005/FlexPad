@@ -71,7 +71,7 @@ Key names describe the physical key position on a US keyboard, using the names o
 
 ### Building
 #### Desktop app
-Requires [Rust](https://www.rust-lang.org/tools/install) 1.85 or newer (edition 2024). On Linux, the serial port library also needs `libudev` (e.g. `sudo apt install libudev-dev pkg-config`).
+Requires [Rust](https://www.rust-lang.org/tools/install) 1.88 or newer (edition 2024). On Linux, the serial port library also needs `libudev` (e.g. `sudo apt install libudev-dev pkg-config`).
 
 ```
 cd flexpad-desktop
@@ -176,7 +176,7 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 
 ### Bauen
 #### Desktop-App
-Voraussetzung ist [Rust](https://www.rust-lang.org/tools/install) 1.85 oder neuer (Edition 2024). Unter Linux braucht die Seriell-Bibliothek zusätzlich `libudev` (z. B. `sudo apt install libudev-dev pkg-config`).
+Voraussetzung ist [Rust](https://www.rust-lang.org/tools/install) 1.88 oder neuer (Edition 2024). Unter Linux braucht die Seriell-Bibliothek zusätzlich `libudev` (z. B. `sudo apt install libudev-dev pkg-config`).
 
 ```
 cd flexpad-desktop
