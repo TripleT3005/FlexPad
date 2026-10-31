@@ -1,9 +1,9 @@
-use core::fmt::{self, Display, Write};
+use core::fmt::{self, Display};
 
 use crate::buttons::{DEFAULT_DEBOUNCE_MS, MAX_DEBOUNCE_MS};
 use crate::encoder::{DEFAULT_STEPS_PER_DETENT, Direction};
-use crate::json::{JsonError, JsonStr, Parser};
-use crate::macros::{self, MacroError};
+use crate::json::{JsonError, JsonStr, Parser, remember};
+use crate::macros::{self, MAX_MACRO_SIZE, MacroError, MacroWriter};
 
 // Constants
 
@@ -33,6 +33,7 @@ pub enum ConfigError {
     UnusablePin(u8),
     DuplicatePin(u8),
     InvalidMacro(u8),
+    MacroTooLarge(u8),
     MacrosTooLarge,
 }
 
@@ -51,6 +52,7 @@ impl Display for ConfigError {
             ConfigError::UnusablePin(pin) => write!(f, "unusable_pin:{pin}"),
             ConfigError::DuplicatePin(pin) => write!(f, "duplicate_pin:{pin}"),
             ConfigError::InvalidMacro(pin) => write!(f, "invalid_macro:{pin}"),
+            ConfigError::MacroTooLarge(pin) => write!(f, "macro_too_large:{pin}"),
             ConfigError::MacrosTooLarge => f.write_str("macros_too_large"),
         }
     }
@@ -139,7 +141,7 @@ pub struct Bindings {
     layout: Layout,
     entries: [MacroEntry; MAX_MACROS],
     count: usize,
-    text: [u8; MACRO_STORAGE_SIZE],
+    code: [u8; MACRO_STORAGE_SIZE],
     used: usize,
 }
 
@@ -153,7 +155,7 @@ impl Bindings {
                 end: 0,
             }; MAX_MACROS],
             count: 0,
-            text: [0; MACRO_STORAGE_SIZE],
+            code: [0; MACRO_STORAGE_SIZE],
             used: 0,
         }
     }
@@ -176,16 +178,14 @@ impl Bindings {
         self.count == 0
     }
 
-    pub fn macro_for(&self, trigger: Trigger) -> Option<&str> {
+    pub fn macro_for(&self, trigger: Trigger) -> Option<&[u8]> {
         self.entries[..self.count]
             .iter()
             .find(|entry| entry.trigger == trigger)
-            .map(|entry| {
-                core::str::from_utf8(&self.text[entry.start..entry.end]).unwrap_or_default()
-            })
+            .map(|entry| &self.code[entry.start..entry.end])
     }
 
-    pub fn macro_for_pin(&self, pin: u8) -> Option<&str> {
+    pub fn macro_for_pin(&self, pin: u8) -> Option<&[u8]> {
         self.macro_for(Trigger::Press(pin))
     }
 
@@ -208,36 +208,33 @@ impl Bindings {
         Ok(number)
     }
 
-    fn check_macro(
+    fn compile_macro(
         &mut self,
-        text: JsonStr<'_>,
+        value: FunctionValue<'_>,
         error_pin: u8,
     ) -> Result<(usize, usize), ConfigError> {
         let start = self.used;
-        let mut writer = SliceWriter {
-            buffer: &mut self.text[start..],
-            length: 0,
+        let mut writer = MacroWriter::new(&mut self.code[start..]);
+        let result = match value {
+            FunctionValue::Text(text) => macros::compile_legacy(text, &mut writer),
+            FunctionValue::Object(json) => macros::compile_function(json, &mut writer),
         };
-        text.unescape_into(&mut writer)
-            .map_err(|_| ConfigError::MacrosTooLarge)?;
-        let end = start + writer.length;
-        let unescaped = core::str::from_utf8(&self.text[start..end]).unwrap_or_default();
-        let valid = macros::actions(unescaped)
-            .all(|action| matches!(action, Ok(_) | Err(MacroError::Unsupported(_))));
-        if valid {
-            Ok((start, end))
-        } else {
-            Err(ConfigError::InvalidMacro(error_pin))
+        let length = writer.len();
+        match result {
+            Ok(()) if length > MAX_MACRO_SIZE => Err(ConfigError::MacroTooLarge(error_pin)),
+            Ok(()) => Ok((start, start + length)),
+            Err(MacroError::TooLarge) => Err(ConfigError::MacrosTooLarge),
+            Err(_) => Err(ConfigError::InvalidMacro(error_pin)),
         }
     }
 
     fn add_macro(
         &mut self,
         trigger: Option<Trigger>,
-        text: JsonStr<'_>,
+        value: FunctionValue<'_>,
         error_pin: u8,
     ) -> Result<(), ConfigError> {
-        let (start, end) = self.check_macro(text, error_pin)?;
+        let (start, end) = self.compile_macro(value, error_pin)?;
         let Some(trigger) = trigger else {
             return Ok(());
         };
@@ -261,22 +258,13 @@ impl Default for Bindings {
     }
 }
 
-struct SliceWriter<'a> {
-    buffer: &'a mut [u8],
-    length: usize,
-}
-
-impl Write for SliceWriter<'_> {
-    fn write_str(&mut self, text: &str) -> fmt::Result {
-        let end = self.length + text.len();
-        let target = self.buffer.get_mut(self.length..end).ok_or(fmt::Error)?;
-        target.copy_from_slice(text.as_bytes());
-        self.length = end;
-        Ok(())
-    }
-}
-
 // Tiles
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FunctionValue<'a> {
+    Text(JsonStr<'a>),
+    Object(&'a [u8]),
+}
 
 #[derive(Clone, Copy)]
 struct Entries<T: Copy, const N: usize> {
@@ -310,8 +298,7 @@ impl<T: Copy, const N: usize> Entries<T, N> {
 struct Tile<'a> {
     kind: Option<JsonStr<'a>>,
     pins: Entries<(JsonStr<'a>, Option<u8>), MAX_TILE_ENTRIES>,
-    functions: Entries<(JsonStr<'a>, JsonStr<'a>), MAX_TILE_ENTRIES>,
-    legacy_slots: Entries<(Option<u8>, JsonStr<'a>), MAX_TILE_ENTRIES>,
+    functions: Entries<(JsonStr<'a>, FunctionValue<'a>), MAX_TILE_ENTRIES>,
     debounce_ms: u8,
     steps_per_detent: u8,
     reverse: bool,
@@ -323,7 +310,6 @@ impl<'a> Tile<'a> {
             kind: None,
             pins: Entries::new(),
             functions: Entries::new(),
-            legacy_slots: Entries::new(),
             debounce_ms: DEFAULT_DEBOUNCE_MS,
             steps_per_detent: DEFAULT_STEPS_PER_DETENT,
             reverse: false,
@@ -365,7 +351,11 @@ impl<'a> Tile<'a> {
     }
 
     fn apply_legacy(&self, bindings: &mut Bindings) -> Result<(), ConfigError> {
-        for (pin, text) in self.legacy_slots.iter() {
+        for (_, value) in self.functions.iter() {
+            let FunctionValue::Object(json) = value else {
+                continue;
+            };
+            let (pin, text) = parse_legacy_slot(json)?;
             if let Some(pin) = pin {
                 bindings.claim_pin(
                     pin,
@@ -374,7 +364,11 @@ impl<'a> Tile<'a> {
                     },
                 )?;
             }
-            bindings.add_macro(pin.map(Trigger::Press), text, pin.unwrap_or(0))?;
+            bindings.add_macro(
+                pin.map(Trigger::Press),
+                FunctionValue::Text(text),
+                pin.unwrap_or(0),
+            )?;
         }
         Ok(())
     }
@@ -390,8 +384,8 @@ impl<'a> Tile<'a> {
                 },
             )?;
         }
-        for (_, text) in self.functions.iter() {
-            bindings.add_macro(pin.map(Trigger::Press), text, pin.unwrap_or(0))?;
+        for (_, value) in self.functions.iter() {
+            bindings.add_macro(pin.map(Trigger::Press), value, pin.unwrap_or(0))?;
         }
         Ok(())
     }
@@ -417,7 +411,7 @@ impl<'a> Tile<'a> {
             )?;
         }
         let error_pin = self.pin("a").or(switch).unwrap_or(0);
-        for (name, text) in self.functions.iter() {
+        for (name, value) in self.functions.iter() {
             let trigger = if name.eq_str("turn_right") {
                 encoder.map(|index| Trigger::Turn(index, Direction::Right))
             } else if name.eq_str("turn_left") {
@@ -425,7 +419,7 @@ impl<'a> Tile<'a> {
             } else {
                 switch.map(Trigger::Press)
             };
-            bindings.add_macro(trigger, text, error_pin)?;
+            bindings.add_macro(trigger, value, error_pin)?;
         }
         Ok(())
     }
@@ -443,11 +437,6 @@ pub fn parse_config(json: &[u8], bindings: &mut Bindings) -> Result<(), ConfigEr
         bindings.clear();
     }
     result
-}
-
-fn remember(slot: &mut Option<ConfigError>, error: ConfigError, parser: &Parser<'_>) -> JsonError {
-    slot.get_or_insert(error);
-    parser.error()
 }
 
 fn parse_root(json: &[u8], bindings: &mut Bindings) -> Result<(), ConfigError> {
@@ -546,24 +535,27 @@ fn parse_tile_functions<'a>(
     let mut error = None;
     parser
         .object(|parser, name| {
-            let result = match parser.peek() {
-                Some(b'"') => parser
-                    .string()
-                    .map_err(ConfigError::from)
-                    .and_then(|text| tile.functions.push((name, text))),
-                Some(b'{') => {
-                    parse_legacy_slot(parser).and_then(|slot| tile.legacy_slots.push(slot))
+            let value = match parser.peek() {
+                Some(b'"') => parser.string().map(FunctionValue::Text),
+                Some(b'{') => parser.raw_value().map(FunctionValue::Object),
+                _ => {
+                    return Err(remember(
+                        &mut error,
+                        ConfigError::InvalidStructure("function"),
+                        parser,
+                    ));
                 }
-                _ => Err(ConfigError::InvalidStructure("function")),
             };
+            let result = value
+                .map_err(ConfigError::from)
+                .and_then(|value| tile.functions.push((name, value)));
             result.map_err(|config_error| remember(&mut error, config_error, parser))
         })
         .map_err(|json_error| error.unwrap_or(ConfigError::from(json_error)))
 }
 
-fn parse_legacy_slot<'a>(
-    parser: &mut Parser<'a>,
-) -> Result<(Option<u8>, JsonStr<'a>), ConfigError> {
+fn parse_legacy_slot(json: &[u8]) -> Result<(Option<u8>, JsonStr<'_>), ConfigError> {
+    let mut parser = Parser::new(json);
     let mut pin = None;
     let mut macro_text = None;
     let mut error = None;
@@ -685,7 +677,7 @@ fn parse_legacy_pins(parser: &mut Parser<'_>, bindings: &mut Bindings) -> Result
                             debounce_ms: DEFAULT_DEBOUNCE_MS,
                         },
                     )?;
-                    bindings.add_macro(Some(Trigger::Press(pin)), text, pin)
+                    bindings.add_macro(Some(Trigger::Press(pin)), FunctionValue::Text(text), pin)
                 });
             result.map_err(|config_error| remember(&mut error, config_error, parser))
         })
@@ -696,10 +688,28 @@ fn parse_legacy_pins(parser: &mut Parser<'_>, bindings: &mut Bindings) -> Result
 mod tests {
     use super::*;
 
+    use crate::keys::Key;
+    use crate::macros::Action;
+
     fn parse(json: &str) -> Result<Bindings, ConfigError> {
         let mut bindings = Bindings::new();
         parse_config(json.as_bytes(), &mut bindings).map(|_| bindings)
     }
+
+    fn decoded(code: Option<&[u8]>) -> Option<Vec<Action<'_>>> {
+        code.map(|code| macros::actions(code).collect())
+    }
+
+    const COPY: [Action<'static>; 5] = [
+        Action::Press(Key::Modifier(0x01)),
+        Action::Press(Key::Usage(0x06)),
+        Action::Delay(50),
+        Action::Release(Key::Usage(0x06)),
+        Action::Release(Key::Modifier(0x01)),
+    ];
+    const VOLUME_UP: Action<'static> = Action::Media(0x00E9);
+    const VOLUME_DOWN: Action<'static> = Action::Media(0x00EA);
+    const MUTE: Action<'static> = Action::Media(0x00E2);
 
     // Format 2
 
@@ -714,7 +724,10 @@ mod tests {
                 "kind": "button",
                 "pins": { "switch": 4 },
                 "parameters": { "debounce_ms": 25 },
-                "functions": { "press": "P:lctrl,P:c,D:50,R:c,R:lctrl" },
+                "functions": { "press": { "actions": [
+                    { "press": "ControlLeft" }, { "press": "KeyC" }, { "delay": 50 },
+                    { "release": "KeyC" }, { "release": "ControlLeft" }
+                ] } },
                 "x": 50.0,
                 "y": 120.5
             },
@@ -725,7 +738,11 @@ mod tests {
                 "kind": "encoder",
                 "pins": { "a": 15, "b": 16, "switch": 17 },
                 "parameters": { "steps_per_detent": 4, "reverse": true, "debounce_ms": 15, "future": [1, 2] },
-                "functions": { "turn_right": "MEDIA:vol_up", "turn_left": "MEDIA:vol_down", "press": "MEDIA:mute" },
+                "functions": {
+                    "turn_right": { "actions": [{ "media": "vol_up" }] },
+                    "turn_left": { "actions": [{ "media": "vol_down" }] },
+                    "press": { "actions": [{ "media": "mute" }] }
+                },
                 "x": 200,
                 "y": -3e1
             }
@@ -759,19 +776,55 @@ mod tests {
 
         assert_eq!(bindings.len(), 4);
         assert_eq!(
-            bindings.macro_for(Trigger::Press(4)),
-            Some("P:lctrl,P:c,D:50,R:c,R:lctrl")
+            decoded(bindings.macro_for(Trigger::Press(4))),
+            Some(COPY.to_vec())
         );
         assert_eq!(
-            bindings.macro_for(Trigger::Turn(0, Direction::Right)),
-            Some("MEDIA:vol_up")
+            decoded(bindings.macro_for(Trigger::Turn(0, Direction::Right))),
+            Some(vec![VOLUME_UP])
         );
         assert_eq!(
-            bindings.macro_for(Trigger::Turn(0, Direction::Left)),
-            Some("MEDIA:vol_down")
+            decoded(bindings.macro_for(Trigger::Turn(0, Direction::Left))),
+            Some(vec![VOLUME_DOWN])
         );
-        assert_eq!(bindings.macro_for(Trigger::Press(17)), Some("MEDIA:mute"));
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::Press(17))),
+            Some(vec![MUTE])
+        );
         assert_eq!(bindings.macro_for(Trigger::Press(15)), None);
+    }
+
+    #[test]
+    fn keeps_commas_and_escapes_in_text() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[{"kind":"button","pins":{"switch":7},"functions":{"press":{"actions":[{"text":"Hallo, Welt\n\"C:\\neu\""}]}}}]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            decoded(bindings.macro_for_pin(7)),
+            Some(vec![Action::Text("Hallo, Welt\n\"C:\\neu\"")])
+        );
+    }
+
+    #[test]
+    fn still_reads_macro_strings_in_format_2() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[{"kind":"button","pins":{"switch":4},"functions":{"press":"P:lctrl,P:c,D:50,R:c,R:lctrl"}}]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(decoded(bindings.macro_for_pin(4)), Some(COPY.to_vec()));
+    }
+
+    #[test]
+    fn rejects_macros_that_do_not_fit_the_queue() {
+        let text = "x".repeat(MAX_MACRO_SIZE);
+        let json = format!(
+            r#"{{"format":2,"tiles":[{{"kind":"button","pins":{{"switch":4}},"functions":{{"press":{{"actions":[{{"text":"{text}"}}]}}}}}}]}}"#
+        );
+
+        assert_eq!(parse(&json).err(), Some(ConfigError::MacroTooLarge(4)));
     }
 
     #[test]
@@ -874,6 +927,14 @@ mod tests {
                 r#"{"tiles":[{"kind":"button","pins":{},"functions":{"press":"P:hyper"}}]}"#,
                 ConfigError::InvalidMacro(0),
             ),
+            (
+                r#"{"tiles":[{"kind":"button","pins":{"switch":4},"functions":{"press":{"actions":[{"press":"hyper"}]}}}]}"#,
+                ConfigError::InvalidMacro(4),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","functions":{"press":5}}]}"#,
+                ConfigError::InvalidStructure("function"),
+            ),
         ];
         for (json, expected) in cases {
             assert_eq!(parse(json).err(), Some(expected), "{json}");
@@ -924,12 +985,9 @@ mod tests {
         let bindings = parse(LEGACY_PROFILE).unwrap();
 
         assert_eq!(bindings.len(), 3);
-        assert_eq!(
-            bindings.macro_for_pin(4),
-            Some("P:lctrl,P:c,D:50,R:c,R:lctrl")
-        );
-        assert_eq!(bindings.macro_for_pin(17), Some("MEDIA:mute"));
-        assert_eq!(bindings.macro_for_pin(15), Some("MEDIA:vol_up"));
+        assert_eq!(decoded(bindings.macro_for_pin(4)), Some(COPY.to_vec()));
+        assert_eq!(decoded(bindings.macro_for_pin(17)), Some(vec![MUTE]));
+        assert_eq!(decoded(bindings.macro_for_pin(15)), Some(vec![VOLUME_UP]));
         assert_eq!(
             bindings.layout().role(15),
             PinRole::Button {
@@ -943,10 +1001,10 @@ mod tests {
         let bindings =
             parse(r#"{"pins":{"15":"MEDIA:mute","5":"P:ctrl,P:c,D:20,R:c,R:ctrl"}}"#).unwrap();
 
-        assert_eq!(bindings.macro_for_pin(15), Some("MEDIA:mute"));
+        assert_eq!(decoded(bindings.macro_for_pin(15)), Some(vec![MUTE]));
         assert_eq!(
-            bindings.macro_for_pin(5),
-            Some("P:ctrl,P:c,D:20,R:c,R:ctrl")
+            decoded(bindings.macro_for_pin(5)).map(|actions| actions.len()),
+            Some(5)
         );
     }
 
@@ -966,16 +1024,25 @@ mod tests {
             parse(r#"{"tiles":[{"functions":{"b":{"pin":6,"macro_str":"P:KeyA,R:KeyA"}}}]}"#)
                 .unwrap();
 
-        assert_eq!(bindings.macro_for_pin(6), Some("P:KeyA,R:KeyA"));
+        assert_eq!(
+            decoded(bindings.macro_for_pin(6)),
+            Some(vec![
+                Action::Press(Key::Usage(0x04)),
+                Action::Release(Key::Usage(0x04))
+            ])
+        );
     }
 
     #[test]
-    fn keeps_text_actions_for_later() {
+    fn reads_text_in_macro_strings() {
         let bindings = parse(
             r#"{"format":2,"tiles":[{"kind":"button","pins":{"switch":7},"functions":{"press":"TEXT:Hallo Welt"}}]}"#,
         );
 
-        assert_eq!(bindings.unwrap().macro_for_pin(7), Some("TEXT:Hallo Welt"));
+        assert_eq!(
+            decoded(bindings.unwrap().macro_for_pin(7)),
+            Some(vec![Action::Text("Hallo Welt")])
+        );
     }
 
     #[test]

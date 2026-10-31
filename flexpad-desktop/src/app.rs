@@ -6,8 +6,8 @@ use std::time::Duration;
 use crate::canvas;
 use crate::components::{self, Component};
 use crate::config::{
-    MacroAction, UserSettings, compile_macro, list_saved_profiles, load_profile_from_disk,
-    load_user_settings, parse_macro, save_profile_to_disk, save_user_settings,
+    UserSettings, list_saved_profiles, load_profile_from_disk, load_user_settings,
+    save_profile_to_disk, save_user_settings,
 };
 use crate::constants::PRESETS;
 use crate::device::{
@@ -15,6 +15,7 @@ use crate::device::{
     set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
+use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
 use crate::ui::header::view_header;
 use crate::ui::workspace::view_workspace;
@@ -39,6 +40,7 @@ pub struct UiState {
     pub selected_preset: String,
     pub advanced_mode: bool,
     pub expanded_functions: Vec<String>,
+    pub raw_macro_input: Option<(String, String)>,
     pub pending_overwrite: bool,
 }
 
@@ -52,6 +54,7 @@ impl Default for UiState {
             selected_preset: PRESETS.first().map(|p| p.0.to_string()).unwrap_or_default(),
             advanced_mode: false,
             expanded_functions: Vec::new(),
+            raw_macro_input: None,
             pending_overwrite: false,
         }
     }
@@ -106,12 +109,12 @@ pub enum Message {
     MacroTextChanged(String),
     PresetSelected(String),
     AdvancedModeToggled(bool),
-    RawMacroStringChanged(String, String),
+    RawMacroChanged(String, String),
     AddMacroAction(String, MacroAction),
     RemoveMacroAction(String, usize),
     MoveMacroActionUp(String, usize),
     MoveMacroActionDown(String, usize),
-    ApplyPreset(String, String),
+    ApplyPreset(String, Preset),
 }
 
 impl FlexPadApp {
@@ -178,18 +181,15 @@ impl FlexPadApp {
         self.tiles.iter_mut().find(|t| t.id == id)
     }
 
-    fn edit_macro(&mut self, function: &str, edit: impl FnOnce(&mut String)) {
+    fn edit_macro(&mut self, function: &str, edit: impl FnOnce(&mut Macro)) {
         if let Some(tile) = self.selected_tile_mut() {
             edit(tile.functions.entry(function.to_string()).or_default());
         }
     }
 
     fn edit_actions(&mut self, function: &str, edit: impl FnOnce(&mut Vec<MacroAction>)) {
-        self.edit_macro(function, |macro_str| {
-            let mut actions = parse_macro(macro_str);
-            edit(&mut actions);
-            *macro_str = compile_macro(&actions);
-        });
+        self.ui.raw_macro_input = None;
+        self.edit_macro(function, |value| edit(&mut value.actions));
     }
 
     fn current_profile(&self) -> Profile {
@@ -226,6 +226,7 @@ impl FlexPadApp {
             Message::SelectTile(id) => {
                 self.selected_tile_id = Some(id);
                 self.ui.expanded_functions.clear();
+                self.ui.raw_macro_input = None;
             }
             Message::UpdateTileName(name) => {
                 if let Some(tile) = self.selected_tile_mut() {
@@ -259,6 +260,7 @@ impl FlexPadApp {
                 if let Some(id) = self.selected_tile_id.take() {
                     self.tiles.retain(|t| t.id != id);
                     self.ui.expanded_functions.clear();
+                    self.ui.raw_macro_input = None;
                     self.status_message = "Tile removed from canvas.".to_string();
                 }
             }
@@ -274,8 +276,11 @@ impl FlexPadApp {
                     advanced_mode: self.ui.advanced_mode,
                 });
             }
-            Message::RawMacroStringChanged(function, raw) => {
-                self.edit_macro(&function, |macro_str| *macro_str = raw);
+            Message::RawMacroChanged(function, raw) => {
+                if let Ok(parsed) = serde_json::from_str::<Macro>(&raw) {
+                    self.edit_macro(&function, |value| *value = parsed);
+                }
+                self.ui.raw_macro_input = Some((function, raw));
             }
             Message::AddMacroAction(function, action) => {
                 self.edit_actions(&function, |actions| actions.push(action));
@@ -301,8 +306,9 @@ impl FlexPadApp {
                     }
                 });
             }
-            Message::ApplyPreset(function, macro_str) => {
-                self.edit_macro(&function, |current| *current = macro_str);
+            Message::ApplyPreset(function, preset) => {
+                self.ui.raw_macro_input = None;
+                self.edit_macro(&function, |value| *value = preset.to_macro());
             }
         }
         Task::none()
@@ -373,6 +379,7 @@ impl FlexPadApp {
         self.current_profile_name = profile_name.clone();
         self.ui.pending_overwrite = false;
         self.ui.expanded_functions.clear();
+        self.ui.raw_macro_input = None;
 
         if save_profile_to_disk(&self.current_profile()).is_ok() {
             self.saved_profiles = load_profile_items();
@@ -428,6 +435,7 @@ impl FlexPadApp {
                 self.ui.pending_overwrite = false;
                 self.selected_tile_id = None;
                 self.ui.expanded_functions.clear();
+                self.ui.raw_macro_input = None;
 
                 save_user_settings(&UserSettings {
                     last_profile: Some(loaded.profile_name),
@@ -513,6 +521,7 @@ impl FlexPadApp {
                 self.selected_tile_id = maybe_id.clone();
                 self.dragging_tile_id = maybe_id;
                 self.ui.expanded_functions.clear();
+                self.ui.raw_macro_input = None;
             }
             canvas::CanvasMessage::DragPosition(x, y) => {
                 if let Some(id) = &self.dragging_tile_id
@@ -542,6 +551,7 @@ impl FlexPadApp {
         self.tiles.push(new_tile);
         self.selected_tile_id = Some(new_id);
         self.ui.expanded_functions.clear();
+        self.ui.raw_macro_input = None;
         self.status_message = "Added new tile to canvas.".to_string();
     }
 

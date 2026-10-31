@@ -266,32 +266,6 @@ pub fn label_for(name: &str, layout: KeyboardLayout) -> String {
         .map_or_else(|| name.to_string(), |key| key.label(layout).to_string())
 }
 
-// Macros
-
-pub fn migrate_macro(macro_str: &str) -> String {
-    if !macro_str.contains("P:") && !macro_str.contains("R:") {
-        return macro_str.to_string();
-    }
-    macro_str
-        .split(',')
-        .map(|token| {
-            let trimmed = token.trim();
-            let Some((prefix, name)) = trimmed
-                .strip_prefix("P:")
-                .map(|name| ("P:", name))
-                .or_else(|| trimmed.strip_prefix("R:").map(|name| ("R:", name)))
-            else {
-                return token.to_string();
-            };
-            match code_for(name) {
-                Some(code) if code != name => format!("{prefix}{code}"),
-                _ => token.to_string(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,30 +397,5 @@ mod tests {
     #[test]
     fn unknown_names_are_shown_as_they_are() {
         assert_eq!(label_for("hyper", KeyboardLayout::De), "hyper");
-    }
-
-    // Macros
-
-    #[test]
-    fn migrate_macro_renames_only_keys() {
-        assert_eq!(
-            migrate_macro("P:lctrl,P:c,D:50,R:c,R:lctrl,MEDIA:mute"),
-            "P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft,MEDIA:mute"
-        );
-        assert_eq!(
-            migrate_macro("P:lwin,P:period,D:50,R:period,R:lwin"),
-            "P:MetaLeft,P:Period,D:50,R:Period,R:MetaLeft"
-        );
-    }
-
-    #[test]
-    fn migrate_macro_keeps_text_and_unknown_tokens() {
-        assert_eq!(migrate_macro("TEXT:Hallo, Welt"), "TEXT:Hallo, Welt");
-        assert_eq!(
-            migrate_macro("P:a,TEXT:x, P:y ,P:hyper"),
-            "P:KeyA,TEXT:x,P:KeyY,P:hyper"
-        );
-        assert_eq!(migrate_macro(""), "");
-        assert_eq!(migrate_macro("P:KeyA,R:KeyA"), "P:KeyA,R:KeyA");
     }
 }

@@ -1,8 +1,8 @@
 use crate::app::{FlexPadApp, Message};
 use crate::components::{self, Component, Function, Parameter, ParameterKind, PinRole};
-use crate::config::{MacroAction, parse_macro};
 use crate::constants::{FIRMWARE_PINS, MEDIA_ACTIONS, PRESETS};
 use crate::keys::{self, KEYS, KeyboardLayout};
+use crate::macros::{Macro, MacroAction};
 use crate::profile::Tile;
 use iced::widget::{Column, button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Element, Length};
@@ -194,13 +194,13 @@ fn view_function<'a>(
     tile: &'a Tile,
     function: &'static Function,
 ) -> Element<'a, Message> {
-    let macro_val = tile.macro_for(function.id);
+    let actions = tile.macro_for(function.id);
     let is_expanded = app.ui.expanded_functions.iter().any(|id| id == function.id);
     let toggle_arrow = if is_expanded { "▼" } else { "▶" };
-    let summary = if macro_val.is_empty() {
+    let summary = if actions.is_empty() {
         "[No macro]".to_string()
     } else {
-        format!("[{} actions]", parse_macro(macro_val).len())
+        format!("[{} actions]", actions.len())
     };
 
     let toggle_btn =
@@ -210,8 +210,7 @@ fn view_function<'a>(
 
     let mut section = column![toggle_btn].spacing(6);
     if is_expanded {
-        section =
-            section.push(container(view_macro_editor(app, function.id, macro_val)).padding(8));
+        section = section.push(container(view_macro_editor(app, function.id, actions)).padding(8));
     }
     section.into()
 }
@@ -219,18 +218,17 @@ fn view_function<'a>(
 fn view_macro_editor<'a>(
     app: &'a FlexPadApp,
     function_id: &'static str,
-    macro_val: &'a str,
+    actions: &'a [MacroAction],
 ) -> Column<'a, Message> {
     let target = || function_id.to_string();
 
-    let actions = parse_macro(macro_val);
     let mut macro_list = column![text("Macro Sequence:").size(11)].spacing(4);
     if actions.is_empty() {
         macro_list = macro_list.push(text("(No actions)").size(10));
     } else {
         let total_actions = actions.len();
-        for (a_idx, action) in actions.into_iter().enumerate() {
-            let label = action_label(&action, app.keyboard_layout);
+        for (a_idx, action) in actions.iter().enumerate() {
+            let label = action_label(action, app.keyboard_layout);
             let mut item_row = row![text(format!("{}. {}", a_idx + 1, label)).size(11)]
                 .spacing(6)
                 .align_y(iced::Alignment::Center);
@@ -263,11 +261,11 @@ fn view_macro_editor<'a>(
     });
     let press_btn = button("Press").on_press(Message::AddMacroAction(
         target(),
-        MacroAction::PressKey(app.ui.selected_macro_key.clone()),
+        MacroAction::Press(app.ui.selected_macro_key.clone()),
     ));
     let release_btn = button("Release").on_press(Message::AddMacroAction(
         target(),
-        MacroAction::ReleaseKey(app.ui.selected_macro_key.clone()),
+        MacroAction::Release(app.ui.selected_macro_key.clone()),
     ));
     let key_row = row![key_picker, press_btn, release_btn].spacing(4);
 
@@ -305,7 +303,7 @@ fn view_macro_editor<'a>(
         .padding(4);
     let add_text_btn = button("Text").on_press(Message::AddMacroAction(
         target(),
-        MacroAction::TypeText(app.ui.macro_text_input.clone()),
+        MacroAction::Text(app.ui.macro_text_input.clone()),
     ));
     let text_row = row![text_input_field, add_text_btn].spacing(4);
 
@@ -315,12 +313,14 @@ fn view_macro_editor<'a>(
         Some(app.ui.selected_preset.clone()),
         Message::PresetSelected,
     );
-    let preset_macro = PRESETS
+    let selected_preset = PRESETS
         .iter()
         .find(|p| p.0 == app.ui.selected_preset)
-        .map_or("", |p| p.1);
-    let apply_preset_btn =
-        button("Apply Preset").on_press(Message::ApplyPreset(target(), preset_macro.to_string()));
+        .or(PRESETS.first());
+    let mut apply_preset_btn = button("Apply Preset");
+    if let Some(&(_, preset)) = selected_preset {
+        apply_preset_btn = apply_preset_btn.on_press(Message::ApplyPreset(target(), preset));
+    }
     let preset_row = row![preset_picker, apply_preset_btn].spacing(4);
 
     let mut editor = column![
@@ -338,10 +338,29 @@ fn view_macro_editor<'a>(
     .spacing(6);
 
     if app.ui.advanced_mode {
-        let raw_input = text_input("Raw Macro String", macro_val)
-            .on_input(move |raw| Message::RawMacroStringChanged(function_id.to_string(), raw))
+        let pending = app
+            .ui
+            .raw_macro_input
+            .as_ref()
+            .filter(|(function, _)| function == function_id)
+            .map(|(_, raw)| raw.clone());
+        let is_invalid = pending
+            .as_ref()
+            .is_some_and(|raw| serde_json::from_str::<Macro>(raw).is_err());
+        let raw_value = pending.unwrap_or_else(|| {
+            serde_json::to_string(&Macro {
+                actions: actions.to_vec(),
+            })
+            .unwrap_or_default()
+        });
+        let raw_input = text_input("{\"actions\":[]}", &raw_value)
+            .on_input(move |raw| Message::RawMacroChanged(function_id.to_string(), raw))
             .padding(4);
-        editor = editor.push(column![text("Raw String Editor:").size(11), raw_input].spacing(4));
+        let mut raw_section = column![text("Raw JSON:").size(11), raw_input].spacing(4);
+        if is_invalid {
+            raw_section = raw_section.push(text("Invalid JSON, not applied yet.").size(10));
+        }
+        editor = editor.push(raw_section);
     }
     editor
 }
@@ -401,8 +420,8 @@ pub fn pin_summary(tile: &Tile) -> String {
 
 fn action_label(action: &MacroAction, layout: KeyboardLayout) -> String {
     match action {
-        MacroAction::PressKey(key) => format!("Press: {}", keys::label_for(key, layout)),
-        MacroAction::ReleaseKey(key) => format!("Release: {}", keys::label_for(key, layout)),
+        MacroAction::Press(key) => format!("Press: {}", keys::label_for(key, layout)),
+        MacroAction::Release(key) => format!("Release: {}", keys::label_for(key, layout)),
         other => other.to_string(),
     }
 }

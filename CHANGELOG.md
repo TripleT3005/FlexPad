@@ -13,6 +13,12 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 #### Changed
 - Keys are stored as physical key positions (`KeyA`, `ControlLeft`, `Semicolon`, …), the same names the firmware uses. Older profiles are converted automatically when loaded.
+- Macros are stored in the profile as a list of actions instead of a comma-separated string. Older profiles are converted when loaded, and the firmware still runs profiles stored on the device before the update. **Advanced View** now shows the macro as JSON.
+- Text in macros is stored exactly as typed; umlauts are no longer replaced by `ae`, `oe` etc.
+
+#### Fixed
+- Text actions no longer change with every edit of the macro (`y` and `z` swapped back and forth).
+- Commas, backslashes and quotes in text actions no longer break the macro.
 
 ### Deutsch
 
@@ -21,6 +27,12 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 #### Geändert
 - Tasten werden als physische Tastenpositionen gespeichert (`KeyA`, `ControlLeft`, `Semicolon`, …), mit denselben Namen wie in der Firmware. Ältere Profile werden beim Laden automatisch umgestellt.
+- Makros werden im Profil als Liste von Aktionen statt als kommagetrennter String gespeichert. Ältere Profile werden beim Laden umgewandelt, und die Firmware führt Profile, die vor dem Update auf dem Gerät gespeichert wurden, weiterhin aus. **Advanced View** zeigt das Makro jetzt als JSON.
+- Text in Makros wird genau so gespeichert, wie er eingegeben wurde; Umlaute werden nicht mehr durch `ae`, `oe` usw. ersetzt.
+
+#### Behoben
+- Textaktionen ändern sich nicht mehr bei jeder Bearbeitung des Makros (`y` und `z` wurden hin- und hergetauscht).
+- Kommas, Backslashes und Anführungszeichen in Textaktionen zerstören das Makro nicht mehr.
 
 ## [0.1.0] – 2026-10-31
 

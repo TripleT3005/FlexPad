@@ -16,7 +16,7 @@ This document describes how the desktop app and the Rust firmware (`flexpad-firm
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>,<firmware version>` |
 | `GET_CONFIG` | `CONFIG_DATA:<profile JSON>`, exactly as stored; `CONFIG_DATA:{}` if none is stored |
 | `SET_CONFIG:<profile JSON>` | `CONFIG_SAVED`, or `CONFIG_ERROR:<reason>` (see [Errors](#errors)); on error the stored profile stays unchanged |
-| `RUN_MACRO:<macro>` | `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` |
+| `RUN_MACRO:<function JSON>` | Runs a [function object](#functions) once, e.g. `RUN_MACRO:{"actions":[{"media":"mute"}]}`; `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`; the device then restarts in the ROM download mode (USB ID `303A:0009`) for flashing |
 | anything else | `ERROR:unknown_command` |
 
@@ -31,19 +31,31 @@ The profile JSON must fit on one line (no line breaks inside) and may be up to 1
 
 Events that occur while no serial connection is open are dropped.
 
-## Macros
+## Functions
 
-A macro is a comma-separated list of actions:
+What a tile does when it is pressed or turned is a function object. So far it holds one macro, a list of actions:
+
+```json
+{ "actions": [ { "press": "ControlLeft" }, { "press": "KeyC" }, { "delay": 50 }, { "release": "KeyC" }, { "release": "ControlLeft" } ] }
+```
+
+Each action is an object with exactly one member:
 
 | Action | Meaning |
 |---|---|
-| `P:<key>` | Press a key |
-| `R:<key>` | Release a key |
-| `D:<ms>` | Wait 0–60 000 ms |
-| `MEDIA:<name>` | Press and release a media key: `vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`, `stop` (also `AudioVolumeUp`, `AudioVolumeDown`, `AudioVolumeMute`, `MediaTrackNext`, `MediaTrackPrevious`, `MediaPlayPause`, `MediaStop`) |
-| `TEXT:<text>` | Type text; accepted in profiles but not executed yet (#5). Commas inside the text are not escaped yet (#6), so such macros are rejected |
+| `{ "press": "<key>" }` | Press a key |
+| `{ "release": "<key>" }` | Release a key |
+| `{ "delay": <ms> }` | Wait 0–60 000 ms (a whole number) |
+| `{ "media": "<name>" }` | Press and release a media key: `vol_up`, `vol_down`, `mute`, `next`, `prev`, `play`, `stop` (also `AudioVolumeUp`, `AudioVolumeDown`, `AudioVolumeMute`, `MediaTrackNext`, `MediaTrackPrevious`, `MediaPlayPause`, `MediaStop`) |
+| `{ "text": "<text>" }` | Type text, as a normal JSON string (commas, quotes, `\n` and `\\` need no extra escaping); accepted in profiles but not executed yet (#4, #5) |
 
-Macros run one after another in the background (up to 8 waiting). After each macro, all keys are released.
+An empty list (or a missing `actions`) means "nothing". Other members of a function object are ignored; they are reserved for functions that are not macros (#47).
+
+Macros run one after another in the background (up to 8 waiting). After each macro, all keys are released. One macro may take up to 512 bytes on the device: about 170 key actions or 500 characters of text.
+
+### Macro strings
+
+Before function objects, a function was a string with comma-separated actions: `P:<key>`, `R:<key>`, `D:<ms>`, `MEDIA:<name>` and `TEXT:<text>`, e.g. `"P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft"`. The firmware still accepts such strings in profiles (also in format 1 and the Arduino format) so that a stored profile keeps working after a firmware update; in `TEXT:`, `\n` stands for a line break and a comma ends the text. The app converts them into function objects when a profile is loaded and only writes function objects.
 
 ### Key names
 
@@ -74,7 +86,9 @@ The app writes these names and shows them with the labels of the chosen keyboard
       "kind": "button",
       "pins": { "switch": 4 },
       "parameters": { "debounce_ms": 10 },
-      "functions": { "press": "P:ControlLeft,P:KeyC,D:50,R:KeyC,R:ControlLeft" },
+      "functions": {
+        "press": { "actions": [ { "press": "ControlLeft" }, { "press": "KeyC" }, { "delay": 50 }, { "release": "KeyC" }, { "release": "ControlLeft" } ] }
+      },
       "x": 50.0,
       "y": 50.0
     },
@@ -85,7 +99,11 @@ The app writes these names and shows them with the labels of the chosen keyboard
       "kind": "encoder",
       "pins": { "a": 15, "b": 16, "switch": 17 },
       "parameters": { "steps_per_detent": 4, "reverse": false, "debounce_ms": 10 },
-      "functions": { "turn_right": "MEDIA:vol_up", "turn_left": "MEDIA:vol_down", "press": "MEDIA:mute" },
+      "functions": {
+        "turn_right": { "actions": [ { "media": "vol_up" } ] },
+        "turn_left": { "actions": [ { "media": "vol_down" } ] },
+        "press": { "actions": [ { "media": "mute" } ] }
+      },
       "x": 200.0,
       "y": 50.0
     }
@@ -96,10 +114,10 @@ The app writes these names and shows them with the labels of the chosen keyboard
 The profile is written by the app, stored on the device unchanged and read back with `GET_CONFIG`, so any computer can show and edit the current configuration. The firmware only evaluates `format`, `tiles[].kind`, `pins`, `parameters` and `functions`; all other fields (`id`, `display_name`, `component`, `x`, `y`, …) belong to the app and are kept as they are.
 
 - `pins`: role → GPIO number. A role without a pin is left out (or `null`, `""`).
-- `functions`: function → macro. An empty string means "nothing".
+- `functions`: function → [function object](#functions). A missing function or an empty `actions` list means "nothing".
 - `parameters`: missing values use the defaults below; unknown parameters are ignored.
 - `component` names the component the tile was created from (`button`, `ec11`). The app uses it for the display; the firmware ignores it.
-- `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware ignores it so far (it will be used for `TEXT:`, #5).
+- `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware ignores it so far (it will be used for text actions, #5).
 
 ### Kinds
 
@@ -117,7 +135,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 
 ### Format 1
 
-Profiles without `format` (from the app so far) are still accepted: each entry of `functions` is an object `{ "pin": "<pin>", "macro_str": "<macro>" }` and is treated as a button with default debounce. The format of the former Arduino firmware `{ "pins": { "<pin>": "<macro>" } }` is accepted as well. Both are only meant for the transition.
+Profiles without `format` (from app versions before 0.1.0) are still accepted: each entry of `functions` is an object `{ "pin": "<pin>", "macro_str": "<macro>" }` and is treated as a button with default debounce. The format of the former Arduino firmware `{ "pins": { "<pin>": "<macro>" } }` is accepted as well. Both are only meant for the transition.
 
 ## Errors
 
@@ -134,11 +152,12 @@ Profiles without `format` (from the app so far) are still accepted: each entry o
 | `invalid_pin` | Pin is not a number |
 | `unusable_pin:<pin>` | Pin is not in the list of usable pins |
 | `duplicate_pin:<pin>` | Pin used more than once |
-| `invalid_macro:<pin>` | A macro contains an unknown action, key or media name |
+| `invalid_macro:<pin>` | A function object or macro string is malformed or contains an unknown action, key or media name |
+| `macro_too_large:<pin>` | A single macro takes more than 512 bytes on the device |
 | `macros_too_large` | All macros together exceed 8 KB |
 | `storage` | Writing to flash failed |
 
-`MACRO_ERROR:<reason>`: `unknown_key:<name>`, `unknown_media:<name>`, `invalid_delay:<value>`, `unsupported:TEXT`, `unknown_action:<token>`, `busy` (queue full).
+`MACRO_ERROR:<reason>`: `invalid_json:<position>`, `invalid_structure:<part>` (`function`, `actions`, `action`), `unknown_action:<name>`, `unknown_key:<name>`, `unknown_media:<name>`, `invalid_delay:<value>`, `invalid_text`, `unsupported:text` (text actions cannot run yet), `too_large` (more than 512 bytes), `busy` (queue full).
 
 ## Storage
 
