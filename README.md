@@ -19,7 +19,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 - Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
 - Debounce time, encoder resolution and direction adjustable per tile
 - Profiles stored locally and on the device; the device works without the app once configured
-- No driver, no account, no network access
+- No driver, no account, no network access except an optional update check (see [Privacy](#privacy))
 
 ### Hardware
 | Part | Notes |
@@ -102,7 +102,7 @@ Each function of a tile holds a macro as a list of actions: `{"press":"<key>"}`,
 Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The app shows the keys with the labels of the keyboard layout chosen in the profile (e.g. `KeyY` as "Z" on a German layout); older names from earlier versions (`lctrl`, `ael`, `kp_1` …) are converted when a profile is loaded. Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
-- **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
+- **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases` and receives the list of published releases (version numbers and links). Only the newest version is compared with the installed one; if it is newer, "Version x.y.z available" appears in the header and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the header (saved in the settings); then the app makes no request at all.
 - The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched.
 - Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
@@ -165,7 +165,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 - Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
 - Entprellzeit, Encoder-Auflösung und Drehrichtung pro Kachel einstellbar
 - Profile lokal und auf dem Gerät gespeichert; einmal eingerichtet, arbeitet das Gerät ohne die App
-- Kein Treiber, kein Konto, keine Netzwerkzugriffe
+- Kein Treiber, kein Konto, keine Netzwerkzugriffe außer einer optionalen Update-Prüfung (siehe [Datenschutz](#datenschutz))
 
 ### Hardware
 | Bauteil | Hinweise |
@@ -248,7 +248,7 @@ Jede Funktion einer Kachel enthält ein Makro als Liste von Aktionen: `{"press":
 Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die App zeigt die Tasten mit den Beschriftungen des im Profil gewählten Tastaturlayouts (z. B. `KeyY` als „Z“ bei deutschem Layout); ältere Namen früherer Versionen (`lctrl`, `ael`, `kp_1` …) werden beim Laden eines Profils umgestellt. Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
-- **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
+- **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases` und erhält die Liste der veröffentlichten Releases (Versionsnummern und Links). Nur die neueste Version wird mit der installierten verglichen; ist sie neuer, erscheint im Kopfbereich „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** im Kopfbereich (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
 - Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt.
 - Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.

@@ -12,6 +12,7 @@ mod macros;
 mod profile;
 mod release;
 mod ui;
+mod update;
 
 use app::FlexPadApp;
 
