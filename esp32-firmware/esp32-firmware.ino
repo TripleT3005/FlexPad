@@ -20,15 +20,15 @@ struct PinState {
   int debouncedState;
   unsigned long lastDebounceTime;
   unsigned long lastTriggerTime;
+  String sequence;
 };
 
 PinState pinStates[numPins];
-String pinSequences[50]; 
 const unsigned long debounceDelay = 50;
 const unsigned long cooldownTime = 100;
 
 void loadConfiguration() {
-  for(int i = 0; i < 50; i++) pinSequences[i] = "";
+  for (int i = 0; i < numPins; i++) pinStates[i].sequence = "";
 
   if (!LittleFS.exists("/config.json")) return;
 
@@ -44,9 +44,14 @@ void loadConfiguration() {
 
   JsonObject pinsObj = doc["pins"];
   for (JsonPair kv : pinsObj) {
-    int pinNum = atoi(kv.key().c_str());
-    if (kv.value().is<String>()) {
-      pinSequences[pinNum] = kv.value().as<String>();
+    if (!kv.value().is<String>()) continue;
+
+    String pinKey = kv.key().c_str();
+    for (int i = 0; i < numPins; i++) {
+      if (pinKey == String(monitoredPins[i])) {
+        pinStates[i].sequence = kv.value().as<String>();
+        break;
+      }
     }
   }
 }
@@ -96,11 +101,11 @@ int parseKeyCode(String keyName) {
   return 0;
 }
 
-void executeSequence(int pin) {
-  String seq = pinSequences[pin];
+void executeSequence(int pinIndex) {
+  String seq = pinStates[pinIndex].sequence;
   
   if (seq.length() == 0) {
-    String fallback = "FlexPad unassigned pin " + String(pin);
+    String fallback = "FlexPad unassigned pin " + String(monitoredPins[pinIndex]);
     for (unsigned int c = 0; c < fallback.length(); c++) {
       Keyboard.write(fallback[c]);
       delay(2);
@@ -228,7 +233,7 @@ void loop() {
         if (pinStates[i].debouncedState == LOW) {
           if (currentMillis - pinStates[i].lastTriggerTime > cooldownTime) {
             pinStates[i].lastTriggerTime = currentMillis;
-            executeSequence(pin);
+            executeSequence(i);
           }
         }
       }
