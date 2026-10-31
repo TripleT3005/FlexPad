@@ -6,12 +6,12 @@
 
 FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial.
 
-> **Work in progress.** FlexPad is not usable yet. Known gaps:
-> - **The firmware does not understand the app's current configuration format yet** ([#2](../../issues/2)). The app sends its whole profile (`profile_name`, `tiles[]` with `functions`), while the firmware still expects `{"pins": {"<pin>": "<sequence>"}}`. After uploading a profile from the app, all pins are treated as unassigned.
-> - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
+> **Work in progress.** FlexPad works with the Rust firmware for buttons and EC11 encoders, but is not finished yet. Known gaps:
+> - Use the Rust firmware in `flexpad-firmware/`; the Arduino sketch in `esp32-firmware/` does not understand the current profile format and will be removed.
+> - `TEXT:` actions are not typed yet, and commas inside text break the macro ([#6](../../issues/6)).
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the Rust firmware in `flexpad-firmware/` already stores the profile and runs the assigned macros for buttons and EC11 encoders, but the desktop app does not write the new profile format yet.
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)). The Rust firmware in `flexpad-firmware/` and the desktop app already work together for buttons and EC11 encoders (profile format 2); the Arduino sketch does not understand this format.
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -39,8 +39,10 @@ There are no prebuilt releases yet. Build the desktop app and flash the firmware
 2. **Scan Devices**, select the device and **Connect**.
 3. **Load Config** reads the configuration stored on the device.
 4. Add tiles with **Add Tile** (button or EC11 encoder), drag them into place and select one to edit it in the **Tile Inspector**:
-   - choose the GPIO pin(s) the tile is wired to,
-   - build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the raw macro string.
+   - **Pins**: choose the GPIO pin for each connection of the component (only free, usable pins are offered),
+   - **Parameters**: debounce time, and for encoders the steps per detent and the direction,
+   - **Functions** (e.g. press, turn right, turn left): open one to edit its macro,
+   - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the raw macro string.
 5. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
 
 ### How it works
@@ -64,7 +66,7 @@ Key names describe the physical key position on a US keyboard, using the names o
 ### Privacy
 - **No network access.** Neither the app nor the firmware connects to the internet; nothing is downloaded or sent.
 - The app only talks to serial ports on your computer. To find FlexPad devices it currently opens every serial port and sends `GET_DEVICE_INFO` ([#15](../../issues/15)).
-- Profiles and settings are stored in the folder `FlexPad` in your home directory. The device stores only the configuration you send to it.
+- Profiles and settings are stored in the folder `FlexPad` in your home directory. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
 
 ### Building
@@ -132,12 +134,12 @@ After flashing, press **RESET** (or unplug the board briefly) to start the firmw
 
 FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät.
 
-> **In Arbeit.** FlexPad ist noch nicht einsatzbereit. Bekannte Lücken:
-> - **Die Firmware versteht das aktuelle Konfigurationsformat der App noch nicht** ([#2](../../issues/2)). Die App sendet ihr komplettes Profil (`profile_name`, `tiles[]` mit `functions`), die Firmware erwartet aber noch `{"pins": {"<pin>": "<sequenz>"}}`. Nach dem Übertragen eines Profils aus der App gelten alle Pins als unbelegt.
-> - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
+> **In Arbeit.** FlexPad funktioniert mit der Rust-Firmware für Taster und EC11-Encoder, ist aber noch nicht fertig. Bekannte Lücken:
+> - Die Rust-Firmware in `flexpad-firmware/` verwenden; der Arduino-Sketch in `esp32-firmware/` versteht das aktuelle Profilformat nicht und wird entfernt.
+> - `TEXT:`-Aktionen werden noch nicht getippt, und Kommas im Text zerstückeln das Makro ([#6](../../issues/6)).
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die Rust-Firmware in `flexpad-firmware/` speichert bereits das Profil und führt die zugeordneten Makros für Taster und EC11-Encoder aus, die Desktop-App schreibt das neue Profilformat aber noch nicht.
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)). Rust-Firmware in `flexpad-firmware/` und Desktop-App arbeiten für Taster und EC11-Encoder bereits zusammen (Profilformat 2); der Arduino-Sketch versteht dieses Format nicht.
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -165,8 +167,10 @@ Fertige Releases gibt es noch nicht. Die Desktop-App bauen und die Firmware flas
 2. **Scan Devices**, das Gerät auswählen und **Connect**.
 3. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
 4. Mit **Add Tile** Kacheln hinzufügen (Taster oder EC11-Encoder), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
-   - den oder die GPIO-Pins wählen, an denen die Kachel angeschlossen ist,
-   - das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt den rohen Makro-String.
+   - **Pins**: für jeden Anschluss des Bauteils den GPIO-Pin wählen (angeboten werden nur freie, nutzbare Pins),
+   - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung,
+   - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen): aufklappen, um das Makro zu bearbeiten,
+   - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt den rohen Makro-String.
 5. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
 
 ### Funktionsweise
@@ -190,7 +194,7 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 ### Datenschutz
 - **Keine Netzwerkzugriffe.** Weder die App noch die Firmware verbinden sich mit dem Internet; es wird nichts abgerufen oder gesendet.
 - Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie derzeit jeden seriellen Port und sendet `GET_DEVICE_INFO` ([#15](../../issues/15)).
-- Profile und Einstellungen liegen im Ordner `FlexPad` im Benutzerverzeichnis. Das Gerät speichert nur die Konfiguration, die man ihm schickt.
+- Profile und Einstellungen liegen im Ordner `FlexPad` im Benutzerverzeichnis. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
 
 ### Bauen

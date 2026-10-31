@@ -1,4 +1,5 @@
-use crate::config::CanvasTile;
+use crate::profile::Tile;
+use crate::ui::inspector::pin_summary;
 use iced::widget::canvas::{self, Action, Canvas, Frame, Geometry, Path, Program, Stroke};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
@@ -10,7 +11,7 @@ pub enum CanvasMessage {
 }
 
 pub struct GridProgram {
-    pub tiles: Vec<CanvasTile>,
+    pub tiles: Vec<Tile>,
     pub selected_tile_id: Option<String>,
     pub dragging_tile_id: Option<String>,
 }
@@ -144,24 +145,9 @@ impl Program<CanvasMessage> for GridProgram {
             };
             frame.stroke(&box_path, border_stroke);
 
-            let pins_summary: String = tile
-                .functions
-                .values()
-                .map(|f| {
-                    if f.pin.is_empty() {
-                        "-".to_string()
-                    } else {
-                        f.pin.clone()
-                    }
-                })
-                .collect::<Vec<String>>()
-                .join(", ");
+            let pins_summary = pin_summary(tile);
 
-            let display_name = if tile.display_name.len() > 14 {
-                format!("{}...", &tile.display_name[..12])
-            } else {
-                tile.display_name.clone()
-            };
+            let display_name = shorten(&tile.display_name);
 
             let text_content = format!("{}\nPins: {}", display_name, pins_summary);
             let text = canvas::Text {
@@ -179,7 +165,7 @@ impl Program<CanvasMessage> for GridProgram {
 }
 
 pub fn view_canvas(
-    tiles: Vec<CanvasTile>,
+    tiles: Vec<Tile>,
     selected_tile_id: Option<String>,
     dragging_tile_id: Option<String>,
 ) -> Element<'static, CanvasMessage> {
@@ -191,4 +177,27 @@ pub fn view_canvas(
     .width(Length::Fill)
     .height(Length::Fill)
     .into()
+}
+
+fn shorten(name: &str) -> String {
+    if name.chars().count() > 14 {
+        let start: String = name.chars().take(12).collect();
+        format!("{start}...")
+    } else {
+        name.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Names
+
+    #[test]
+    fn shorten_keeps_short_names_and_cuts_on_characters() {
+        assert_eq!(shorten("Button 1"), "Button 1");
+        assert_eq!(shorten("Lautstärke links"), "Lautstärke l...");
+        assert_eq!(shorten("ääääääääääääääää"), "ääääääääääää...");
+    }
 }

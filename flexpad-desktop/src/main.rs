@@ -1,8 +1,10 @@
 mod app;
 mod canvas;
+mod components;
 mod config;
 mod constants;
 mod device;
+mod profile;
 mod ui;
 
 use app::FlexPadApp;
