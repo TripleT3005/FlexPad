@@ -14,6 +14,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - Keyboard layout in the profile (English (US) or German): keys in the configurator are shown with the labels printed on that layout, e.g. "Z" for the key next to "T" on a German keyboard.
 
 #### Changed
+- The window keeps responding while the app talks to the device. Scan Devices, Connect, Load Config and Set Config are disabled until the running access is finished, and the status line shows what is running.
 - Keys are stored as physical key positions (`KeyA`, `ControlLeft`, `Semicolon`, …), the same names the firmware uses. Older profiles are converted automatically when loaded.
 - Macros are stored in the profile as a list of actions instead of a comma-separated string. Older profiles are converted when loaded, and the firmware still runs profiles stored on the device before the update. **Advanced View** now shows the macro as JSON.
 - Text in macros is stored exactly as typed; umlauts are no longer replaced by `ae`, `oe` etc.
@@ -35,6 +36,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - Tastaturlayout im Profil (English (US) oder German): Tasten werden im Konfigurator mit den Beschriftungen dieses Layouts angezeigt, z. B. „Z“ für die Taste neben „T“ auf einer deutschen Tastatur.
 
 #### Geändert
+- Das Fenster reagiert weiter, während die App mit dem Gerät spricht. Scan Devices, Connect, Load Config und Set Config sind gesperrt, bis der laufende Zugriff fertig ist, und die Statuszeile zeigt, was gerade läuft.
 - Tasten werden als physische Tastenpositionen gespeichert (`KeyA`, `ControlLeft`, `Semicolon`, …), mit denselben Namen wie in der Firmware. Ältere Profile werden beim Laden automatisch umgestellt.
 - Makros werden im Profil als Liste von Aktionen statt als kommagetrennter String gespeichert. Ältere Profile werden beim Laden umgewandelt, und die Firmware führt Profile, die vor dem Update auf dem Gerät gespeichert wurden, weiterhin aus. **Advanced View** zeigt das Makro jetzt als JSON.
 - Text in Makros wird genau so gespeichert, wie er eingegeben wurde; Umlaute werden nicht mehr durch `ae`, `oe` usw. ersetzt.

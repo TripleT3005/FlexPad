@@ -1,9 +1,39 @@
 use std::io::{Read, Write};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::Duration;
 
 const ESPRESSIF_VID: u16 = 0x303A;
 const SERIAL_PREFIX: &str = "FlexPad-";
 const PORT_SETTLE_MS: u64 = 100;
+
+pub type Port = Box<dyn serialport::SerialPort>;
+
+#[derive(Clone)]
+pub struct SharedPort(Arc<Mutex<Port>>);
+
+impl SharedPort {
+    pub fn new(port: Port) -> Self {
+        Self(Arc::new(Mutex::new(port)))
+    }
+
+    pub fn lock(&self) -> MutexGuard<'_, Port> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, Port>> {
+        match self.0.try_lock() {
+            Ok(guard) => Some(guard),
+            Err(TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
+            Err(TryLockError::WouldBlock) => None,
+        }
+    }
+}
+
+impl std::fmt::Debug for SharedPort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SharedPort")
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlexPadDeviceInfo {
@@ -90,7 +120,7 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
     devices
 }
 
-pub fn connect_to_port(port_name: &str) -> Result<Box<dyn serialport::SerialPort>, String> {
+pub fn connect_to_port(port_name: &str) -> Result<Port, String> {
     let mut port = serialport::new(port_name, 115200)
         .timeout(Duration::from_millis(500))
         .open()
@@ -101,9 +131,7 @@ pub fn connect_to_port(port_name: &str) -> Result<Box<dyn serialport::SerialPort
     Ok(port)
 }
 
-pub fn fetch_config_from_device(
-    port: &mut Box<dyn serialport::SerialPort>,
-) -> Result<String, String> {
+pub fn fetch_config_from_device(port: &mut Port) -> Result<String, String> {
     let _ = port.clear(serialport::ClearBuffer::All);
     port.write_all(b"GET_CONFIG\n").map_err(|e| e.to_string())?;
 
@@ -121,10 +149,7 @@ pub fn fetch_config_from_device(
     Err("Timeout waiting for config response".to_string())
 }
 
-pub fn set_config_to_device(
-    port: &mut Box<dyn serialport::SerialPort>,
-    json_config: &str,
-) -> Result<(), String> {
+pub fn set_config_to_device(port: &mut Port, json_config: &str) -> Result<(), String> {
     let _ = port.clear(serialport::ClearBuffer::All);
     let command = format!("SET_CONFIG:{}\n", json_config);
     port.write_all(command.as_bytes())
