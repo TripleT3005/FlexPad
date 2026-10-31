@@ -1,5 +1,7 @@
 use core::fmt::{self, Write};
 
+use crate::macros::{self, MacroError};
+
 // Constants
 
 pub const PRODUCT_NAME: &str = "FlexPad";
@@ -66,6 +68,7 @@ pub enum Command<'a> {
     GetDeviceInfo,
     GetConfig,
     SetConfig(&'a [u8]),
+    RunMacro(&'a [u8]),
     RebootBootloader,
     Unknown,
 }
@@ -76,11 +79,23 @@ pub fn parse_command(line: &[u8]) -> Command<'_> {
         b"GET_DEVICE_INFO" => Command::GetDeviceInfo,
         b"GET_CONFIG" => Command::GetConfig,
         b"REBOOT_BOOTLOADER" => Command::RebootBootloader,
-        _ => match line.strip_prefix(b"SET_CONFIG:") {
-            Some(payload) => Command::SetConfig(payload),
-            None => Command::Unknown,
-        },
+        _ => {
+            if let Some(payload) = line.strip_prefix(b"SET_CONFIG:") {
+                Command::SetConfig(payload)
+            } else if let Some(payload) = line.strip_prefix(b"RUN_MACRO:") {
+                Command::RunMacro(payload)
+            } else {
+                Command::Unknown
+            }
+        }
     }
+}
+
+pub fn macro_text(payload: &[u8]) -> Result<&str, MacroError<'_>> {
+    let text =
+        core::str::from_utf8(payload).map_err(|_| MacroError::UnknownAction("invalid_utf8"))?;
+    macros::validate(text)?;
+    Ok(text)
 }
 
 // Responses
@@ -103,6 +118,10 @@ pub fn write_response(
         ),
         Command::GetConfig => out.write_str("CONFIG_DATA:{}\n"),
         Command::SetConfig(_) => out.write_str("CONFIG_ERROR:not_supported\n"),
+        Command::RunMacro(payload) => match macro_text(payload) {
+            Ok(_) => out.write_str("MACRO_QUEUED\n"),
+            Err(error) => writeln!(out, "MACRO_ERROR:{error}"),
+        },
         Command::RebootBootloader => out.write_str("REBOOTING:bootloader\n"),
         Command::Unknown => out.write_str("ERROR:unknown_command\n"),
     }
@@ -110,6 +129,10 @@ pub fn write_response(
 
 pub fn write_line_too_long(out: &mut impl Write) -> fmt::Result {
     out.write_str("ERROR:line_too_long\n")
+}
+
+pub fn write_macro_busy(out: &mut impl Write) -> fmt::Result {
+    out.write_str("MACRO_ERROR:busy\n")
 }
 
 pub fn write_serial_number(mac: &[u8; 6], out: &mut impl Write) -> fmt::Result {
@@ -229,6 +252,10 @@ mod tests {
             parse_command(b"REBOOT_BOOTLOADER"),
             Command::RebootBootloader
         );
+        assert_eq!(
+            parse_command(b"RUN_MACRO:P:a,R:a"),
+            Command::RunMacro(b"P:a,R:a")
+        );
         assert_eq!(parse_command(b"get_config"), Command::Unknown);
         assert_eq!(parse_command(b""), Command::Unknown);
     }
@@ -269,6 +296,26 @@ mod tests {
             "REBOOTING:bootloader\n"
         );
         assert_eq!(response(Command::Unknown), "ERROR:unknown_command\n");
+    }
+
+    #[test]
+    fn run_macro_validates_before_queueing() {
+        assert_eq!(
+            response(Command::RunMacro(b"P:lctrl,P:c,D:50,R:c,R:lctrl")),
+            "MACRO_QUEUED\n"
+        );
+        assert_eq!(
+            response(Command::RunMacro(b"P:lctrl,P:hyper")),
+            "MACRO_ERROR:unknown_key:hyper\n"
+        );
+        assert_eq!(
+            response(Command::RunMacro(b"TEXT:hi")),
+            "MACRO_ERROR:unsupported:TEXT\n"
+        );
+        assert_eq!(
+            response(Command::RunMacro(&[0xFF])),
+            "MACRO_ERROR:unknown_action:invalid_utf8\n"
+        );
     }
 
     #[test]

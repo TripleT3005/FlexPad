@@ -2,11 +2,18 @@
 #![no_main]
 #![deny(clippy::mem_forget, clippy::large_stack_frames)]
 
+use core::fmt::Write;
+
 use embassy_executor::Spawner;
-use embassy_futures::join::join;
+use embassy_futures::join::join3;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use embassy_time::Timer;
 use embassy_usb::{
     Builder,
-    class::cdc_acm::{CdcAcmClass, State},
+    class::{
+        cdc_acm::{self, CdcAcmClass},
+        hid::{self, HidBootProtocol, HidSubclass, HidWriter},
+    },
     driver::EndpointError,
 };
 use esp_backtrace as _;
@@ -22,8 +29,10 @@ use esp_hal::{
         embassy_usb_device::{Config, Driver},
     },
 };
-use flexpad_firmware::protocol::{
-    self, Command, DeviceInfo, LineReader, MAX_LINE_LENGTH, PRODUCT_NAME, TextBuffer,
+use flexpad_firmware::{
+    hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
+    macros::{self, Action},
+    protocol::{self, Command, DeviceInfo, LineReader, MAX_LINE_LENGTH, PRODUCT_NAME, TextBuffer},
 };
 use static_cell::StaticCell;
 
@@ -34,18 +43,27 @@ esp_bootloader_esp_idf::esp_app_desc!();
 const USB_VENDOR_ID: u16 = 0x303A;
 const USB_PRODUCT_ID: u16 = 0x1001;
 const MAX_PACKET_SIZE: usize = 64;
+const HID_PACKET_SIZE: u16 = 16;
+const HID_POLL_MS: u8 = 5;
+const MEDIA_PRESS_MS: u64 = 30;
+const MAX_MACRO_LENGTH: usize = 512;
+const MACRO_QUEUE_SIZE: usize = 4;
 const FIRMWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// Static buffers
+type MacroText = TextBuffer<MAX_MACRO_LENGTH>;
+
+// Static state
 
 static SERIAL_NUMBER: StaticCell<TextBuffer<32>> = StaticCell::new();
 static EP_OUT_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new();
 static CONFIG_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
 static BOS_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
 static CONTROL_BUFFER: StaticCell<[u8; 64]> = StaticCell::new();
-static CDC_STATE: StaticCell<State> = StaticCell::new();
+static CDC_STATE: StaticCell<cdc_acm::State> = StaticCell::new();
+static HID_STATE: StaticCell<hid::State> = StaticCell::new();
 static LINE_READER: StaticCell<LineReader<MAX_LINE_LENGTH>> = StaticCell::new();
 static RESPONSE: StaticCell<TextBuffer<256>> = StaticCell::new();
+static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroText, MACRO_QUEUE_SIZE> = Channel::new();
 
 // Entry point
 
@@ -89,8 +107,20 @@ async fn main(_spawner: Spawner) -> ! {
     );
     let mut serial = CdcAcmClass::new(
         &mut builder,
-        CDC_STATE.init(State::new()),
+        CDC_STATE.init(cdc_acm::State::new()),
         MAX_PACKET_SIZE as u16,
+    );
+    let mut keyboard = HidWriter::<_, MAX_REPORT_SIZE>::new(
+        &mut builder,
+        HID_STATE.init(hid::State::new()),
+        hid::Config {
+            report_descriptor: REPORT_DESCRIPTOR,
+            request_handler: None,
+            poll_ms: HID_POLL_MS,
+            max_packet_size: HID_PACKET_SIZE,
+            hid_subclass: HidSubclass::No,
+            hid_boot_protocol: HidBootProtocol::None,
+        },
     );
     let mut usb_device = builder.build();
 
@@ -108,7 +138,9 @@ async fn main(_spawner: Spawner) -> ! {
         }
     };
 
-    match join(usb_device.run(), serial_future).await.0 {}
+    match join3(usb_device.run(), serial_future, run_macros(&mut keyboard))
+        .await
+        .0 {}
 }
 
 // Serial protocol
@@ -136,6 +168,12 @@ async fn handle_connection<'d>(
                 Some(Ok(line)) => {
                     let command = protocol::parse_command(line);
                     let _ = protocol::write_response(command, info, response);
+                    if let Command::RunMacro(payload) = command
+                        && !queue_macro(payload)
+                    {
+                        response.clear();
+                        let _ = protocol::write_macro_busy(response);
+                    }
                     Some(command == Command::RebootBootloader)
                 }
                 Some(Err(_)) => {
@@ -155,16 +193,6 @@ async fn handle_connection<'d>(
     }
 }
 
-// System
-
-fn reboot_to_bootloader() -> ! {
-    Delay::new().delay_millis(100);
-    LPWR::regs()
-        .option1()
-        .modify(|_, w| w.force_download_boot().set_bit());
-    system::software_reset()
-}
-
 async fn write_all<'d>(
     serial: &mut CdcAcmClass<'d, Driver<'d>>,
     data: &[u8],
@@ -176,4 +204,56 @@ async fn write_all<'d>(
         serial.write_packet(&[]).await?;
     }
     Ok(())
+}
+
+// Macros
+
+fn queue_macro(payload: &[u8]) -> bool {
+    let Ok(text) = protocol::macro_text(payload) else {
+        return true;
+    };
+    let mut macro_text = MacroText::new();
+    if macro_text.write_str(text).is_err() {
+        return false;
+    }
+    MACRO_QUEUE.try_send(macro_text).is_ok()
+}
+
+async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE>) -> ! {
+    let mut state = KeyboardState::new();
+    loop {
+        let macro_text = MACRO_QUEUE.receive().await;
+        for action in macros::actions(macro_text.as_str()).flatten() {
+            match action {
+                Action::Press(key) => {
+                    state.press(key);
+                    let _ = keyboard.write(&state.report()).await;
+                }
+                Action::Release(key) => {
+                    state.release(key);
+                    let _ = keyboard.write(&state.report()).await;
+                }
+                Action::Delay(ms) => Timer::after_millis(u64::from(ms)).await,
+                Action::Media(usage) => {
+                    let _ = keyboard.write(&consumer_report(usage)).await;
+                    Timer::after_millis(MEDIA_PRESS_MS).await;
+                    let _ = keyboard.write(&consumer_report(0)).await;
+                }
+            }
+        }
+        if !state.is_empty() {
+            state.release_all();
+            let _ = keyboard.write(&state.report()).await;
+        }
+    }
+}
+
+// System
+
+fn reboot_to_bootloader() -> ! {
+    Delay::new().delay_millis(100);
+    LPWR::regs()
+        .option1()
+        .modify(|_, w| w.force_download_boot().set_bit());
+    system::software_reset()
 }
