@@ -285,7 +285,7 @@ mod tests {
 
     fn response(command: Command<'_>) -> String {
         let info = DeviceInfo {
-            serial_number: "FlexPad-14C19F46A1DC",
+            serial_number: "FlexPad-0123456789AB",
             firmware_version: "0.1.0",
         };
         let mut out = String::new();
@@ -297,11 +297,11 @@ mod tests {
     fn device_info_matches_desktop_app_format() {
         let line = response(Command::GetDeviceInfo);
 
-        assert_eq!(line, "DEVICE_INFO:FlexPad,FlexPad-14C19F46A1DC,0.1.0\n");
+        assert_eq!(line, "DEVICE_INFO:FlexPad,FlexPad-0123456789AB,0.1.0\n");
         assert!(line.contains("DEVICE_INFO:FlexPad"));
         assert_eq!(
             line.trim_end().split(',').nth(1),
-            Some("FlexPad-14C19F46A1DC")
+            Some("FlexPad-0123456789AB")
         );
     }
 
@@ -379,9 +379,9 @@ mod tests {
     fn serial_number_uses_uppercase_mac() {
         let mut out = String::new();
 
-        write_serial_number(&[0x14, 0xC1, 0x9F, 0x46, 0xA1, 0xDC], &mut out).unwrap();
+        write_serial_number(&[0x01, 0x23, 0x45, 0x67, 0x89, 0xAB], &mut out).unwrap();
 
-        assert_eq!(out, "FlexPad-14C19F46A1DC");
+        assert_eq!(out, "FlexPad-0123456789AB");
     }
 
     // Text buffer

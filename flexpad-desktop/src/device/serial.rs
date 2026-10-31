@@ -201,11 +201,11 @@ mod tests {
     fn accepts_flexpad_serial_numbers_in_any_case() {
         assert!(is_flexpad_port(&usb_port(
             0x303A,
-            Some("FLEXPAD-14C19F46A1DC")
+            Some("FLEXPAD-0123456789AB")
         )));
         assert!(is_flexpad_port(&usb_port(
             0x303A,
-            Some("FlexPad-14C19F46A1DC")
+            Some("FlexPad-0123456789AB")
         )));
     }
 
