@@ -16,7 +16,9 @@ use embassy_usb::{
     },
     driver::EndpointError,
 };
+use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 use esp_backtrace as _;
+use esp_bootloader_esp_idf::partitions::{self, PARTITION_TABLE_MAX_LEN};
 use esp_hal::{
     clock::CpuClock,
     delay::Delay,
@@ -29,12 +31,18 @@ use esp_hal::{
         embassy_usb_device::{Config, Driver},
     },
 };
+use esp_storage::{FlashStorage, FlashStorageError};
 use flexpad_firmware::{
+    config::{self, Bindings, ConfigError, MAX_CONFIG_SIZE},
     hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
     macros::{self, Action},
-    protocol::{self, Command, DeviceInfo, LineReader, MAX_LINE_LENGTH, PRODUCT_NAME, TextBuffer},
+    protocol::{
+        self, CONFIG_DATA_PREFIX, Command, DeviceInfo, EMPTY_CONFIG, LineReader, MAX_LINE_LENGTH,
+        PRODUCT_NAME, TextBuffer,
+    },
+    storage::{self, ConfigFlash, PARTITION_SIZE, StoredConfig},
 };
-use static_cell::StaticCell;
+use static_cell::{ConstStaticCell, StaticCell};
 
 esp_bootloader_esp_idf::esp_app_desc!();
 
@@ -48,21 +56,28 @@ const HID_POLL_MS: u8 = 5;
 const MEDIA_PRESS_MS: u64 = 30;
 const MAX_MACRO_LENGTH: usize = 512;
 const MACRO_QUEUE_SIZE: usize = 4;
+const CONFIG_PARTITION_LABEL: &str = "flexpad";
 const FIRMWARE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type MacroText = TextBuffer<MAX_MACRO_LENGTH>;
+type Response = TextBuffer<256>;
 
 // Static state
 
 static SERIAL_NUMBER: StaticCell<TextBuffer<32>> = StaticCell::new();
-static EP_OUT_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new();
-static CONFIG_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
-static BOS_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
-static CONTROL_BUFFER: StaticCell<[u8; 64]> = StaticCell::new();
+static EP_OUT_BUFFER: ConstStaticCell<[u8; 1024]> = ConstStaticCell::new([0; 1024]);
+static CONFIG_DESCRIPTOR: ConstStaticCell<[u8; 256]> = ConstStaticCell::new([0; 256]);
+static BOS_DESCRIPTOR: ConstStaticCell<[u8; 256]> = ConstStaticCell::new([0; 256]);
+static CONTROL_BUFFER: ConstStaticCell<[u8; 64]> = ConstStaticCell::new([0; 64]);
 static CDC_STATE: StaticCell<cdc_acm::State> = StaticCell::new();
 static HID_STATE: StaticCell<hid::State> = StaticCell::new();
-static LINE_READER: StaticCell<LineReader<MAX_LINE_LENGTH>> = StaticCell::new();
-static RESPONSE: StaticCell<TextBuffer<256>> = StaticCell::new();
+static LINE_READER: ConstStaticCell<LineReader<MAX_LINE_LENGTH>> =
+    ConstStaticCell::new(LineReader::new());
+static RESPONSE: ConstStaticCell<Response> = ConstStaticCell::new(TextBuffer::new());
+static CONFIG_JSON: ConstStaticCell<[u8; MAX_CONFIG_SIZE]> =
+    ConstStaticCell::new([0; MAX_CONFIG_SIZE]);
+static BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
+static SCRATCH_BINDINGS: ConstStaticCell<Bindings> = ConstStaticCell::new(Bindings::new());
 static MACRO_QUEUE: Channel<CriticalSectionRawMutex, MacroText, MACRO_QUEUE_SIZE> = Channel::new();
 
 // Entry point
@@ -87,8 +102,10 @@ async fn main(_spawner: Spawner) -> ! {
     let serial_number: &'static TextBuffer<32> = serial_number;
     let serial_number = serial_number.as_str();
 
+    let mut config_state = ConfigState::load(FlashStorage::new(peripherals.FLASH));
+
     let usb = Usb::new_fs(peripherals.USB_FS, peripherals.GPIO20, peripherals.GPIO19);
-    let driver = Driver::new(usb, EP_OUT_BUFFER.init([0; 1024]), Config::default());
+    let driver = Driver::new(usb, EP_OUT_BUFFER.take(), Config::default());
 
     let mut usb_config = embassy_usb::Config::new(USB_VENDOR_ID, USB_PRODUCT_ID);
     usb_config.manufacturer = Some(PRODUCT_NAME);
@@ -100,10 +117,10 @@ async fn main(_spawner: Spawner) -> ! {
     let mut builder = Builder::new(
         driver,
         usb_config,
-        CONFIG_DESCRIPTOR.init([0; 256]),
-        BOS_DESCRIPTOR.init([0; 256]),
+        CONFIG_DESCRIPTOR.take(),
+        BOS_DESCRIPTOR.take(),
         &mut [],
-        CONTROL_BUFFER.init([0; 64]),
+        CONTROL_BUFFER.take(),
     );
     let mut serial = CdcAcmClass::new(
         &mut builder,
@@ -124,17 +141,20 @@ async fn main(_spawner: Spawner) -> ! {
     );
     let mut usb_device = builder.build();
 
-    let info = DeviceInfo {
-        serial_number,
-        firmware_version: FIRMWARE_VERSION,
+    let mut session = Session {
+        info: DeviceInfo {
+            serial_number,
+            firmware_version: FIRMWARE_VERSION,
+        },
+        line_reader: LINE_READER.take(),
+        response: RESPONSE.take(),
+        config: &mut config_state,
     };
-    let line_reader = LINE_READER.init(LineReader::new());
-    let response = RESPONSE.init(TextBuffer::new());
 
     let serial_future = async {
         loop {
             serial.wait_connection().await;
-            let _ = handle_connection(&mut serial, &info, &mut *line_reader, &mut *response).await;
+            let _ = session.handle_connection(&mut serial).await;
         }
     };
 
@@ -153,43 +173,83 @@ impl From<EndpointError> for Disconnected {
     }
 }
 
-async fn handle_connection<'d>(
-    serial: &mut CdcAcmClass<'d, Driver<'d>>,
-    info: &DeviceInfo<'_>,
-    line_reader: &mut LineReader<MAX_LINE_LENGTH>,
-    response: &mut TextBuffer<256>,
-) -> Result<(), Disconnected> {
-    let mut packet = [0u8; MAX_PACKET_SIZE];
-    loop {
-        let length = serial.read_packet(&mut packet).await?;
-        for &byte in &packet[..length] {
-            response.clear();
-            let command = match line_reader.push(byte) {
-                Some(Ok(line)) => {
-                    let command = protocol::parse_command(line);
-                    let _ = protocol::write_response(command, info, response);
-                    if let Command::RunMacro(payload) = command
-                        && !queue_macro(payload)
-                    {
-                        response.clear();
-                        let _ = protocol::write_macro_busy(response);
+enum Reply {
+    Response,
+    Config,
+    Reboot,
+}
+
+struct Session<'a> {
+    info: DeviceInfo<'a>,
+    line_reader: &'a mut LineReader<MAX_LINE_LENGTH>,
+    response: &'a mut Response,
+    config: &'a mut ConfigState,
+}
+
+impl Session<'_> {
+    async fn handle_connection<'d>(
+        &mut self,
+        serial: &mut CdcAcmClass<'d, Driver<'d>>,
+    ) -> Result<(), Disconnected> {
+        let mut packet = [0u8; MAX_PACKET_SIZE];
+        loop {
+            let length = serial.read_packet(&mut packet).await?;
+            for &byte in &packet[..length] {
+                let Some(reply) = self.handle_byte(byte) else {
+                    continue;
+                };
+                match reply {
+                    Reply::Response => write_all(serial, self.response.as_bytes()).await?,
+                    Reply::Config => {
+                        write_all(serial, CONFIG_DATA_PREFIX.as_bytes()).await?;
+                        write_all(serial, self.config.json()).await?;
+                        write_all(serial, b"\n").await?;
                     }
-                    Some(command == Command::RebootBootloader)
+                    Reply::Reboot => {
+                        write_all(serial, self.response.as_bytes()).await?;
+                        reboot_to_bootloader();
+                    }
                 }
-                Some(Err(_)) => {
-                    let _ = protocol::write_line_too_long(response);
-                    Some(false)
-                }
-                None => None,
-            };
-            let Some(reboot) = command else {
-                continue;
-            };
-            write_all(serial, response.as_bytes()).await?;
-            if reboot {
-                reboot_to_bootloader();
             }
         }
+    }
+
+    fn handle_byte(&mut self, byte: u8) -> Option<Reply> {
+        self.response.clear();
+        let line = match self.line_reader.push(byte)? {
+            Ok(line) => line,
+            Err(_) => {
+                let _ = protocol::write_line_too_long(self.response);
+                return Some(Reply::Response);
+            }
+        };
+        let command = protocol::parse_command(line);
+        match command {
+            Command::GetConfig => return Some(Reply::Config),
+            Command::SetConfig(payload) => {
+                let _ = match self.config.save(payload) {
+                    Ok(()) => protocol::write_config_saved(self.response),
+                    Err(SaveError::Invalid(error)) => {
+                        protocol::write_config_error(error, self.response)
+                    }
+                    Err(SaveError::Storage) => protocol::write_storage_error(self.response),
+                };
+                return Some(Reply::Response);
+            }
+            _ => {}
+        }
+        let _ = protocol::write_response(command, &self.info, self.response);
+        if let Command::RunMacro(payload) = command
+            && !queue_macro(payload)
+        {
+            self.response.clear();
+            let _ = protocol::write_macro_busy(self.response);
+        }
+        Some(if command == Command::RebootBootloader {
+            Reply::Reboot
+        } else {
+            Reply::Response
+        })
     }
 }
 
@@ -204,6 +264,96 @@ async fn write_all<'d>(
         serial.write_packet(&[]).await?;
     }
     Ok(())
+}
+
+// Configuration
+
+enum SaveError {
+    Invalid(ConfigError),
+    Storage,
+}
+
+struct PartitionFlash {
+    storage: FlashStorage<'static>,
+    offset: u32,
+}
+
+impl ConfigFlash for PartitionFlash {
+    type Error = FlashStorageError;
+
+    fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
+        ReadNorFlash::read(&mut self.storage, self.offset + offset, bytes)
+    }
+
+    fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
+        NorFlash::write(&mut self.storage, self.offset + offset, bytes)
+    }
+
+    fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
+        NorFlash::erase(&mut self.storage, self.offset + from, self.offset + to)
+    }
+}
+
+struct ConfigState {
+    flash: Option<PartitionFlash>,
+    stored: Option<StoredConfig>,
+    json: &'static mut [u8; MAX_CONFIG_SIZE],
+    json_length: usize,
+    bindings: &'static mut Bindings,
+    scratch: &'static mut Bindings,
+}
+
+impl ConfigState {
+    fn load(mut storage: FlashStorage<'static>) -> Self {
+        let mut state = Self {
+            flash: None,
+            stored: None,
+            json: CONFIG_JSON.take(),
+            json_length: 0,
+            bindings: BINDINGS.take(),
+            scratch: SCRATCH_BINDINGS.take(),
+        };
+        let Some(offset) = find_config_partition(&mut storage) else {
+            return state;
+        };
+        let mut flash = PartitionFlash { storage, offset };
+        if let Ok(Some(stored)) = storage::load(&mut flash, state.json.as_mut_slice())
+            && config::parse_config(&state.json[..stored.length], state.bindings).is_ok()
+        {
+            state.stored = Some(stored);
+            state.json_length = stored.length;
+        }
+        state.flash = Some(flash);
+        state
+    }
+
+    fn json(&self) -> &[u8] {
+        if self.json_length == 0 {
+            EMPTY_CONFIG.as_bytes()
+        } else {
+            &self.json[..self.json_length]
+        }
+    }
+
+    fn save(&mut self, payload: &[u8]) -> Result<(), SaveError> {
+        config::parse_config(payload, self.scratch).map_err(SaveError::Invalid)?;
+        let flash = self.flash.as_mut().ok_or(SaveError::Storage)?;
+        let stored = storage::save(flash, self.stored, payload).map_err(|_| SaveError::Storage)?;
+        self.json[..payload.len()].copy_from_slice(payload);
+        self.json_length = payload.len();
+        self.stored = Some(stored);
+        core::mem::swap(&mut self.bindings, &mut self.scratch);
+        Ok(())
+    }
+}
+
+fn find_config_partition(storage: &mut FlashStorage<'static>) -> Option<u32> {
+    let mut table_buffer = [0u8; PARTITION_TABLE_MAX_LEN];
+    let table = partitions::read_partition_table(storage, &mut table_buffer).ok()?;
+    let entry = table
+        .iter()
+        .find(|entry| entry.label_as_str() == CONFIG_PARTITION_LABEL)?;
+    (entry.len() >= PARTITION_SIZE).then(|| entry.offset())
 }
 
 // Macros
