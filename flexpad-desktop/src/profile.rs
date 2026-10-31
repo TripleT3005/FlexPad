@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::{self, BUTTON, Component, EC11};
 use crate::constants::FIRMWARE_PINS;
+use crate::keys::{self, KeyboardLayout};
 
 // Constants
 
@@ -86,6 +87,8 @@ pub struct Profile {
     pub format: u32,
     pub profile_name: String,
     #[serde(default)]
+    pub keyboard_layout: KeyboardLayout,
+    #[serde(default)]
     pub tiles: Vec<Tile>,
 }
 
@@ -94,6 +97,7 @@ impl Profile {
         Self {
             format: FORMAT,
             profile_name,
+            keyboard_layout: KeyboardLayout::default(),
             tiles,
         }
     }
@@ -129,13 +133,19 @@ pub fn parse_profile(json: &str) -> Result<Profile, String> {
     if !value.is_object() {
         return Err("The profile is not a JSON object.".to_string());
     }
-    match value.get("format") {
-        None => migrate_legacy(value),
+    let mut profile: Profile = match value.get("format") {
+        None => migrate_legacy(value)?,
         Some(format) if format.as_u64() == Some(u64::from(FORMAT)) => {
-            serde_json::from_value(value).map_err(|error| error.to_string())
+            serde_json::from_value(value).map_err(|error| error.to_string())?
         }
-        Some(format) => Err(format!("Unsupported profile format: {format}")),
+        Some(format) => return Err(format!("Unsupported profile format: {format}")),
+    };
+    for tile in &mut profile.tiles {
+        for macro_str in tile.functions.values_mut() {
+            *macro_str = keys::migrate_macro(macro_str);
+        }
     }
+    Ok(profile)
 }
 
 // Legacy formats
@@ -332,7 +342,10 @@ mod tests {
             ("button", "button")
         );
         assert_eq!(button.pin("switch"), Some(4));
-        assert_eq!(button.macro_for("press"), "P:lctrl,P:c,R:c,R:lctrl");
+        assert_eq!(
+            button.macro_for("press"),
+            "P:ControlLeft,P:KeyC,R:KeyC,R:ControlLeft"
+        );
         assert_eq!((button.x, button.y), (10.0, 20.0));
         let encoder = &profile.tiles[1];
         assert_eq!(encoder.kind, "encoder");
@@ -385,7 +398,7 @@ mod tests {
         let unusable = profile
             .tiles
             .iter()
-            .find(|tile| tile.macro_for("press") == "P:f12,R:f12")
+            .find(|tile| tile.macro_for("press") == "P:F12,R:F12")
             .unwrap();
         assert_eq!(unusable.pin("switch"), None);
         assert!(
@@ -408,7 +421,33 @@ mod tests {
         assert_eq!(profile.tiles[0].pin("switch"), Some(15));
         assert_eq!(profile.tiles[0].macro_for("press"), "MEDIA:mute");
         assert_eq!(profile.tiles[1].pin("switch"), Some(42));
-        assert_eq!(profile.tiles[1].macro_for("press"), "P:f12,R:f12");
+        assert_eq!(profile.tiles[1].macro_for("press"), "P:F12,R:F12");
+    }
+
+    #[test]
+    fn format_2_profiles_get_position_names_and_keep_their_layout() {
+        let json = r#"{"format":2,"profile_name":"P","keyboard_layout":"de","tiles":[{"id":"t","display_name":"T","component":"button","kind":"button","pins":{"switch":4},"functions":{"press":"P:lctrl,P:z,R:z,R:lctrl"},"x":0.0,"y":0.0}]}"#;
+
+        let profile = parse_profile(json).unwrap();
+
+        assert_eq!(profile.keyboard_layout, KeyboardLayout::De);
+        assert_eq!(
+            profile.tiles[0].macro_for("press"),
+            "P:ControlLeft,P:KeyZ,R:KeyZ,R:ControlLeft"
+        );
+        assert!(
+            profile
+                .to_json()
+                .unwrap()
+                .contains(r#""keyboard_layout":"de""#)
+        );
+    }
+
+    #[test]
+    fn profiles_without_layout_use_us() {
+        let profile = parse_profile(r#"{"format":2,"profile_name":"P","tiles":[]}"#).unwrap();
+
+        assert_eq!(profile.keyboard_layout, KeyboardLayout::Us);
     }
 
     #[test]

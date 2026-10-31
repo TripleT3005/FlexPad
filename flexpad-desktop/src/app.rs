@@ -14,6 +14,7 @@ use crate::device::{
     FlexPadDeviceInfo, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
     set_config_to_device,
 };
+use crate::keys::KeyboardLayout;
 use crate::profile::{self, Profile, Tile};
 use crate::ui::header::view_header;
 use crate::ui::workspace::view_workspace;
@@ -44,7 +45,7 @@ pub struct UiState {
 impl Default for UiState {
     fn default() -> Self {
         Self {
-            selected_macro_key: "lctrl".to_string(),
+            selected_macro_key: "ControlLeft".to_string(),
             macro_delay_input: "50".to_string(),
             selected_media_action: "vol_up".to_string(),
             macro_text_input: "".to_string(),
@@ -69,6 +70,7 @@ pub struct FlexPadApp {
     pub selected_component: Option<Component>,
 
     pub current_profile_name: String,
+    pub keyboard_layout: KeyboardLayout,
     pub saved_profiles: Vec<ProfileItem>,
     pub selected_profile: Option<ProfileItem>,
 
@@ -90,6 +92,7 @@ pub enum Message {
     ProfileNameChanged(String),
     CanvasEvent(canvas::CanvasMessage),
     ComponentSelected(Component),
+    KeyboardLayoutSelected(KeyboardLayout),
     AddTile,
     SelectTile(String),
     UpdateTileName(String),
@@ -152,6 +155,7 @@ impl FlexPadApp {
                 dragging_tile_id: None,
                 selected_component: Some(components::BUTTON),
                 current_profile_name: initial_profile.profile_name,
+                keyboard_layout: initial_profile.keyboard_layout,
                 saved_profiles: profiles,
                 selected_profile: initial_selected,
                 ui: ui_state,
@@ -189,7 +193,10 @@ impl FlexPadApp {
     }
 
     fn current_profile(&self) -> Profile {
-        Profile::new(self.current_profile_name.clone(), self.tiles.clone())
+        Profile {
+            keyboard_layout: self.keyboard_layout,
+            ..Profile::new(self.current_profile_name.clone(), self.tiles.clone())
+        }
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -214,6 +221,7 @@ impl FlexPadApp {
             }
             Message::CanvasEvent(event) => self.handle_canvas_event(event),
             Message::ComponentSelected(component) => self.selected_component = Some(component),
+            Message::KeyboardLayoutSelected(layout) => self.keyboard_layout = layout,
             Message::AddTile => self.handle_add_tile(),
             Message::SelectTile(id) => {
                 self.selected_tile_id = Some(id);
@@ -359,6 +367,7 @@ impl FlexPadApp {
         } else {
             loaded.profile_name.clone()
         };
+        self.keyboard_layout = loaded.keyboard_layout;
         self.tiles = loaded.tiles;
         self.selected_tile_id = None;
         self.current_profile_name = profile_name.clone();
@@ -412,6 +421,7 @@ impl FlexPadApp {
     fn handle_profile_selected(&mut self, item: ProfileItem) {
         match load_profile_from_disk(&item.path) {
             Ok(loaded) => {
+                self.keyboard_layout = loaded.keyboard_layout;
                 self.tiles = loaded.tiles;
                 self.current_profile_name = loaded.profile_name.clone();
                 self.selected_profile = Some(item);
@@ -536,15 +546,7 @@ impl FlexPadApp {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let header = view_header(
-            &self.status_message,
-            &self.available_devices,
-            self.selected_device.as_ref(),
-            self.connected_device.as_ref(),
-            &self.saved_profiles,
-            self.selected_profile.as_ref(),
-            &self.current_profile_name,
-        );
+        let header = view_header(self);
 
         let workspace = view_workspace(self);
 

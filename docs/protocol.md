@@ -57,7 +57,7 @@ Key names describe the **physical key position** on a US keyboard and use the na
 
 The computer's keyboard layout decides which character a position produces: on a German layout, `Semicolon` types `ö` and `KeyZ` types `y`.
 
-The firmware also accepts the older names used by the app so far, e.g. `lctrl`, `rshift`, `lwin`, `esc`, `left_brace`, `ael`, `oel`, `uel`, `sz`, `kp_0`, `kp_enter`. New profiles should use the names above.
+The app writes these names and shows them with the labels of the chosen keyboard layout (e.g. `KeyY` as "Z" on a German layout). Older names from earlier versions, e.g. `lctrl`, `rshift`, `lwin`, `esc`, `left_brace`, `ael`, `oel`, `uel`, `sz`, `kp_0`, `kp_enter`, are converted by the app when a profile is loaded; the firmware still accepts them.
 
 ## Profile format 2
 
@@ -65,6 +65,7 @@ The firmware also accepts the older names used by the app so far, e.g. `lctrl`, 
 {
   "format": 2,
   "profile_name": "Desk",
+  "keyboard_layout": "de",
   "tiles": [
     {
       "id": "tile_1",
@@ -98,6 +99,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 - `functions`: function → macro. An empty string means "nothing".
 - `parameters`: missing values use the defaults below; unknown parameters are ignored.
 - `component` names the component the tile was created from (`button`, `ec11`). The app uses it for the display; the firmware ignores it.
+- `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware ignores it so far (it will be used for `TEXT:`, #5).
 
 ### Kinds
 

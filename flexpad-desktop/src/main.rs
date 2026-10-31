@@ -7,6 +7,7 @@ mod config;
 mod constants;
 mod device;
 mod icon;
+mod keys;
 mod profile;
 mod release;
 mod ui;
