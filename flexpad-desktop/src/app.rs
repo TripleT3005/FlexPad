@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::canvas;
 use crate::components::{self, Component};
 use crate::config::{
-    UserSettings, list_saved_profiles, load_profile_from_disk, load_user_settings,
+    UserSettings, list_saved_profiles, load_profile_from_disk, load_user_settings, profile_path,
     save_profile_to_disk, save_user_settings,
 };
 use crate::constants::PRESETS;
@@ -128,7 +128,10 @@ impl FlexPadApp {
 
         let target_profile = user_settings
             .last_profile
-            .and_then(|last| profiles.iter().find(|p| p.name == last).cloned())
+            .and_then(|last| {
+                let path = profile_path(&last);
+                profiles.iter().find(|p| p.path == path).cloned()
+            })
             .or_else(|| profiles.first().cloned());
 
         if let Some(item) = target_profile {
@@ -381,13 +384,9 @@ impl FlexPadApp {
         self.ui.expanded_functions.clear();
         self.ui.raw_macro_input = None;
 
-        if save_profile_to_disk(&self.current_profile()).is_ok() {
+        if let Ok(path) = save_profile_to_disk(&self.current_profile()) {
             self.saved_profiles = load_profile_items();
-            self.selected_profile = self
-                .saved_profiles
-                .iter()
-                .find(|p| p.name == profile_name)
-                .cloned();
+            self.selected_profile = self.saved_profiles.iter().find(|p| p.path == path).cloned();
         }
 
         save_user_settings(&UserSettings {
@@ -450,9 +449,10 @@ impl FlexPadApp {
     }
 
     fn handle_save_profile(&mut self) {
+        let target_path = profile_path(&self.current_profile_name);
         let name_collision = self.saved_profiles.iter().any(|p| {
-            p.name == self.current_profile_name
-                && Some(p.path.clone()) != self.selected_profile.as_ref().map(|s| s.path.clone())
+            p.path == target_path
+                && Some(&p.path) != self.selected_profile.as_ref().map(|s| &s.path)
         });
 
         if name_collision && !self.ui.pending_overwrite {
@@ -467,20 +467,17 @@ impl FlexPadApp {
         self.ui.pending_overwrite = false;
 
         if let Some(selected) = &self.selected_profile
-            && selected.name != self.current_profile_name
+            && selected.path != target_path
             && selected.path.exists()
         {
             let _ = std::fs::remove_file(&selected.path);
         }
 
         match save_profile_to_disk(&self.current_profile()) {
-            Ok(_) => {
+            Ok(path) => {
                 self.saved_profiles = load_profile_items();
-                self.selected_profile = self
-                    .saved_profiles
-                    .iter()
-                    .find(|p| p.name == self.current_profile_name)
-                    .cloned();
+                self.selected_profile =
+                    self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
                 save_user_settings(&UserSettings {
                     last_profile: Some(self.current_profile_name.clone()),
@@ -499,13 +496,9 @@ impl FlexPadApp {
         self.current_profile_name = new_name.clone();
         self.ui.pending_overwrite = false;
 
-        if save_profile_to_disk(&self.current_profile()).is_ok() {
+        if let Ok(path) = save_profile_to_disk(&self.current_profile()) {
             self.saved_profiles = load_profile_items();
-            self.selected_profile = self
-                .saved_profiles
-                .iter()
-                .find(|p| p.name == new_name)
-                .cloned();
+            self.selected_profile = self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
             save_user_settings(&UserSettings {
                 last_profile: Some(new_name.clone()),
