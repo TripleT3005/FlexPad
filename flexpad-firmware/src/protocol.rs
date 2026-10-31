@@ -1,11 +1,14 @@
 use core::fmt::{self, Write};
 
+use crate::config::{ConfigError, MAX_CONFIG_SIZE};
 use crate::macros::{self, MacroError};
 
 // Constants
 
 pub const PRODUCT_NAME: &str = "FlexPad";
-pub const MAX_LINE_LENGTH: usize = 1024;
+pub const MAX_LINE_LENGTH: usize = MAX_CONFIG_SIZE + 64;
+pub const CONFIG_DATA_PREFIX: &str = "CONFIG_DATA:";
+pub const EMPTY_CONFIG: &str = "{}";
 
 // Line reading
 
@@ -116,8 +119,7 @@ pub fn write_response(
             "DEVICE_INFO:{},{},{}",
             PRODUCT_NAME, info.serial_number, info.firmware_version
         ),
-        Command::GetConfig => out.write_str("CONFIG_DATA:{}\n"),
-        Command::SetConfig(_) => out.write_str("CONFIG_ERROR:not_supported\n"),
+        Command::GetConfig | Command::SetConfig(_) => Ok(()),
         Command::RunMacro(payload) => match macro_text(payload) {
             Ok(_) => out.write_str("MACRO_QUEUED\n"),
             Err(error) => writeln!(out, "MACRO_ERROR:{error}"),
@@ -125,6 +127,18 @@ pub fn write_response(
         Command::RebootBootloader => out.write_str("REBOOTING:bootloader\n"),
         Command::Unknown => out.write_str("ERROR:unknown_command\n"),
     }
+}
+
+pub fn write_config_saved(out: &mut impl Write) -> fmt::Result {
+    out.write_str("CONFIG_SAVED\n")
+}
+
+pub fn write_config_error(error: ConfigError, out: &mut impl Write) -> fmt::Result {
+    writeln!(out, "CONFIG_ERROR:{error}")
+}
+
+pub fn write_storage_error(out: &mut impl Write) -> fmt::Result {
+    out.write_str("CONFIG_ERROR:storage\n")
 }
 
 pub fn write_line_too_long(out: &mut impl Write) -> fmt::Result {
@@ -286,16 +300,26 @@ mod tests {
 
     #[test]
     fn other_commands_have_fixed_responses() {
-        assert_eq!(response(Command::GetConfig), "CONFIG_DATA:{}\n");
-        assert_eq!(
-            response(Command::SetConfig(b"{}")),
-            "CONFIG_ERROR:not_supported\n"
-        );
+        assert_eq!(response(Command::GetConfig), "");
+        assert_eq!(response(Command::SetConfig(b"{}")), "");
         assert_eq!(
             response(Command::RebootBootloader),
             "REBOOTING:bootloader\n"
         );
         assert_eq!(response(Command::Unknown), "ERROR:unknown_command\n");
+    }
+
+    #[test]
+    fn config_results_have_protocol_text() {
+        let mut out = String::new();
+        write_config_saved(&mut out).unwrap();
+        write_config_error(ConfigError::DuplicatePin(4), &mut out).unwrap();
+        write_storage_error(&mut out).unwrap();
+
+        assert_eq!(
+            out,
+            "CONFIG_SAVED\nCONFIG_ERROR:duplicate_pin:4\nCONFIG_ERROR:storage\n"
+        );
     }
 
     #[test]

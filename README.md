@@ -11,7 +11,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 > - `TEXT:` actions, many key names offered by the app (umlauts, numpad, punctuation) and EC11 rotary encoders are not handled by the firmware yet.
 > - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
 >
-> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and runs macros sent with `RUN_MACRO`, but does not read buttons or store a configuration yet.
+> See the [issues](../../issues) for details and plans. The firmware is being rewritten in Rust ([#22](../../issues/22)); the first version in `flexpad-firmware/` answers the serial commands and runs macros sent with `RUN_MACRO` and stores the configuration from the app, but does not read buttons yet.
 >
 > Not affiliated with or endorsed by Espressif Systems or Arduino.
 
@@ -52,7 +52,7 @@ The app and the device talk over the USB serial port of the board (115200 baud, 
 |---|---|
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `SET_CONFIG:<json>` | `CONFIG_SAVED`; the Rust firmware checks the configuration first and answers `CONFIG_ERROR:<reason>` (e.g. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`) without changing the stored one |
 | `RUN_MACRO:<macro>` | Checks the macro and runs it: `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` (e.g. `unknown_key:hyper`, `busy`) (Rust firmware only) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode (Rust firmware only) |
 
@@ -119,10 +119,10 @@ cargo +stable test --lib --target <host target>   # protocol tests on your compu
 To flash, the board must be in download mode. If the Rust firmware is already running, send `REBOOT_BOOTLOADER` over the serial port; otherwise hold **BOOT**, press **RESET** and release **BOOT**. Then flash to the new port:
 
 ```
-espflash flash --no-stub --before no-reset --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
+espflash flash --no-stub --before no-reset --after watchdog-reset --partition-table partitions.csv --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
 ```
 
-After flashing, press **RESET** (or unplug the board briefly) to start the firmware.
+After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The configuration is stored in its own partition `flexpad` (64 KB, two slots with checksum).
 
 ### License
 [MIT](LICENSE)
@@ -136,7 +136,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 > - `TEXT:`-Aktionen, viele Tastennamen der App (Umlaute, Ziffernblock, Satzzeichen) und EC11-Drehencoder wertet die Firmware noch nicht aus.
 > - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
 >
-> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und führt mit `RUN_MACRO` gesendete Makros aus, liest aber noch keine Taster und speichert noch keine Konfiguration.
+> Details und Pläne stehen in den [Issues](../../issues). Die Firmware wird gerade in Rust neu geschrieben ([#22](../../issues/22)); die erste Version in `flexpad-firmware/` beantwortet die seriellen Befehle und führt mit `RUN_MACRO` gesendete Makros aus und speichert die Konfiguration aus der App, liest aber noch keine Taster.
 >
 > Keine Verbindung zu Espressif Systems oder Arduino und nicht von ihnen unterstützt.
 
@@ -177,7 +177,7 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (11520
 |---|---|
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<Seriennummer>` |
 | `GET_CONFIG` | `CONFIG_DATA:<json>` |
-| `SET_CONFIG:<json>` | `CONFIG_SAVED` |
+| `SET_CONFIG:<json>` | `CONFIG_SAVED`; die Rust-Firmware prüft die Konfiguration zuerst und antwortet `CONFIG_ERROR:<grund>` (z. B. `invalid_json:123`, `unusable_pin:35`, `duplicate_pin:4`), ohne die gespeicherte zu ändern |
 | `RUN_MACRO:<makro>` | Prüft das Makro und führt es aus: `MACRO_QUEUED` oder `MACRO_ERROR:<grund>` (z. B. `unknown_key:hyper`, `busy`) (nur Rust-Firmware) |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board im Download-Modus neu (nur Rust-Firmware) |
 
@@ -244,10 +244,10 @@ cargo +stable test --lib --target <host-target>   # Protokoll-Tests auf dem Rech
 Zum Flashen muss das Board im Download-Modus sein. Läuft bereits die Rust-Firmware, über den seriellen Port `REBOOT_BOOTLOADER` senden; sonst **BOOT** gedrückt halten, **RESET** drücken und **BOOT** loslassen. Dann auf den neuen Port flashen:
 
 ```
-espflash flash --no-stub --before no-reset --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
+espflash flash --no-stub --before no-reset --after watchdog-reset --partition-table partitions.csv --port <port> target/xtensa-esp32s3-none-elf/release/flexpad-firmware
 ```
 
-Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet.
+Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Die Konfiguration liegt in einer eigenen Partition `flexpad` (64 KB, zwei Speicherplätze mit Prüfsumme).
 
 ### Lizenz
 [MIT](LICENSE)

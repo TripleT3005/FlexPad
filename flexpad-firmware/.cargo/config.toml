@@ -1,7 +1,7 @@
 include = ["esp-config.toml"]
 
 [target.xtensa-esp32s3-none-elf]
-runner = "espflash flash --chip esp32s3"
+runner = "espflash flash --chip esp32s3 --partition-table partitions.csv"
 rustflags = ["-C", "link-arg=-nostartfiles", "-C", "link-arg=-Wl,--no-warn-rwx-segments"]
 
 [build]
