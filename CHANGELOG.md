@@ -19,6 +19,10 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 #### Fixed
 - Text actions no longer change with every edit of the macro (`y` and `z` swapped back and forth).
 - Commas, backslashes and quotes in text actions no longer break the macro.
+- Profiles whose name contains a space are selected again on start and after saving.
+
+#### Security
+- Profile file names only use letters, digits, `-` and `_`. A profile name with `/`, `\` or `..`, for example one read from a device, can no longer write outside the profiles folder; names that Windows does not allow are saved under an adjusted file name.
 
 ### Deutsch
 
@@ -33,6 +37,10 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 #### Behoben
 - Textaktionen ändern sich nicht mehr bei jeder Bearbeitung des Makros (`y` und `z` wurden hin- und hergetauscht).
 - Kommas, Backslashes und Anführungszeichen in Textaktionen zerstören das Makro nicht mehr.
+- Profile mit Leerzeichen im Namen werden beim Start und nach dem Speichern wieder ausgewählt.
+
+#### Sicherheit
+- Dateinamen von Profilen bestehen nur aus Buchstaben, Ziffern, `-` und `_`. Ein Profilname mit `/`, `\` oder `..`, etwa von einem Gerät gelesen, kann nicht mehr außerhalb des Profilordners schreiben; Namen, die Windows nicht erlaubt, werden unter einem angepassten Dateinamen gespeichert.
 
 ## [0.1.0] – 2026-10-31
 
