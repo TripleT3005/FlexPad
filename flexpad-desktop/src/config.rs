@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::profile::{self, Profile};
@@ -8,6 +8,8 @@ use crate::profile::{self, Profile};
 // Constants
 
 const APP_FOLDER: &str = "FlexPad";
+const SETTINGS_FILE: &str = "settings.json";
+const PROFILES_FOLDER: &str = "profiles";
 #[cfg(all(unix, not(target_os = "macos")))]
 const LINUX_APP_FOLDER: &str = "flexpad";
 const MAX_FILE_STEM_LENGTH: usize = 64;
@@ -61,11 +63,11 @@ impl AppDirs {
     }
 
     pub fn profiles(&self) -> PathBuf {
-        self.data.join("profiles")
+        self.data.join(PROFILES_FOLDER)
     }
 
     pub fn settings(&self) -> PathBuf {
-        self.config.join("settings.json")
+        self.config.join(SETTINGS_FILE)
     }
 }
 
@@ -95,6 +97,52 @@ pub fn get_profiles_dir() -> PathBuf {
         let _ = fs::create_dir_all(&path);
     }
     path
+}
+
+// Migration
+
+pub fn legacy_dir(var: impl Fn(&str) -> Option<String>) -> Option<PathBuf> {
+    absolute_var(&var, "USERPROFILE")
+        .or_else(|| absolute_var(&var, "HOME"))
+        .map(|home| home.join(APP_FOLDER))
+}
+
+pub fn migrate_legacy_files() -> usize {
+    legacy_dir(env_var).map_or(0, |legacy| move_legacy_files(&legacy, app_dirs()))
+}
+
+fn move_legacy_files(legacy: &Path, dirs: &AppDirs) -> usize {
+    if !legacy.is_dir() || legacy == dirs.config || legacy == dirs.data {
+        return 0;
+    }
+    let mut moved = usize::from(move_file(&legacy.join(SETTINGS_FILE), &dirs.settings()));
+    let legacy_profiles = legacy.join(PROFILES_FOLDER);
+    if let Ok(entries) = fs::read_dir(&legacy_profiles) {
+        let profiles = entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().and_then(|s| s.to_str()) == Some("json"));
+        for path in profiles {
+            if let Some(name) = path.file_name() {
+                moved += usize::from(move_file(&path, &dirs.profiles().join(name)));
+            }
+        }
+    }
+    let _ = fs::remove_dir(&legacy_profiles);
+    let _ = fs::remove_dir(legacy);
+    moved
+}
+
+fn move_file(from: &Path, to: &Path) -> bool {
+    if !from.is_file() || to.exists() {
+        return false;
+    }
+    if let Some(parent) = to.parent()
+        && fs::create_dir_all(parent).is_err()
+    {
+        return false;
+    }
+    fs::rename(from, to).is_ok() || (fs::copy(from, to).is_ok() && fs::remove_file(from).is_ok())
 }
 
 // Settings
@@ -268,6 +316,87 @@ mod tests {
             PathBuf::from("/home/u/.local/share/flexpad/profiles")
         );
         assert_eq!(AppDirs::from_env(vars(&[])), None);
+    }
+
+    // Migration
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!("flexpad-test-{}-{name}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn write(path: &Path, content: &str) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn legacy_dir_is_flexpad_in_the_home_folder() {
+        let (user, home) = if cfg!(windows) {
+            (r"C:\Users\u", r"C:\h")
+        } else {
+            ("/home/u", "/h")
+        };
+        assert_eq!(
+            legacy_dir(vars(&[("USERPROFILE", user), ("HOME", home)])),
+            Some(PathBuf::from(user).join("FlexPad"))
+        );
+        assert_eq!(
+            legacy_dir(vars(&[("HOME", home)])),
+            Some(PathBuf::from(home).join("FlexPad"))
+        );
+        assert_eq!(legacy_dir(vars(&[("HOME", "relative")])), None);
+        assert_eq!(legacy_dir(vars(&[])), None);
+    }
+
+    #[test]
+    fn moves_settings_and_profiles_and_removes_the_empty_folder() {
+        let root = temp_dir("move");
+        let legacy = root.join("FlexPad");
+        let dirs = AppDirs {
+            config: root.join("config"),
+            data: root.join("data"),
+        };
+        write(&legacy.join("settings.json"), "{}");
+        write(&legacy.join("profiles").join("Desk.json"), "desk");
+
+        let moved = move_legacy_files(&legacy, &dirs);
+
+        assert_eq!(moved, 2);
+        assert_eq!(fs::read_to_string(dirs.settings()).unwrap(), "{}");
+        assert_eq!(
+            fs::read_to_string(dirs.profiles().join("Desk.json")).unwrap(),
+            "desk"
+        );
+        assert!(!legacy.exists());
+        assert_eq!(move_legacy_files(&legacy, &dirs), 0);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn keeps_existing_files_and_unknown_files() {
+        let root = temp_dir("keep");
+        let legacy = root.join("FlexPad");
+        let dirs = AppDirs {
+            config: root.join("config"),
+            data: root.join("data"),
+        };
+        write(&legacy.join("profiles").join("Desk.json"), "old");
+        write(&legacy.join("profiles").join("notes.txt"), "notes");
+        write(&dirs.profiles().join("Desk.json"), "new");
+
+        let moved = move_legacy_files(&legacy, &dirs);
+
+        assert_eq!(moved, 0);
+        assert_eq!(
+            fs::read_to_string(dirs.profiles().join("Desk.json")).unwrap(),
+            "new"
+        );
+        assert!(legacy.join("profiles").join("Desk.json").exists());
+        assert!(legacy.join("profiles").join("notes.txt").exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     // Profile file names
