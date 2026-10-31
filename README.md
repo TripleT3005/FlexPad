@@ -7,8 +7,7 @@
 FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial. The firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
 > **Work in progress.** Buttons and EC11 encoders work, but FlexPad is not finished yet. Known gaps:
-> - Text actions are stored and transferred, but not typed yet ([#4](../../issues/4)).
-> - The keyboard layout of the computer is not taken into account yet, so text only comes out right on a US layout ([#5](../../issues/5)).
+> - Text can only be typed for the US and German keyboard layouts so far.
 >
 > See the [issues](../../issues) for details and plans.
 >
@@ -98,7 +97,7 @@ The app and the device talk over the USB serial port of the board (line-based te
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, then the board restarts in download mode for flashing |
 | – | Sent by the device: `EVENT:PIN:<pin>:PRESSED`/`RELEASED` and `EVENT:ENCODER:<pin a>:RIGHT`/`LEFT` |
 
-Each function of a tile holds a macro as a list of actions: `{"press":"<key>"}`, `{"release":"<key>"}`, `{"delay":<ms>}`, `{"media":"<action>"}` and `{"text":"<text>"}` (not executed yet). Example (copy): `{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"}]}`. Older profiles with comma-separated macro strings (`P:ControlLeft,P:KeyC,…`) are converted when loaded.
+Each function of a tile holds a macro as a list of actions: `{"press":"<key>"}`, `{"release":"<key>"}`, `{"delay":<ms>}`, `{"media":"<action>"}` and `{"text":"<text>"}` (typed with the keyboard layout chosen in the profile; English (US) or German). Example (copy): `{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"}]}`. Older profiles with comma-separated macro strings (`P:ControlLeft,P:KeyC,…`) are converted when loaded.
 
 Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The app shows the keys with the labels of the keyboard layout chosen in the profile (e.g. `KeyY` as "Z" on a German layout); older names from earlier versions (`lctrl`, `ael`, `kp_1` …) are converted when a profile is loaded. Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
@@ -154,8 +153,7 @@ A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` 
 FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät. Auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
 > **In Arbeit.** Taster und EC11-Encoder funktionieren, FlexPad ist aber noch nicht fertig. Bekannte Lücken:
-> - Textaktionen werden gespeichert und übertragen, aber noch nicht getippt ([#4](../../issues/4)).
-> - Das Tastaturlayout des Rechners wird noch nicht berücksichtigt; Text kommt daher nur bei US-Layout richtig an ([#5](../../issues/5)).
+> - Text kann bisher nur für das US- und das deutsche Tastaturlayout getippt werden.
 >
 > Details und Pläne stehen in den [Issues](../../issues).
 >
@@ -245,7 +243,7 @@ App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (zeile
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`, danach startet das Board zum Flashen im Download-Modus neu |
 | – | Vom Gerät gesendet: `EVENT:PIN:<pin>:PRESSED`/`RELEASED` und `EVENT:ENCODER:<pin a>:RIGHT`/`LEFT` |
 
-Jede Funktion einer Kachel enthält ein Makro als Liste von Aktionen: `{"press":"<taste>"}` drücken, `{"release":"<taste>"}` loslassen, `{"delay":<ms>}` warten, `{"media":"<aktion>"}` Medientaste und `{"text":"<text>"}` Text tippen (wird noch nicht ausgeführt). Beispiel (Kopieren): `{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"}]}`. Ältere Profile mit kommagetrennten Makro-Strings (`P:ControlLeft,P:KeyC,…`) werden beim Laden umgewandelt.
+Jede Funktion einer Kachel enthält ein Makro als Liste von Aktionen: `{"press":"<taste>"}` drücken, `{"release":"<taste>"}` loslassen, `{"delay":<ms>}` warten, `{"media":"<aktion>"}` Medientaste und `{"text":"<text>"}` Text tippen (mit dem im Profil gewählten Tastaturlayout; English (US) oder German). Beispiel (Kopieren): `{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"}]}`. Ältere Profile mit kommagetrennten Makro-Strings (`P:ControlLeft,P:KeyC,…`) werden beim Laden umgewandelt.
 
 Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die App zeigt die Tasten mit den Beschriftungen des im Profil gewählten Tastaturlayouts (z. B. `KeyY` als „Z“ bei deutschem Layout); ältere Namen früherer Versionen (`lctrl`, `ael`, `kp_1` …) werden beim Laden eines Profils umgestellt. Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 

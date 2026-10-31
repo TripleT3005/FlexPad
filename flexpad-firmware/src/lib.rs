@@ -8,5 +8,6 @@ pub mod json;
 pub mod keys;
 pub mod layouts;
 pub mod macros;
+pub mod player;
 pub mod protocol;
 pub mod storage;

@@ -43,8 +43,10 @@ use flexpad_firmware::{
         Trigger,
     },
     encoder::{DEFAULT_STEPS_PER_DETENT, Decoder, Direction},
-    hid::{KeyboardState, MAX_REPORT_SIZE, REPORT_DESCRIPTOR, consumer_report},
-    macros::{Action, MacroBuffer},
+    hid::{MAX_REPORT_SIZE, REPORT_DESCRIPTOR},
+    layouts::KeyboardLayout,
+    macros::MacroBuffer,
+    player::{Output, Player},
     protocol::{
         self, CONFIG_DATA_PREFIX, Command, DeviceInfo, EMPTY_CONFIG, LineReader, MAX_LINE_LENGTH,
         PRODUCT_NAME, TextBuffer,
@@ -62,7 +64,6 @@ const USB_PRODUCT_ID: u16 = 0x1001;
 const MAX_PACKET_SIZE: usize = 64;
 const HID_PACKET_SIZE: u16 = 16;
 const HID_POLL_MS: u8 = 5;
-const MEDIA_PRESS_MS: u64 = 30;
 const MACRO_QUEUE_SIZE: usize = 8;
 const EVENT_QUEUE_SIZE: usize = 16;
 const CONFIG_PARTITION_LABEL: &str = "flexpad";
@@ -316,11 +317,12 @@ impl Session<'_> {
             _ => {}
         }
         let _ = protocol::write_response(command, &self.info, self.response);
-        if let Command::RunMacro(payload) = command
-            && !queue_macro(payload)
-        {
-            self.response.clear();
-            let _ = protocol::write_macro_busy(self.response);
+        if let Command::RunMacro(payload) = command {
+            let keyboard_layout = self.config.lock().await.bindings.keyboard_layout();
+            if !queue_macro(payload, keyboard_layout) {
+                self.response.clear();
+                let _ = protocol::write_macro_busy(self.response);
+            }
         }
         Some(if command == Command::RebootBootloader {
             Reply::Reboot
@@ -436,15 +438,21 @@ fn find_config_partition(storage: &mut FlashStorage<'static>) -> Option<u32> {
 
 // Macros
 
-fn queue_macro(payload: &[u8]) -> bool {
+fn queue_macro(payload: &[u8], keyboard_layout: KeyboardLayout) -> bool {
     match protocol::compile_macro(payload) {
-        Ok(buffer) => MACRO_QUEUE.try_send(buffer).is_ok(),
+        Ok(buffer) => MACRO_QUEUE
+            .try_send(buffer.with_keyboard_layout(keyboard_layout))
+            .is_ok(),
         Err(_) => true,
     }
 }
 
-fn enqueue_macro(code: &[u8]) -> bool {
-    MacroBuffer::from_code(code).is_some_and(|buffer| MACRO_QUEUE.try_send(buffer).is_ok())
+fn enqueue_macro(code: &[u8], keyboard_layout: KeyboardLayout) -> bool {
+    MacroBuffer::from_code(code).is_some_and(|buffer| {
+        MACRO_QUEUE
+            .try_send(buffer.with_keyboard_layout(keyboard_layout))
+            .is_ok()
+    })
 }
 
 // Inputs
@@ -530,37 +538,25 @@ async fn read_inputs(inputs: Inputs, config: &SharedConfig) -> ! {
 }
 
 async fn run_trigger(config: &SharedConfig, trigger: Trigger) {
-    if let Some(code) = config.lock().await.bindings.macro_for(trigger) {
-        enqueue_macro(code);
+    let config = config.lock().await;
+    if let Some(code) = config.bindings.macro_for(trigger) {
+        enqueue_macro(code, config.bindings.keyboard_layout());
     }
 }
 
 async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE>) -> ! {
-    let mut state = KeyboardState::new();
     loop {
         let buffer = MACRO_QUEUE.receive().await;
-        for action in buffer.actions() {
-            match action {
-                Action::Press(key) => {
-                    state.press(key);
-                    let _ = keyboard.write(&state.report()).await;
+        for output in Player::new(buffer.actions(), buffer.keyboard_layout()) {
+            match output {
+                Output::Keyboard(report) => {
+                    let _ = keyboard.write(&report).await;
                 }
-                Action::Release(key) => {
-                    state.release(key);
-                    let _ = keyboard.write(&state.report()).await;
+                Output::Consumer(report) => {
+                    let _ = keyboard.write(&report).await;
                 }
-                Action::Delay(ms) => Timer::after_millis(u64::from(ms)).await,
-                Action::Media(usage) => {
-                    let _ = keyboard.write(&consumer_report(usage)).await;
-                    Timer::after_millis(MEDIA_PRESS_MS).await;
-                    let _ = keyboard.write(&consumer_report(0)).await;
-                }
-                Action::Text(_) => {}
+                Output::Wait(ms) => Timer::after_millis(u64::from(ms)).await,
             }
-        }
-        if !state.is_empty() {
-            state.release_all();
-            let _ = keyboard.write(&state.report()).await;
         }
     }
 }

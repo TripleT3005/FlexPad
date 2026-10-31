@@ -3,7 +3,7 @@ use core::fmt::{self, Write};
 use crate::buttons::Edge;
 use crate::config::{ConfigError, MAX_CONFIG_SIZE};
 use crate::encoder::Direction;
-use crate::macros::{Action, MacroBuffer, MacroError};
+use crate::macros::{MacroBuffer, MacroError};
 
 // Constants
 
@@ -97,14 +97,7 @@ pub fn parse_command(line: &[u8]) -> Command<'_> {
 }
 
 pub fn compile_macro(payload: &[u8]) -> Result<MacroBuffer, MacroError<'_>> {
-    let buffer = MacroBuffer::compile(payload)?;
-    if buffer
-        .actions()
-        .any(|action| matches!(action, Action::Text(_)))
-    {
-        return Err(MacroError::Unsupported("text"));
-    }
-    Ok(buffer)
+    MacroBuffer::compile(payload)
 }
 
 // Responses
@@ -369,8 +362,8 @@ mod tests {
             "MACRO_ERROR:unknown_key:hyper\n"
         );
         assert_eq!(
-            response(Command::RunMacro(br#"{"actions":[{"text":"hi"}]}"#)),
-            "MACRO_ERROR:unsupported:text\n"
+            response(Command::RunMacro(br#"{"actions":[{"text":"hi, there"}]}"#)),
+            "MACRO_QUEUED\n"
         );
         assert_eq!(
             response(Command::RunMacro(b"P:a,R:a")),

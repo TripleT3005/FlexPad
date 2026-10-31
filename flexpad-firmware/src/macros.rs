@@ -2,6 +2,7 @@ use core::fmt::{self, Display, Write};
 
 use crate::json::{self, JsonError, JsonStr, Parser};
 use crate::keys::{Key, key_from_name, media_usage_from_name};
+use crate::layouts::KeyboardLayout;
 
 // Constants
 
@@ -34,7 +35,6 @@ pub enum MacroError<'a> {
     UnknownMedia(&'a str),
     InvalidDelay(&'a str),
     InvalidText,
-    Unsupported(&'a str),
     UnknownAction(&'a str),
     TooLarge,
 }
@@ -48,7 +48,6 @@ impl Display for MacroError<'_> {
             MacroError::UnknownMedia(name) => write!(f, "unknown_media:{name}"),
             MacroError::InvalidDelay(value) => write!(f, "invalid_delay:{value}"),
             MacroError::InvalidText => f.write_str("invalid_text"),
-            MacroError::Unsupported(kind) => write!(f, "unsupported:{kind}"),
             MacroError::UnknownAction(kind) => write!(f, "unknown_action:{kind}"),
             MacroError::TooLarge => f.write_str("too_large"),
         }
@@ -352,6 +351,7 @@ pub fn actions(code: &[u8]) -> Actions<'_> {
 pub struct MacroBuffer {
     code: [u8; MAX_MACRO_SIZE],
     length: usize,
+    keyboard_layout: KeyboardLayout,
 }
 
 impl MacroBuffer {
@@ -359,6 +359,7 @@ impl MacroBuffer {
         Self {
             code: [0; MAX_MACRO_SIZE],
             length: 0,
+            keyboard_layout: KeyboardLayout::Us,
         }
     }
 
@@ -375,6 +376,15 @@ impl MacroBuffer {
         compile_function(json, &mut writer)?;
         buffer.length = writer.len();
         Ok(buffer)
+    }
+
+    pub fn with_keyboard_layout(mut self, keyboard_layout: KeyboardLayout) -> Self {
+        self.keyboard_layout = keyboard_layout;
+        self
+    }
+
+    pub fn keyboard_layout(&self) -> KeyboardLayout {
+        self.keyboard_layout
     }
 
     pub fn code(&self) -> &[u8] {
@@ -575,10 +585,6 @@ mod tests {
         assert_eq!(
             MacroError::InvalidStructure("action").to_string(),
             "invalid_structure:action"
-        );
-        assert_eq!(
-            MacroError::Unsupported("text").to_string(),
-            "unsupported:text"
         );
         assert_eq!(MacroError::InvalidJson(3).to_string(), "invalid_json:3");
     }

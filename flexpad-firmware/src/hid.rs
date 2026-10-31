@@ -1,4 +1,5 @@
 use crate::keys::Key;
+use crate::layouts::Stroke;
 
 // Report descriptors
 
@@ -139,6 +140,18 @@ impl KeyboardState {
         report[3..].copy_from_slice(&self.keys);
         report
     }
+}
+
+// Strokes
+
+pub fn stroke_report(stroke: Option<Stroke>) -> [u8; MAX_REPORT_SIZE] {
+    let mut report = [0; MAX_REPORT_SIZE];
+    report[0] = KEYBOARD_REPORT_ID;
+    if let Some(stroke) = stroke {
+        report[1] = stroke.modifiers;
+        report[3] = stroke.usage;
+    }
+    report
 }
 
 // Consumer control
