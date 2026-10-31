@@ -2,6 +2,7 @@ use core::fmt::{self, Display, Write};
 
 use crate::json::{self, JsonError, JsonStr, Parser};
 use crate::keys::{Key, key_from_name, media_usage_from_name};
+use crate::layouts::KeyboardLayout;
 
 // Constants
 
@@ -352,6 +353,7 @@ pub fn actions(code: &[u8]) -> Actions<'_> {
 pub struct MacroBuffer {
     code: [u8; MAX_MACRO_SIZE],
     length: usize,
+    keyboard_layout: KeyboardLayout,
 }
 
 impl MacroBuffer {
@@ -359,6 +361,7 @@ impl MacroBuffer {
         Self {
             code: [0; MAX_MACRO_SIZE],
             length: 0,
+            keyboard_layout: KeyboardLayout::Us,
         }
     }
 
@@ -375,6 +378,15 @@ impl MacroBuffer {
         compile_function(json, &mut writer)?;
         buffer.length = writer.len();
         Ok(buffer)
+    }
+
+    pub fn with_keyboard_layout(mut self, keyboard_layout: KeyboardLayout) -> Self {
+        self.keyboard_layout = keyboard_layout;
+        self
+    }
+
+    pub fn keyboard_layout(&self) -> KeyboardLayout {
+        self.keyboard_layout
     }
 
     pub fn code(&self) -> &[u8] {
