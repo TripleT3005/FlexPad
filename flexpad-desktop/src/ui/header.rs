@@ -3,7 +3,8 @@ use crate::flasher::{self, FlashStage};
 use crate::keys::KeyboardLayout;
 use crate::update::{self, APP_VERSION};
 use iced::widget::{
-    Space, button, checkbox, column, container, pick_list, progress_bar, row, text, text_input,
+    Space, Text, button, checkbox, column, container, pick_list, progress_bar, row, text,
+    text_input,
 };
 use iced::{Alignment, Element, Length};
 
@@ -188,13 +189,15 @@ fn outdated_firmware(app: &FlexPadApp) -> Option<&str> {
 // Status bar
 
 pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
-    let indicator = if app.connected_device.is_some() {
-        "🟢 Connected"
+    let (dot, label): (Text<'_>, &str) = if app.connected_device.is_some() {
+        (text("●").style(text::success), "Connected")
     } else {
-        "🔴 Disconnected"
+        (text("●").style(text::danger), "Disconnected")
     };
     let mut bar = row![
-        text(indicator).size(13),
+        row![dot.size(16), text(label).size(13)]
+            .spacing(6)
+            .align_y(Alignment::Center),
         text(&app.status_message).size(13),
         Space::new().width(Length::Fill),
     ]

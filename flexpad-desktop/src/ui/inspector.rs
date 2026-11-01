@@ -205,7 +205,7 @@ fn view_function<'a>(
 ) -> Element<'a, Message> {
     let actions = tile.macro_for(function.id);
     let is_expanded = app.ui.expanded_functions.iter().any(|id| id == function.id);
-    let toggle_arrow = if is_expanded { "▼" } else { "▶" };
+    let toggle_arrow = if is_expanded { "▾" } else { "▸" };
     let summary = if actions.is_empty() {
         "[No macro]".to_string()
     } else {
