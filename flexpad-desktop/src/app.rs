@@ -1,7 +1,6 @@
 use iced::widget::{column, container};
 use iced::{Element, Length, Subscription, Task};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use crate::canvas;
 use crate::components::{self, Component};
@@ -11,8 +10,8 @@ use crate::config::{
 };
 use crate::constants::PRESETS;
 use crate::device::{
-    FlexPadDeviceInfo, SharedPort, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
-    set_config_to_device,
+    Connection, DeviceEvent, FlexPadDeviceInfo, connect_to_port, device_events,
+    fetch_config_from_device, scan_flexpad_devices, set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
@@ -84,7 +83,7 @@ pub struct FlexPadApp {
     pub available_devices: Vec<FlexPadDeviceInfo>,
     pub selected_device: Option<FlexPadDeviceInfo>,
     pub connected_device: Option<FlexPadDeviceInfo>,
-    pub serial_port: Option<SharedPort>,
+    pub serial_port: Option<Connection>,
     pub device_task: Option<DeviceTask>,
 
     pub tiles: Vec<Tile>,
@@ -109,11 +108,11 @@ pub enum Message {
     LoadConfig,
     SetConfig,
     DevicesScanned(Vec<FlexPadDeviceInfo>),
-    DeviceConnected(FlexPadDeviceInfo, Result<SharedPort, String>),
+    DeviceConnected(FlexPadDeviceInfo, Result<Connection, String>),
     ConfigLoaded(Result<String, String>),
     ConfigSet(Result<(), String>),
     DeviceTaskFailed,
-    CheckConnectionTick,
+    DeviceEvent(DeviceEvent),
     ProfileSelected(ProfileItem),
     SaveCurrentProfile,
     NewProfile,
@@ -205,7 +204,12 @@ impl FlexPadApp {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(Duration::from_secs(1)).map(|_| Message::CheckConnectionTick)
+        match &self.serial_port {
+            Some(connection) => {
+                Subscription::run_with(connection.clone(), device_events).map(Message::DeviceEvent)
+            }
+            None => Subscription::none(),
+        }
     }
 
     pub fn selected_tile(&self) -> Option<&Tile> {
@@ -260,7 +264,7 @@ impl FlexPadApp {
                 self.device_task = None;
                 self.status_message = "The device access failed unexpectedly.".to_string();
             }
-            Message::CheckConnectionTick => self.handle_connection_tick(),
+            Message::DeviceEvent(event) => self.handle_device_event(event),
             Message::ProfileSelected(profile) => self.handle_profile_selected(profile),
             Message::SaveCurrentProfile => self.handle_save_profile(),
             Message::NewProfile => self.handle_new_profile(),
@@ -406,7 +410,7 @@ impl FlexPadApp {
         }
         let port_name = device.port_name.clone();
         in_background(
-            move || connect_to_port(&port_name).map(SharedPort::new),
+            move || connect_to_port(&port_name),
             move |result| Message::DeviceConnected(device, result),
         )
     }
@@ -414,7 +418,7 @@ impl FlexPadApp {
     fn handle_device_connected(
         &mut self,
         device: FlexPadDeviceInfo,
-        result: Result<SharedPort, String>,
+        result: Result<Connection, String>,
     ) {
         self.device_task = None;
         match result {
@@ -441,7 +445,7 @@ impl FlexPadApp {
             return Task::none();
         }
         in_background(
-            move || fetch_config_from_device(&mut port.lock()),
+            move || fetch_config_from_device(&port),
             Message::ConfigLoaded,
         )
     }
@@ -512,7 +516,7 @@ impl FlexPadApp {
             return Task::none();
         }
         in_background(
-            move || set_config_to_device(&mut port.lock(), &json_str),
+            move || set_config_to_device(&port, &json_str),
             Message::ConfigSet,
         )
     }
@@ -525,19 +529,15 @@ impl FlexPadApp {
         };
     }
 
-    fn handle_connection_tick(&mut self) {
-        if self.is_device_busy() {
-            return;
-        }
-        let unplugged = self
-            .serial_port
-            .as_ref()
-            .and_then(SharedPort::try_lock)
-            .is_some_and(|port| port.clear(serialport::ClearBuffer::Input).is_err());
-        if unplugged {
-            self.serial_port = None;
-            self.connected_device = None;
-            self.status_message = "Device was unplugged! Disconnected.".to_string();
+    fn handle_device_event(&mut self, event: DeviceEvent) {
+        match event {
+            DeviceEvent::Disconnected => {
+                if self.serial_port.take().is_some() {
+                    self.connected_device = None;
+                    self.status_message = "Device was unplugged! Disconnected.".to_string();
+                }
+            }
+            DeviceEvent::Input(_) => {}
         }
     }
 
