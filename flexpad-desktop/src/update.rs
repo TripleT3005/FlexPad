@@ -7,11 +7,10 @@ use std::time::Duration;
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
-const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/TripleT3005/FlexPad/releases?per_page=30";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/TripleT3005/FlexPad/releases/latest";
 const RELEASE_PAGE_PREFIX: &str = "https://github.com/TripleT3005/FlexPad/releases/";
 const TIMEOUT: Duration = Duration::from_secs(10);
-const MAX_RESPONSE_BYTES: u64 = 1024 * 1024;
+const MAX_RESPONSE_BYTES: u64 = 256 * 1024;
 
 // Types
 
@@ -25,8 +24,6 @@ pub struct ReleaseInfo {
 struct ReleaseResponse {
     tag_name: String,
     html_url: String,
-    #[serde(default)]
-    draft: bool,
 }
 
 // Versions
@@ -57,30 +54,18 @@ pub fn is_release_url(url: &str) -> bool {
     })
 }
 
-pub fn parse_releases(json: &str) -> Option<ReleaseInfo> {
-    let responses: Vec<ReleaseResponse> = serde_json::from_str(json).ok()?;
-    responses
-        .into_iter()
-        .filter(|response| !response.draft)
-        .filter_map(|response| {
-            let version = response.tag_name.strip_prefix('v')?;
-            let parsed = parse_version(version)?;
-            is_release_url(&response.html_url).then(|| {
-                (
-                    parsed,
-                    ReleaseInfo {
-                        version: version.to_string(),
-                        url: response.html_url,
-                    },
-                )
-            })
-        })
-        .max_by_key(|(parsed, _)| *parsed)
-        .map(|(_, release)| release)
+pub fn parse_release(json: &str) -> Option<ReleaseInfo> {
+    let response: ReleaseResponse = serde_json::from_str(json).ok()?;
+    let version = response.tag_name.strip_prefix('v')?;
+    parse_version(version)?;
+    is_release_url(&response.html_url).then(|| ReleaseInfo {
+        version: version.to_string(),
+        url: response.html_url,
+    })
 }
 
 pub fn newer_release(json: &str, current: &str) -> Option<ReleaseInfo> {
-    parse_releases(json).filter(|release| is_newer(&release.version, current))
+    parse_release(json).filter(|release| is_newer(&release.version, current))
 }
 
 // Network
@@ -138,15 +123,11 @@ fn browser_command(url: &str) -> Command {
 mod tests {
     use super::*;
 
-    const RELEASE_JSON: &str = r#"[
-        {"tag_name":"v0.2.0","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v0.2.0"},
-        {"tag_name":"v0.10.0","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v0.10.0"},
-        {"tag_name":"v0.4.1","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v0.4.1"},
-        {"tag_name":"v9.0.0","draft":true,"html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v9.0.0"},
-        {"tag_name":"v8.0.0","html_url":"https://example.com/"},
-        {"tag_name":"v7.0.0-beta.1","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v7.0.0-beta.1"},
-        {"tag_name":"6.0.0","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/6.0.0"}
-    ]"#;
+    const RELEASE_JSON: &str = r#"{"tag_name":"v1.2.0","name":"FlexPad 1.2.0","html_url":"https://github.com/TripleT3005/FlexPad/releases/tag/v1.2.0","assets":[]}"#;
+
+    fn release_json(tag: &str, url: &str) -> String {
+        format!(r#"{{"tag_name":"{tag}","html_url":"{url}"}}"#)
+    }
 
     // Versions
 
@@ -207,27 +188,34 @@ mod tests {
     // Response
 
     #[test]
-    fn picks_the_highest_valid_release() {
+    fn reads_the_latest_release() {
         assert_eq!(
-            parse_releases(RELEASE_JSON),
+            parse_release(RELEASE_JSON),
             Some(ReleaseInfo {
-                version: "0.10.0".to_string(),
-                url: "https://github.com/TripleT3005/FlexPad/releases/tag/v0.10.0".to_string(),
+                version: "1.2.0".to_string(),
+                url: "https://github.com/TripleT3005/FlexPad/releases/tag/v1.2.0".to_string(),
             })
         );
     }
 
     #[test]
     fn rejects_unusable_responses() {
-        assert_eq!(parse_releases("not json"), None);
-        assert_eq!(parse_releases("{}"), None);
-        assert_eq!(parse_releases("[]"), None);
+        let page = "https://github.com/TripleT3005/FlexPad/releases/tag/x";
+        assert_eq!(parse_release("not json"), None);
+        assert_eq!(parse_release("{}"), None);
+        assert_eq!(parse_release("[]"), None);
+        assert_eq!(parse_release(&release_json("1.2.0", page)), None);
+        assert_eq!(parse_release(&release_json("v1.2.0-beta.1", page)), None);
+        assert_eq!(
+            parse_release(&release_json("v1.2.0", "https://example.com/")),
+            None
+        );
     }
 
     #[test]
     fn reports_only_newer_releases() {
-        assert!(newer_release(RELEASE_JSON, "0.4.1").is_some());
-        assert!(newer_release(RELEASE_JSON, "0.10.0").is_none());
-        assert!(newer_release(RELEASE_JSON, "1.0.0").is_none());
+        assert!(newer_release(RELEASE_JSON, "1.0.0").is_some());
+        assert!(newer_release(RELEASE_JSON, "1.2.0").is_none());
+        assert!(newer_release(RELEASE_JSON, "1.10.0").is_none());
     }
 }
