@@ -11,7 +11,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### English
 
 #### Added
-- The window remembers its position and size (also maximized) in the local settings. On first start it opens centered at its minimum size; if the saved position is no longer on any screen, e.g. after unplugging a second monitor, it falls back to that. On Windows the position is restored, on macOS and Linux only the size.
+- The window remembers its position and size (also maximized) in `window.json` in the local app data of the computer, separate from the roaming settings. On first start it opens centered at its minimum size; if the saved position is no longer on any screen, e.g. after unplugging a second monitor, it falls back to that. On Windows the position is restored, on macOS and Linux only the size.
 
 #### Changed
 - **Scan** is only available while no device is connected, **Connect** only with a selected device, and **Load Config** and **Set Config** only while connected.
@@ -24,7 +24,7 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### Deutsch
 
 #### Neu
-- Das Fenster merkt sich Position und Größe (auch maximiert) in den lokalen Einstellungen. Beim ersten Start öffnet es sich mittig in seiner Mindestgröße; liegt die gespeicherte Position auf keinem Bildschirm mehr, etwa nach dem Abstecken eines zweiten Monitors, fällt es darauf zurück. Unter Windows wird die Position wiederhergestellt, unter macOS und Linux nur die Größe.
+- Das Fenster merkt sich Position und Größe (auch maximiert) in `window.json` in den lokalen App-Daten des Rechners, getrennt von den mitwandernden Einstellungen. Beim ersten Start öffnet es sich mittig in seiner Mindestgröße; liegt die gespeicherte Position auf keinem Bildschirm mehr, etwa nach dem Abstecken eines zweiten Monitors, fällt es darauf zurück. Unter Windows wird die Position wiederhergestellt, unter macOS und Linux nur die Größe.
 
 #### Geändert
 - **Scan** ist nur ohne verbundenes Gerät verfügbar, **Connect** nur mit ausgewähltem Gerät, **Load Config** und **Set Config** nur bei bestehender Verbindung.

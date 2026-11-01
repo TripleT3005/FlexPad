@@ -1,5 +1,8 @@
 use iced::{Point, Size};
 use serde::{Deserialize, Serialize};
+use std::fs;
+
+use crate::config::app_dirs;
 
 // Constants
 
@@ -30,13 +33,6 @@ pub struct WindowGeometry {
     pub screen_rect: Option<ScreenRect>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Visibility {
-    Visible,
-    Hidden,
-    Unknown,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StartPosition {
     Centered,
@@ -62,12 +58,12 @@ pub struct InitialWindow {
 // Restore
 
 pub fn initial_window(saved: Option<WindowGeometry>) -> InitialWindow {
-    initial_window_with(saved, visibility)
+    initial_window_with(saved, is_on_screen)
 }
 
 pub fn initial_window_with(
     saved: Option<WindowGeometry>,
-    visibility: impl Fn(Option<ScreenRect>) -> Visibility,
+    is_on_screen: impl Fn(Option<ScreenRect>) -> Option<bool>,
 ) -> InitialWindow {
     let default = InitialWindow {
         size: MIN_WINDOW_SIZE,
@@ -85,13 +81,13 @@ pub fn initial_window_with(
         saved.height.max(MIN_WINDOW_SIZE.height),
     );
     let has_position = saved.x.is_finite() && saved.y.is_finite();
-    match visibility(saved.screen_rect) {
-        Visibility::Visible if has_position => InitialWindow {
+    match is_on_screen(saved.screen_rect) {
+        Some(true) if has_position => InitialWindow {
             size,
             position: StartPosition::At(Point::new(saved.x, saved.y)),
             maximized: saved.maximized,
         },
-        Visibility::Unknown => InitialWindow {
+        None => InitialWindow {
             size,
             maximized: saved.maximized,
             ..default
@@ -126,6 +122,23 @@ pub fn geometry(
     })
 }
 
+// Storage
+
+pub fn load_window_geometry() -> Option<WindowGeometry> {
+    let content = fs::read_to_string(app_dirs().window()).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+pub fn save_window_geometry(geometry: &WindowGeometry) {
+    let path = app_dirs().window();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_string_pretty(geometry) {
+        let _ = fs::write(path, json);
+    }
+}
+
 // Platform
 
 #[cfg(windows)]
@@ -154,29 +167,23 @@ fn screen_rect(_raw_id: u64) -> Option<ScreenRect> {
 }
 
 #[cfg(windows)]
-fn visibility(rect: Option<ScreenRect>) -> Visibility {
-    let Some(rect) = rect else {
-        return Visibility::Unknown;
-    };
+fn is_on_screen(rect: Option<ScreenRect>) -> Option<bool> {
     use windows_sys::Win32::Foundation::RECT;
     use windows_sys::Win32::Graphics::Gdi::{MONITOR_DEFAULTTONULL, MonitorFromRect};
 
+    let rect = rect?;
     let title_bar = RECT {
         left: rect.left,
         top: rect.top,
         right: rect.right,
         bottom: rect.top + TITLE_BAR_HEIGHT,
     };
-    if unsafe { MonitorFromRect(&title_bar, MONITOR_DEFAULTTONULL) }.is_null() {
-        Visibility::Hidden
-    } else {
-        Visibility::Visible
-    }
+    Some(!unsafe { MonitorFromRect(&title_bar, MONITOR_DEFAULTTONULL) }.is_null())
 }
 
 #[cfg(not(windows))]
-fn visibility(_rect: Option<ScreenRect>) -> Visibility {
-    Visibility::Unknown
+fn is_on_screen(_rect: Option<ScreenRect>) -> Option<bool> {
+    None
 }
 
 #[cfg(test)]
@@ -203,7 +210,7 @@ mod tests {
 
     #[test]
     fn first_start_is_centered_at_the_minimum_size() {
-        let window = initial_window_with(None, |_| Visibility::Visible);
+        let window = initial_window_with(None, |_| Some(true));
 
         assert_eq!(window.size, MIN_WINDOW_SIZE);
         assert_eq!(window.position, StartPosition::Centered);
@@ -212,7 +219,7 @@ mod tests {
 
     #[test]
     fn a_visible_window_comes_back_where_it_was() {
-        let window = initial_window_with(Some(saved()), |_| Visibility::Visible);
+        let window = initial_window_with(Some(saved()), |_| Some(true));
 
         assert_eq!(window.size, Size::new(1300.0, 800.0));
         assert_eq!(window.position, StartPosition::At(Point::new(100.0, 50.0)));
@@ -220,7 +227,7 @@ mod tests {
 
     #[test]
     fn a_window_off_screen_falls_back_to_the_default() {
-        let window = initial_window_with(Some(saved()), |_| Visibility::Hidden);
+        let window = initial_window_with(Some(saved()), |_| Some(false));
 
         assert_eq!(window.size, MIN_WINDOW_SIZE);
         assert_eq!(window.position, StartPosition::Centered);
@@ -234,9 +241,9 @@ mod tests {
         };
         let window = initial_window_with(Some(geometry), |rect| {
             if rect.is_some() {
-                Visibility::Visible
+                Some(true)
             } else {
-                Visibility::Hidden
+                Some(false)
             }
         });
 
@@ -251,7 +258,7 @@ mod tests {
             ..saved()
         };
         assert_eq!(
-            initial_window_with(Some(small), |_| Visibility::Visible).size,
+            initial_window_with(Some(small), |_| Some(true)).size,
             MIN_WINDOW_SIZE
         );
 
@@ -260,7 +267,7 @@ mod tests {
             ..saved()
         };
         assert_eq!(
-            initial_window_with(Some(narrow), |_| Visibility::Visible).size,
+            initial_window_with(Some(narrow), |_| Some(true)).size,
             Size::new(MIN_WINDOW_SIZE.width, 800.0)
         );
     }
@@ -272,13 +279,13 @@ mod tests {
             ..saved()
         };
 
-        assert!(initial_window_with(Some(geometry), |_| Visibility::Visible).maximized);
-        assert!(!initial_window_with(Some(geometry), |_| Visibility::Hidden).maximized);
+        assert!(initial_window_with(Some(geometry), |_| Some(true)).maximized);
+        assert!(!initial_window_with(Some(geometry), |_| Some(false)).maximized);
     }
 
     #[test]
     fn without_a_screen_check_only_the_size_is_restored() {
-        let window = initial_window_with(Some(saved()), |_| Visibility::Unknown);
+        let window = initial_window_with(Some(saved()), |_| None);
 
         assert_eq!(window.size, Size::new(1300.0, 800.0));
         assert_eq!(window.position, StartPosition::Centered);

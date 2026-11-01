@@ -31,7 +31,7 @@ fn main() -> iced::Result {
         u32::from(WINDOW_ICON_SIZE),
     )
     .ok();
-    let window = window_state::initial_window(config::load_user_settings().window);
+    let window = window_state::initial_window(window_state::load_window_geometry());
 
     iced::application(FlexPadApp::new, FlexPadApp::update, FlexPadApp::view)
         .title("FlexPad")

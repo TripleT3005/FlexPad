@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::profile::{self, Profile};
-use crate::window_state::WindowGeometry;
 
 // Constants
 
 const APP_FOLDER: &str = "FlexPad";
 const SETTINGS_FILE: &str = "settings.json";
+const WINDOW_FILE: &str = "window.json";
 const PROFILES_FOLDER: &str = "profiles";
 #[cfg(all(unix, not(target_os = "macos")))]
 const LINUX_APP_FOLDER: &str = "flexpad";
@@ -26,15 +26,19 @@ const RESERVED_FILE_STEMS: &[&str] = &[
 pub struct AppDirs {
     pub config: PathBuf,
     pub data: PathBuf,
+    pub state: PathBuf,
 }
 
 impl AppDirs {
     #[cfg(windows)]
     pub fn from_env(var: impl Fn(&str) -> Option<String>) -> Option<Self> {
         let base = absolute_var(&var, "APPDATA")?.join(APP_FOLDER);
+        let state = absolute_var(&var, "LOCALAPPDATA")
+            .map_or_else(|| base.clone(), |local| local.join(APP_FOLDER));
         Some(Self {
             config: base.clone(),
             data: base,
+            state,
         })
     }
 
@@ -46,7 +50,8 @@ impl AppDirs {
             .join(APP_FOLDER);
         Some(Self {
             config: base.clone(),
-            data: base,
+            data: base.clone(),
+            state: base,
         })
     }
 
@@ -57,9 +62,12 @@ impl AppDirs {
             .or_else(|| home.as_ref().map(|home| home.join(".config")))?;
         let data = absolute_var(&var, "XDG_DATA_HOME")
             .or_else(|| home.as_ref().map(|home| home.join(".local").join("share")))?;
+        let state = absolute_var(&var, "XDG_STATE_HOME")
+            .or_else(|| home.as_ref().map(|home| home.join(".local").join("state")))?;
         Some(Self {
             config: config.join(LINUX_APP_FOLDER),
             data: data.join(LINUX_APP_FOLDER),
+            state: state.join(LINUX_APP_FOLDER),
         })
     }
 
@@ -69,6 +77,10 @@ impl AppDirs {
 
     pub fn settings(&self) -> PathBuf {
         self.config.join(SETTINGS_FILE)
+    }
+
+    pub fn window(&self) -> PathBuf {
+        self.state.join(WINDOW_FILE)
     }
 }
 
@@ -88,6 +100,7 @@ pub fn app_dirs() -> &'static AppDirs {
         AppDirs::from_env(env_var).unwrap_or_else(|| AppDirs {
             config: PathBuf::from(APP_FOLDER),
             data: PathBuf::from(APP_FOLDER),
+            state: PathBuf::from(APP_FOLDER),
         })
     })
 }
@@ -155,8 +168,6 @@ pub struct UserSettings {
     pub advanced_mode: bool,
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,
-    #[serde(default)]
-    pub window: Option<WindowGeometry>,
 }
 
 fn default_check_for_updates() -> bool {
@@ -169,7 +180,6 @@ impl Default for UserSettings {
             last_profile: None,
             advanced_mode: false,
             check_for_updates: default_check_for_updates(),
-            window: None,
         }
     }
 }
@@ -291,8 +301,14 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
-    fn windows_uses_the_roaming_app_data_folder() {
-        let dirs = AppDirs::from_env(vars(&[("APPDATA", r"C:\Users\u\AppData\Roaming")])).unwrap();
+    fn windows_uses_roaming_for_settings_and_local_for_the_window() {
+        let dirs = AppDirs::from_env(vars(&[
+            ("APPDATA", r"C:\Users\u\AppData\Roaming"),
+            ("LOCALAPPDATA", r"C:\Users\u\AppData\Local"),
+        ]))
+        .unwrap();
+        let without_local =
+            AppDirs::from_env(vars(&[("APPDATA", r"C:\Users\u\AppData\Roaming")])).unwrap();
 
         assert_eq!(
             dirs.settings(),
@@ -301,6 +317,14 @@ mod tests {
         assert_eq!(
             dirs.profiles(),
             PathBuf::from(r"C:\Users\u\AppData\Roaming\FlexPad\profiles")
+        );
+        assert_eq!(
+            dirs.window(),
+            PathBuf::from(r"C:\Users\u\AppData\Local\FlexPad\window.json")
+        );
+        assert_eq!(
+            without_local.window(),
+            PathBuf::from(r"C:\Users\u\AppData\Roaming\FlexPad\window.json")
         );
         assert_eq!(AppDirs::from_env(vars(&[("APPDATA", "relative")])), None);
         assert_eq!(AppDirs::from_env(vars(&[])), None);
@@ -319,6 +343,10 @@ mod tests {
             dirs.profiles(),
             PathBuf::from("/Users/u/Library/Application Support/FlexPad/profiles")
         );
+        assert_eq!(
+            dirs.window(),
+            PathBuf::from("/Users/u/Library/Application Support/FlexPad/window.json")
+        );
         assert_eq!(AppDirs::from_env(vars(&[])), None);
     }
 
@@ -330,6 +358,7 @@ mod tests {
             ("HOME", "/home/u"),
             ("XDG_CONFIG_HOME", "/cfg"),
             ("XDG_DATA_HOME", "relative"),
+            ("XDG_STATE_HOME", "/st"),
         ]))
         .unwrap();
 
@@ -341,6 +370,11 @@ mod tests {
             dirs.profiles(),
             PathBuf::from("/home/u/.local/share/flexpad/profiles")
         );
+        assert_eq!(
+            dirs.window(),
+            PathBuf::from("/home/u/.local/state/flexpad/window.json")
+        );
+        assert_eq!(custom.window(), PathBuf::from("/st/flexpad/window.json"));
         assert_eq!(
             custom.settings(),
             PathBuf::from("/cfg/flexpad/settings.json")
@@ -392,6 +426,7 @@ mod tests {
         let dirs = AppDirs {
             config: root.join("config"),
             data: root.join("data"),
+            state: root.join("state"),
         };
         write(&legacy.join("settings.json"), "{}");
         write(&legacy.join("profiles").join("Desk.json"), "desk");
@@ -416,6 +451,7 @@ mod tests {
         let dirs = AppDirs {
             config: root.join("config"),
             data: root.join("data"),
+            state: root.join("state"),
         };
         write(&legacy.join("profiles").join("Desk.json"), "old");
         write(&legacy.join("profiles").join("notes.txt"), "notes");

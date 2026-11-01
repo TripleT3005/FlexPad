@@ -424,7 +424,9 @@ impl FlexPadApp {
             }
             Message::CloseRequested(id) => return read_window(id),
             Message::WindowRead(id, geometry) => {
-                save_window_geometry(geometry);
+                if let Some(geometry) = geometry {
+                    window_state::save_window_geometry(&geometry);
+                }
                 return iced::window::close(id);
             }
             Message::OpenReleasePage => {
@@ -839,7 +841,6 @@ impl FlexPadApp {
             last_profile: Some(last_profile),
             advanced_mode: self.ui.advanced_mode,
             check_for_updates: self.check_for_updates,
-            ..load_user_settings()
         });
     }
 
@@ -1088,7 +1089,7 @@ fn read_window(id: iced::window::Id) -> Task<Message> {
         iced::window::size(id).then(move |size| {
             iced::window::is_maximized(id).then(move |maximized| {
                 iced::window::raw_id::<Message>(id).map(move |raw_id| {
-                    let previous = load_user_settings().window;
+                    let previous = window_state::load_window_geometry();
                     let geometry =
                         window_state::geometry(position, size, maximized, raw_id, previous);
                     Message::WindowRead(id, geometry)
@@ -1096,15 +1097,6 @@ fn read_window(id: iced::window::Id) -> Task<Message> {
             })
         })
     })
-}
-
-fn save_window_geometry(geometry: Option<WindowGeometry>) {
-    if geometry.is_some() {
-        save_user_settings(&UserSettings {
-            window: geometry,
-            ..load_user_settings()
-        });
-    }
 }
 
 fn in_background<T: Send + 'static>(
