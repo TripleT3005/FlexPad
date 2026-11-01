@@ -6,6 +6,18 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.2.2] – 2026-11-01
+
+### English
+
+#### Fixed
+- New app versions are announced on Discord even when no new firmware is released at the same time.
+
+### Deutsch
+
+#### Behoben
+- Neue App-Versionen werden auch dann auf Discord angekündigt, wenn nicht gleichzeitig eine neue Firmware erscheint.
+
 ## [1.2.1] – 2026-11-01
 
 ### English
