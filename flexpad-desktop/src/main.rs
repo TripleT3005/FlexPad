@@ -20,6 +20,7 @@ use app::FlexPadApp;
 // Constants
 
 const WINDOW_ICON_SIZE: u16 = 64;
+const MIN_WINDOW_SIZE: iced::Size = iced::Size::new(1060.0, 640.0);
 
 // Entry point
 
@@ -35,8 +36,9 @@ fn main() -> iced::Result {
         .title("FlexPad")
         .window(iced::window::Settings {
             icon,
-            size: iced::Size::new(1180.0, 780.0),
-            min_size: Some(iced::Size::new(1060.0, 640.0)),
+            size: MIN_WINDOW_SIZE,
+            position: iced::window::Position::Centered,
+            min_size: Some(MIN_WINDOW_SIZE),
             ..iced::window::Settings::default()
         })
         .subscription(FlexPadApp::subscription)
