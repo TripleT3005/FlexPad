@@ -65,8 +65,8 @@ Profiles and settings are stored per user and are not set by the installer. Unin
 #### Firmware
 The app contains the firmware of its own version and writes it itself, no extra tool needed:
 
-- **Update:** if the connected FlexPad runs an older firmware, the header shows "Update firmware". The app restarts the FlexPad into its bootloader, writes the firmware and restarts it.
-- **First installation or recovery:** hold **BOOT**, press **RESET**, release **BOOT** (or hold **BOOT** while plugging in the board), then click **Scan Devices**. The header shows "Install firmware" for the board in bootloader mode.
+- **Update:** if the connected FlexPad runs an older firmware, a bar above the canvas shows "Update firmware". The app restarts the FlexPad into its bootloader, writes the firmware and restarts it.
+- **First installation or recovery:** hold **BOOT**, press **RESET**, release **BOOT** (or hold **BOOT** while plugging in the board), then click **Scan**. A bar above the canvas shows "Install firmware" for the board in bootloader mode.
 
 Do not unplug the board while the progress bar is shown. If the board does not restart by itself afterwards, press **RESET** or unplug it briefly. The profile stored on the device is kept: only bootloader, partition table and app are written, and the image ends before the profile partition.
 
@@ -80,7 +80,7 @@ A profile already stored on the device is kept: the image ends before the profil
 
 ### Usage
 1. Connect the FlexPad via USB and start the app.
-2. **Scan Devices**, select the device and **Connect**.
+2. **Scan**, select the device and **Connect**.
 3. Choose the **Keyboard layout** of the computer the pad is used with; the key names in the macro editor follow it.
 4. **Load Config** reads the configuration stored on the device.
 5. Add tiles with **Add Tile** (button or EC11 encoder), drag them into place and select one to edit it in the **Tile Inspector**:
@@ -91,7 +91,7 @@ A profile already stored on the device is kept: the image ends before the profil
    - **Test** next to a function runs its macro once on the connected device without saving anything; the answer (queued, busy or the reason for an error) is shown at the function. The macro types into the window that has the focus; text uses the keyboard layout of the profile stored on the device.
 6. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
 
-Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status line names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
+Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status bar names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
 
 ### How it works
 The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
@@ -112,7 +112,7 @@ Each function of a tile holds a macro as a list of actions: `{"press":"<key>"}`,
 Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The app shows the keys with the labels of the keyboard layout chosen in the profile (e.g. `KeyY` as "Z" on a German layout); older names from earlier versions (`lctrl`, `ael`, `kp_1` …) are converted when a profile is loaded. Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
-- **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases` and receives the list of published releases (version numbers and links). Only the newest version is compared with the installed one; if it is newer, "Version x.y.z available" appears in the header and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the header (saved in the settings); then the app makes no request at all.
+- **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases` and receives the list of published releases (version numbers and links). Only the newest version is compared with the installed one; if it is newer, "Version x.y.z available" appears in the status bar at the bottom and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the status bar (saved in the settings); then the app makes no request at all.
 - The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched. A scan also looks in the port list for an ESP32-S3 in bootloader mode (`303A:0009`) without opening it; that port is only opened when you click "Install firmware" or "Update firmware".
 - Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
@@ -223,8 +223,8 @@ Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht ges
 #### Firmware
 Die App enthält die Firmware ihrer eigenen Version und schreibt sie selbst, ohne zusätzliches Werkzeug:
 
-- **Aktualisieren:** Läuft auf dem verbundenen FlexPad eine ältere Firmware, zeigt der Kopfbereich „Update firmware“. Die App startet den FlexPad in seinen Bootloader neu, schreibt die Firmware und startet ihn wieder.
-- **Erstinstallation oder Wiederherstellung:** **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen (oder **BOOT** beim Einstecken gedrückt halten), dann **Scan Devices** klicken. Der Kopfbereich zeigt für das Board im Bootloader-Modus „Install firmware“.
+- **Aktualisieren:** Läuft auf dem verbundenen FlexPad eine ältere Firmware, zeigt eine Leiste über der Arbeitsfläche „Update firmware“. Die App startet den FlexPad in seinen Bootloader neu, schreibt die Firmware und startet ihn wieder.
+- **Erstinstallation oder Wiederherstellung:** **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen (oder **BOOT** beim Einstecken gedrückt halten), dann **Scan** klicken. Für das Board im Bootloader-Modus zeigt eine Leiste über der Arbeitsfläche „Install firmware“.
 
 Das Board nicht abziehen, solange der Fortschrittsbalken zu sehen ist. Startet es danach nicht von selbst neu, **RESET** drücken oder es kurz abziehen. Das auf dem Gerät gespeicherte Profil bleibt erhalten: Geschrieben werden nur Bootloader, Partitionstabelle und App, und das Image endet vor der Profil-Partition.
 
@@ -238,7 +238,7 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
 
 ### Bedienung
 1. FlexPad per USB anschließen und die App starten.
-2. **Scan Devices**, das Gerät auswählen und **Connect**.
+2. **Scan**, das Gerät auswählen und **Connect**.
 3. Unter **Keyboard layout** das Tastaturlayout des Rechners wählen, an dem das Pad benutzt wird; die Tastennamen im Makro-Editor richten sich danach.
 4. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
 5. Mit **Add Tile** Kacheln hinzufügen (Taster oder EC11-Encoder), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
@@ -249,7 +249,7 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
    - **Test** neben einer Funktion führt ihr Makro einmal auf dem verbundenen Gerät aus, ohne etwas zu speichern; die Antwort (in der Warteschlange, ausgelastet oder der Grund eines Fehlers) erscheint an der Funktion. Das Makro tippt in das Fenster, das den Fokus hat; Text verwendet das Tastaturlayout des auf dem Gerät gespeicherten Profils.
 6. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
 
-Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statuszeile nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
+Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statusleiste nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
 
 ### Funktionsweise
 Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
@@ -270,7 +270,7 @@ Jede Funktion einer Kachel enthält ein Makro als Liste von Aktionen: `{"press":
 Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die App zeigt die Tasten mit den Beschriftungen des im Profil gewählten Tastaturlayouts (z. B. `KeyY` als „Z“ bei deutschem Layout); ältere Namen früherer Versionen (`lctrl`, `ael`, `kp_1` …) werden beim Laden eines Profils umgestellt. Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
-- **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases` und erhält die Liste der veröffentlichten Releases (Versionsnummern und Links). Nur die neueste Version wird mit der installierten verglichen; ist sie neuer, erscheint im Kopfbereich „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** im Kopfbereich (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
+- **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases` und erhält die Liste der veröffentlichten Releases (Versionsnummern und Links). Nur die neueste Version wird mit der installierten verglichen; ist sie neuer, erscheint in der Statusleiste unten „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** in der Statusleiste (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
 - Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt. Ein Scan sucht in der Portliste außerdem nach einem ESP32-S3 im Bootloader-Modus (`303A:0009`), ohne ihn zu öffnen; dieser Port wird nur geöffnet, wenn man „Install firmware“ oder „Update firmware“ klickt.
 - Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.

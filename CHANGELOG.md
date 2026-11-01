@@ -9,27 +9,31 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 ### English
 
 #### Added
-- The configurator checks GitHub for a newer release at start and every 24 hours and shows "Version x.y.z available" in the header with a link to the release page. Nothing is downloaded. The check can be switched off with "Check for updates" in the header; then no request is made.
+- The configurator checks GitHub for a newer release at start and every 24 hours and shows "Version x.y.z available" in the status bar with a link to the release page. Nothing is downloaded. The check can be switched off with "Check for updates" in the status bar; then no request is made.
 - The configurator points out when the firmware of the connected device is older than the app.
 - "Test" button next to each function in the Tile Inspector: runs the macro once on the connected device without saving and shows the answer, e.g. an unknown key, at the function.
-- Wiring test: while connected, pressing a button or turning an encoder briefly highlights its tile on the canvas; pins without a tile are named in the status line, e.g. "GPIO 12 pressed – not assigned".
+- Wiring test: while connected, pressing a button or turning an encoder briefly highlights its tile on the canvas; pins without a tile are named in the status bar, e.g. "GPIO 12 pressed – not assigned".
 - "Update firmware" next to the outdated-firmware note writes the firmware built into the app to the FlexPad, with a progress bar, and restarts it. The profile stored on the device is kept.
-- A board in bootloader mode (e.g. a new board, or after holding BOOT) is found by "Scan Devices" and can be set up with "Install firmware".
+- A board in bootloader mode (e.g. a new board, or after holding BOOT) is found by "Scan" and can be set up with "Install firmware".
 
 #### Changed
+- Tidier window: device and profile each have one toolbar row at the top, notes about the firmware appear in a bar below them only when needed, and the connection state, messages, the update notice and "Check for updates" are in a status bar at the bottom. "Scan Devices" is now "Scan".
+- The configurator draws its window in software instead of through the graphics card and uses about a third fewer third-party packages.
 - The configurator reads from the device in the background all the time, so device events and command answers no longer get in each other's way; unplugging is noticed right away.
 
 ### Deutsch
 
 #### Neu
-- Der Konfigurator prüft beim Start und alle 24 Stunden bei GitHub, ob es ein neueres Release gibt, und zeigt im Kopfbereich „Version x.y.z available“ mit Link zur Release-Seite an. Es wird nichts heruntergeladen. Die Prüfung lässt sich mit „Check for updates“ im Kopfbereich abschalten; dann erfolgt keine Anfrage.
+- Der Konfigurator prüft beim Start und alle 24 Stunden bei GitHub, ob es ein neueres Release gibt, und zeigt in der Statusleiste „Version x.y.z available“ mit Link zur Release-Seite an. Es wird nichts heruntergeladen. Die Prüfung lässt sich mit „Check for updates“ in der Statusleiste abschalten; dann erfolgt keine Anfrage.
 - Der Konfigurator weist darauf hin, wenn die Firmware des verbundenen Geräts älter ist als die App.
 - Knopf „Test“ neben jeder Funktion im Tile Inspector: führt das Makro einmal auf dem verbundenen Gerät aus, ohne zu speichern, und zeigt die Antwort, z. B. eine unbekannte Taste, an der Funktion an.
-- Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die Kachel kurz auf der Arbeitsfläche hervor; Pins ohne Kachel nennt die Statuszeile, z. B. „GPIO 12 pressed – not assigned“.
+- Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die Kachel kurz auf der Arbeitsfläche hervor; Pins ohne Kachel nennt die Statusleiste, z. B. „GPIO 12 pressed – not assigned“.
 - „Update firmware“ neben dem Hinweis auf veraltete Firmware schreibt die in die App eingebaute Firmware mit Fortschrittsbalken auf den FlexPad und startet ihn neu. Das auf dem Gerät gespeicherte Profil bleibt erhalten.
-- Ein Board im Bootloader-Modus (z. B. ein neues Board oder nach Halten von BOOT) findet „Scan Devices“, und „Install firmware“ richtet es ein.
+- Ein Board im Bootloader-Modus (z. B. ein neues Board oder nach Halten von BOOT) findet „Scan“, und „Install firmware“ richtet es ein.
 
 #### Geändert
+- Aufgeräumteres Fenster: Gerät und Profil haben oben je eine Werkzeugzeile, Hinweise zur Firmware erscheinen nur bei Bedarf in einer Leiste darunter, und Verbindungsstatus, Meldungen, Update-Hinweis und „Check for updates“ stehen in einer Statusleiste unten. „Scan Devices“ heißt jetzt „Scan“.
+- Der Konfigurator zeichnet sein Fenster per Software statt über die Grafikkarte und nutzt rund ein Drittel weniger Fremdpakete.
 - Der Konfigurator liest im Hintergrund ständig vom Gerät, sodass sich Ereignisse und Antworten auf Befehle nicht mehr in die Quere kommen; das Abziehen des Geräts wird sofort bemerkt.
 
 ## [0.2.0] – 2026-10-31
