@@ -6,6 +6,18 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.2.1] – 2026-11-01
+
+### English
+
+#### Changed
+- App, setup and packages take their icon in every size from one logo file; it looks the same as before.
+
+### Deutsch
+
+#### Geändert
+- App, Setup und Pakete beziehen ihr Icon in jeder Größe aus einer einzigen Logo-Datei; es sieht aus wie bisher.
+
 ## [1.2.0] – 2026-11-01
 
 ### English

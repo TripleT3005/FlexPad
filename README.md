@@ -1,4 +1,4 @@
-# <img src="assets/logo.svg" alt="" width="40" height="40" align="center"> FlexPad
+# <img src="assets/icons/icon.svg" alt="" width="40" height="40" align="center"> FlexPad
 
 <!-- web:skip -->
 [English](#english) · [Deutsch](#deutsch)
@@ -136,6 +136,8 @@ cargo run --release
 `cargo test` runs the unit tests; CI checks formatting, `clippy` and tests on Windows, Linux and macOS.
 
 Without further setup the app is built without firmware, and firmware updates are disabled. To embed a firmware image, point `FLEXPAD_FIRMWARE_IMAGE` to a merged image (built as in [Firmware](#firmware-1) with `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), e.g. `FLEXPAD_FIRMWARE_IMAGE=/path/to/firmware.bin cargo build --release`. The release workflow does this with the firmware built in the same run.
+
+The icons in [`assets/icons`](assets/icons) (ICO and PNG in all common sizes) are generated from `icon.svg` with [`render-icons.mjs`](https://github.com/TripleT3005/TripleT3005/blob/main/scripts/render-icons.mjs), which needs Node.js and Edge or Chrome: `node render-icons.mjs assets/icons`. The app, the setup, the Linux and macOS packages and the release announcement take their icon from there.
 
 #### Firmware
 The firmware in `flexpad-firmware/` needs the Xtensa Rust toolchain and `espflash`:
@@ -301,6 +303,8 @@ cargo run --release
 `cargo test` führt die Unit-Tests aus; die CI prüft Formatierung, `clippy` und Tests unter Windows, Linux und macOS.
 
 Ohne weitere Einstellung wird die App ohne Firmware gebaut, Firmware-Updates sind dann abgeschaltet. Um ein Firmware-Image einzubetten, `FLEXPAD_FIRMWARE_IMAGE` auf ein zusammengeführtes Image setzen (gebaut wie unter [Firmware](#firmware-3) mit `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), z. B. `FLEXPAD_FIRMWARE_IMAGE=/pfad/zu/firmware.bin cargo build --release`. Der Release-Workflow macht das mit der Firmware, die im selben Lauf gebaut wird.
+
+Die Icons in [`assets/icons`](assets/icons) (ICO und PNG in allen gängigen Größen) entstehen aus `icon.svg` mit [`render-icons.mjs`](https://github.com/TripleT3005/TripleT3005/blob/main/scripts/render-icons.mjs), das Node.js und Edge oder Chrome braucht: `node render-icons.mjs assets/icons`. App, Setup, Linux- und macOS-Pakete und die Release-Ankündigung nehmen ihr Icon von dort.
 
 #### Firmware
 Die Firmware in `flexpad-firmware/` braucht die Xtensa-Rust-Toolchain und `espflash`:

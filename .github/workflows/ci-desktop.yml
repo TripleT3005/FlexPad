@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci-desktop.yml
+      - assets/icons/**
       - flexpad-desktop/**
       - flexpad-firmware/Cargo.toml
       - flexpad-firmware/CHANGELOG.md
