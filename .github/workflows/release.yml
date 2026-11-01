@@ -6,8 +6,10 @@ on:
   pull_request:
     paths:
       - .github/workflows/release.yml
-      - CHANGELOG.md
+      - .github/scripts/**
       - installer/**
+      - flexpad-desktop/Cargo.toml
+      - flexpad-desktop/CHANGELOG.md
       - flexpad-desktop/build.rs
       - flexpad-desktop/src/flasher/**
       - flexpad-firmware/**
@@ -24,49 +26,131 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-      exists: ${{ steps.check.outputs.exists }}
+      app_version: ${{ steps.version.outputs.app_version }}
+      firmware_version: ${{ steps.version.outputs.firmware_version }}
+      app_release: ${{ steps.check.outputs.app_release }}
+      firmware_release: ${{ steps.check.outputs.firmware_release }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Read version
+      - name: Read versions
         id: version
         run: |
-          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' flexpad-desktop/Cargo.toml | head -n 1)
-          if [ -z "$version" ]; then
-            echo "::error::flexpad-desktop/Cargo.toml has no package version"
-            exit 1
-          fi
-          for found in \
-            "flexpad-firmware/Cargo.toml=$(sed -n 's/^version = "\(.*\)"$/\1/p' flexpad-firmware/Cargo.toml | head -n 1)" \
-            "CHANGELOG.md (newest section)=$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | grep -vx Unreleased | head -n 1)"; do
-            if [ "${found#*=}" != "$version" ]; then
-              echo "::error::${found%%=*} has version ${found#*=}, but flexpad-desktop/Cargo.toml has $version"
+          read_version() {
+            sed -n 's/^version = "\(.*\)"$/\1/p' "$1" | head -n 1
+          }
+          newest_section() {
+            sed -n 's/^## \[\([^]]*\)\].*/\1/p' "$1" | grep -vx Unreleased | head -n 1
+          }
+          for component in desktop firmware; do
+            version=$(read_version "flexpad-$component/Cargo.toml")
+            if [ -z "$version" ]; then
+              echo "::error::flexpad-$component/Cargo.toml has no package version"
               exit 1
             fi
+            section=$(newest_section "flexpad-$component/CHANGELOG.md")
+            if [ "$section" != "$version" ]; then
+              echo "::error::The newest section of flexpad-$component/CHANGELOG.md is '$section', but flexpad-$component/Cargo.toml has $version"
+              exit 1
+            fi
+            case "$component" in
+              desktop) echo "app_version=$version" >> "$GITHUB_OUTPUT" ;;
+              firmware) echo "firmware_version=$version" >> "$GITHUB_OUTPUT" ;;
+            esac
           done
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - name: Check for existing release
+      - name: Check for existing releases
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          FIRMWARE_VERSION: ${{ steps.version.outputs.firmware_version }}
         run: |
-          if gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            if awk '/^## \[Unreleased\]/ { found = 1; next } /^## \[/ { found = 0 } found && NF' CHANGELOG.md | grep -q .; then
-              echo "::error::CHANGELOG.md still has entries under [Unreleased]; move them into the section for ${{ steps.version.outputs.version }}"
+          is_new() {
+            ! gh release view "$1" --repo "${{ github.repository }}" > /dev/null 2>&1
+          }
+          unreleased_is_empty() {
+            ! awk '/^## \[Unreleased\]/ { found = 1; next } /^## \[/ { found = 0 } found && NF' "$1" | grep -q .
+          }
+          app_release=false
+          firmware_release=false
+          if is_new "v$APP_VERSION"; then
+            app_release=true
+            if ! unreleased_is_empty flexpad-desktop/CHANGELOG.md; then
+              echo "::error::flexpad-desktop/CHANGELOG.md still has entries under [Unreleased]; move them into the section for $APP_VERSION"
               exit 1
             fi
           fi
+          if is_new "firmware-v$FIRMWARE_VERSION"; then
+            firmware_release=true
+            if ! unreleased_is_empty flexpad-firmware/CHANGELOG.md; then
+              echo "::error::flexpad-firmware/CHANGELOG.md still has entries under [Unreleased]; move them into the section for $FIRMWARE_VERSION"
+              exit 1
+            fi
+            if [ "$app_release" = false ]; then
+              echo "::error::Firmware $FIRMWARE_VERSION is new, but app $APP_VERSION is already released; raise the app version so the app ships the new firmware"
+              exit 1
+            fi
+          fi
+          echo "app_release=$app_release" >> "$GITHUB_OUTPUT"
+          echo "firmware_release=$firmware_release" >> "$GITHUB_OUTPUT"
+
+  firmware:
+    needs: version
+    if: needs.version.outputs.app_release == 'true' || needs.version.outputs.firmware_release == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/espup
+            ~/.cargo/bin/espflash
+          key: firmware-tools-${{ runner.os }}-${{ hashFiles('flexpad-firmware/rust-toolchain.toml') }}
+
+      - name: Install ESP32-S3 toolchain
+        run: |
+          command -v espup || cargo install espup --locked
+          command -v espflash || cargo install espflash --locked
+          espup install --targets esp32s3 --export-file "$HOME/export-esp.sh"
+
+      - name: Build firmware image
+        working-directory: flexpad-firmware
+        env:
+          VERSION: ${{ needs.version.outputs.firmware_version }}
+        run: |
+          . "$HOME/export-esp.sh"
+          cargo build --release --locked
+          mkdir -p ../dist
+          image="FlexPad-firmware-$VERSION-esp32s3.bin"
+          espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb \
+            --partition-table partitions.csv \
+            target/xtensa-esp32s3-none-elf/release/flexpad-firmware "../dist/$image"
+          cd ../dist
+          test "$(head -c 1 "$image" | od -An -tx1 | tr -d ' ')" = "e9"
+          test "$(wc -c < "$image")" -le $((0x410000))
+          sha256sum "$image" > "$image.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: firmware
+          path: |
+            dist/*.bin
+            dist/*.sha256
+          if-no-files-found: error
 
   build:
     needs: [version, firmware]
-    if: needs.version.outputs.exists == 'false' || github.event_name == 'pull_request'
+    if: needs.version.outputs.app_release == 'true' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -106,9 +190,9 @@ jobs:
         working-directory: flexpad-desktop
         shell: bash
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          FIRMWARE_VERSION: ${{ needs.version.outputs.firmware_version }}
         run: |
-          image="$GITHUB_WORKSPACE/firmware/FlexPad-firmware-$VERSION-esp32s3.bin"
+          image="$GITHUB_WORKSPACE/firmware/FlexPad-firmware-$FIRMWARE_VERSION-esp32s3.bin"
           test -f "$image"
           FLEXPAD_FIRMWARE_IMAGE="$image" cargo build --release --locked
           if [ "$RUNNER_OS" = Linux ]; then
@@ -119,10 +203,10 @@ jobs:
         if: runner.os != 'macOS'
         shell: bash
         run: |
-          name="FlexPad-${{ needs.version.outputs.version }}-${{ matrix.platform }}${{ matrix.suffix }}"
+          name="FlexPad-${{ needs.version.outputs.app_version }}-${{ matrix.platform }}${{ matrix.suffix }}"
           mkdir -p "dist/$name"
           cp "flexpad-desktop/target/release/${{ matrix.binary }}" "dist/$name/${{ matrix.packaged }}"
-          cp LICENSE README.md CHANGELOG.md "dist/$name/"
+          cp LICENSE README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
           cd dist
           case "${{ runner.os }}" in
             Windows) 7z a -tzip -bso0 "$name.zip" "$name" && archive="$name.zip" ;;
@@ -133,7 +217,7 @@ jobs:
       - name: Package Linux packages
         if: runner.os == 'Linux'
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.app_version }}
         run: |
           package_version="${VERSION//-/\~}"
           stage="$RUNNER_TEMP/package/root"
@@ -145,7 +229,7 @@ jobs:
             install -D -m 644 "$icon" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/flexpad.png"
           done
           install -D -m 644 assets/logo.svg "$stage/usr/share/icons/hicolor/scalable/apps/flexpad.svg"
-          install -m 644 LICENSE README.md CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
+          install -m 644 LICENSE README.md flexpad-desktop/CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
 
           deb="dist/flexpad_${package_version}_amd64.deb"
           deb_root="$RUNNER_TEMP/package/deb"
@@ -185,7 +269,7 @@ jobs:
       - name: Package macOS app
         if: runner.os == 'macOS'
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.app_version }}
         run: |
           name="FlexPad-$VERSION-${{ matrix.platform }}"
           app="dist/$name/FlexPad.app"
@@ -196,7 +280,7 @@ jobs:
           plutil -lint "$app/Contents/Info.plist"
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
-          cp LICENSE README.md CHANGELOG.md "dist/$name/"
+          cp LICENSE README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
           ln -s /Applications "dist/$name/Applications"
           hdiutil create -volname FlexPad -srcfolder "dist/$name" -ov -format UDZO "dist/$name.dmg"
           cd dist
@@ -206,7 +290,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.app_version }}
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $compiler)) {
@@ -232,126 +316,66 @@ jobs:
             dist/*.sha256
           if-no-files-found: error
 
-  firmware:
-    needs: version
-    if: needs.version.outputs.exists == 'false' || github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v7
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
-
-      - name: Install Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/bin/espup
-            ~/.cargo/bin/espflash
-          key: firmware-tools-${{ runner.os }}-${{ hashFiles('flexpad-firmware/rust-toolchain.toml') }}
-
-      - name: Install ESP32-S3 toolchain
-        run: |
-          command -v espup || cargo install espup --locked
-          command -v espflash || cargo install espflash --locked
-          espup install --targets esp32s3 --export-file "$HOME/export-esp.sh"
-
-      - name: Build firmware image
-        working-directory: flexpad-firmware
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          . "$HOME/export-esp.sh"
-          cargo build --release --locked
-          mkdir -p ../dist
-          image="FlexPad-firmware-$VERSION-esp32s3.bin"
-          espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb \
-            --partition-table partitions.csv \
-            target/xtensa-esp32s3-none-elf/release/flexpad-firmware "../dist/$image"
-          cd ../dist
-          test "$(head -c 1 "$image" | od -An -tx1 | tr -d ' ')" = "e9"
-          test "$(wc -c < "$image")" -le $((0x410000))
-          sha256sum "$image" > "$image.sha256"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: firmware
-          path: |
-            dist/*.bin
-            dist/*.sha256
-          if-no-files-found: error
-
-  release:
-    needs: [version, build, firmware]
-    if: github.event_name != 'pull_request' && needs.version.outputs.exists == 'false'
+  release-firmware:
+    needs: [version, firmware]
+    if: github.event_name != 'pull_request' && needs.version.outputs.firmware_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: CHANGELOG.md
+          sparse-checkout: |
+            .github/scripts
+            flexpad-firmware/CHANGELOG.md
           sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@v8
         with:
+          name: firmware
           path: dist
-          merge-multiple: true
 
-      - name: Create release
+      - name: Create firmware release
         env:
           GH_TOKEN: ${{ github.token }}
           VT_API_KEY: ${{ secrets.VT_API_KEY }}
-          TAG: ${{ needs.version.outputs.tag }}
-          VERSION: ${{ needs.version.outputs.version }}
+          VERSION: ${{ needs.version.outputs.firmware_version }}
         run: |
-          awk -v heading="## [$VERSION]" '
-            index($0, heading) == 1 { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md | sed '/./,$!d' > "$RUNNER_TEMP/changelog.md"
-          if [ ! -s "$RUNNER_TEMP/changelog.md" ]; then
-            echo "::error::CHANGELOG.md has no text for version $VERSION"
-            exit 1
-          fi
+          bash .github/scripts/publish-release.sh "firmware-v$VERSION" "FlexPad firmware $VERSION" "$VERSION" \
+            flexpad-firmware/CHANGELOG.md false dist/*
 
-          cd dist
-          prerelease=""
-          case "$VERSION" in 0.*|*-*) prerelease="--prerelease" ;; esac
+  release-app:
+    needs: [version, build, release-firmware]
+    if: >-
+      !cancelled() && github.event_name != 'pull_request'
+      && needs.version.outputs.app_release == 'true'
+      && needs.build.result == 'success'
+      && contains(fromJSON('["success", "skipped"]'), needs.release-firmware.result)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts
+            flexpad-desktop/CHANGELOG.md
+          sparse-checkout-cone-mode: false
 
-          gh release create "$TAG" ./* \
-            --repo "${{ github.repository }}" \
-            --target "${{ github.sha }}" \
-            --title "$TAG" \
-            --notes-file "$RUNNER_TEMP/changelog.md" \
-            $prerelease
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: "*-*"
+          path: dist
+          merge-multiple: true
 
-          if [ -z "$VT_API_KEY" ]; then
-            echo "::warning::The repository secret VT_API_KEY is not set, so the release has no VirusTotal scan"
-            exit 0
-          fi
-
-          {
-            gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body
-            echo
-            echo "---"
-            echo
-            echo "### VirusTotal Scan Report"
-            echo "Scanned on: $(date -u +%Y-%m-%d)"
-            echo
-            for archive in *.zip *.tar.gz *.exe *.dmg *.deb *.rpm *.bin; do
-              [ -e "$archive" ] || continue
-              curl --fail --silent --show-error \
-                --header "x-apikey: $VT_API_KEY" \
-                --form "file=@$archive" \
-                https://www.virustotal.com/api/v3/files > /dev/null
-              hash=$(cut -d ' ' -f 1 "$archive.sha256")
-              echo "- **$archive:** [Scan Report](https://www.virustotal.com/gui/file/$hash)"
-            done
-          } > notes.md
-
-          gh release edit "$TAG" --repo "${{ github.repository }}" --notes-file notes.md
+      - name: Create app release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          VERSION: ${{ needs.version.outputs.app_version }}
+          FIRMWARE_VERSION: ${{ needs.version.outputs.firmware_version }}
+        run: |
+          export EXTRA_NOTES="Includes firmware $FIRMWARE_VERSION ([firmware-v$FIRMWARE_VERSION](https://github.com/${{ github.repository }}/releases/tag/firmware-v$FIRMWARE_VERSION)). · Enthält Firmware $FIRMWARE_VERSION."
+          bash .github/scripts/publish-release.sh "v$VERSION" "FlexPad $VERSION" "$VERSION" \
+            flexpad-desktop/CHANGELOG.md true dist/*

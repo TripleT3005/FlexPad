@@ -8,6 +8,7 @@ use crate::macros::{MacroBuffer, MacroError};
 // Constants
 
 pub const PRODUCT_NAME: &str = "FlexPad";
+pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_LINE_LENGTH: usize = MAX_CONFIG_SIZE + 64;
 pub const CONFIG_DATA_PREFIX: &str = "CONFIG_DATA:";
 pub const EMPTY_CONFIG: &str = "{}";
@@ -115,8 +116,8 @@ pub fn write_response(
     match command {
         Command::GetDeviceInfo => writeln!(
             out,
-            "DEVICE_INFO:{},{},{}",
-            PRODUCT_NAME, info.serial_number, info.firmware_version
+            "DEVICE_INFO:{},{},{},{}",
+            PRODUCT_NAME, info.serial_number, info.firmware_version, PROTOCOL_VERSION
         ),
         Command::GetConfig | Command::SetConfig(_) => Ok(()),
         Command::RunMacro(payload) => match compile_macro(payload) {
@@ -297,7 +298,7 @@ mod tests {
     fn device_info_matches_desktop_app_format() {
         let line = response(Command::GetDeviceInfo);
 
-        assert_eq!(line, "DEVICE_INFO:FlexPad,FlexPad-0123456789AB,0.1.0\n");
+        assert_eq!(line, "DEVICE_INFO:FlexPad,FlexPad-0123456789AB,0.1.0,1\n");
         assert!(line.contains("DEVICE_INFO:FlexPad"));
         assert_eq!(
             line.trim_end().split(',').nth(1),

@@ -8,6 +8,8 @@ use super::connection::{Connection, READ_TIMEOUT};
 const ESPRESSIF_VID: u16 = 0x303A;
 const SERIAL_PREFIX: &str = "FlexPad-";
 const PORT_SETTLE_MS: u64 = 100;
+pub const PROTOCOL_VERSION: u32 = 1;
+const LEGACY_PROTOCOL_VERSION: u32 = 1;
 
 // Types
 
@@ -18,6 +20,7 @@ pub struct FlexPadDeviceInfo {
     pub port_name: String,
     pub device_id: String,
     pub firmware_version: Option<String>,
+    pub protocol_version: u32,
 }
 
 impl std::fmt::Display for FlexPadDeviceInfo {
@@ -87,20 +90,26 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
                 && let Some(response) = read_line_from_port(&mut port, Duration::from_millis(600))
                 && response.contains("DEVICE_INFO:FlexPad")
             {
-                let parts: Vec<&str> = response.split(',').collect();
-                let device_id = parts
-                    .get(1)
-                    .map_or_else(|| "FlexPad-Unknown".to_string(), |id| id.to_string());
-                let firmware_version = parts.get(2).map(|version| version.trim().to_string());
-                devices.push(FlexPadDeviceInfo {
-                    port_name,
-                    device_id,
-                    firmware_version,
-                });
+                devices.push(parse_device_info(port_name, &response));
             }
         }
     }
     devices
+}
+
+pub fn parse_device_info(port_name: String, response: &str) -> FlexPadDeviceInfo {
+    let parts: Vec<&str> = response.trim().split(',').map(str::trim).collect();
+    FlexPadDeviceInfo {
+        port_name,
+        device_id: parts
+            .get(1)
+            .map_or_else(|| "FlexPad-Unknown".to_string(), |id| id.to_string()),
+        firmware_version: parts.get(2).map(|version| version.to_string()),
+        protocol_version: parts
+            .get(3)
+            .and_then(|version| version.parse().ok())
+            .unwrap_or(LEGACY_PROTOCOL_VERSION),
+    }
 }
 
 // Commands
@@ -216,6 +225,51 @@ mod tests {
             port_name: "COM1".to_string(),
             port_type: serialport::SerialPortType::PciPort,
         }));
+    }
+
+    // Device info
+
+    #[test]
+    fn reads_serial_number_firmware_and_protocol_version() {
+        let device = parse_device_info(
+            "COM9".to_string(),
+            "DEVICE_INFO:FlexPad,FlexPad-0123456789AB,1.2.0,1\r\n",
+        );
+
+        assert_eq!(device.device_id, "FlexPad-0123456789AB");
+        assert_eq!(device.firmware_version.as_deref(), Some("1.2.0"));
+        assert_eq!(device.protocol_version, 1);
+    }
+
+    #[test]
+    fn older_firmware_without_protocol_version_speaks_protocol_one() {
+        let device = parse_device_info(
+            "COM9".to_string(),
+            "DEVICE_INFO:FlexPad,FlexPad-0123456789AB,1.1.0",
+        );
+
+        assert_eq!(device.firmware_version.as_deref(), Some("1.1.0"));
+        assert_eq!(device.protocol_version, 1);
+        assert_eq!(
+            parse_device_info("COM9".to_string(), "DEVICE_INFO:FlexPad,X,1.2.0,abc")
+                .protocol_version,
+            1
+        );
+    }
+
+    #[test]
+    fn app_and_firmware_speak_the_same_protocol() {
+        let firmware = include_str!("../../../flexpad-firmware/src/protocol.rs");
+        let declared = firmware
+            .lines()
+            .find_map(|line| {
+                line.trim()
+                    .strip_prefix("pub const PROTOCOL_VERSION: u32 = ")
+            })
+            .and_then(|value| value.strip_suffix(';'))
+            .and_then(|value| value.parse::<u32>().ok());
+
+        assert_eq!(declared, Some(PROTOCOL_VERSION));
     }
 
     // Macro responses

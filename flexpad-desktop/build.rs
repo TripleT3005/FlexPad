@@ -47,6 +47,7 @@ fn main() {
     let is_msvc = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|target_env| target_env == "msvc");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     embed_firmware_image(&out_dir);
+    export_firmware_version();
     if target_os == "macos"
         && let Some(profile_dir) = out_dir.ancestors().nth(3)
     {
@@ -73,6 +74,28 @@ fn main() {
         fs::write(profile_dir.join("FlexPad.ico"), icon_file())
             .expect("writing the icon file failed");
     }
+}
+
+// Firmware version
+fn export_firmware_version() {
+    let manifest = "../flexpad-firmware/Cargo.toml";
+    println!("cargo:rerun-if-changed={manifest}");
+    let content = fs::read_to_string(manifest).expect("reading the firmware manifest failed");
+    let version = content
+        .lines()
+        .skip_while(|line| line.trim() != "[package]")
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("version")?
+                .trim_start()
+                .strip_prefix('=')?
+                .trim()
+                .strip_prefix('"')?
+                .strip_suffix('"')
+                .map(str::to_string)
+        })
+        .expect("the firmware manifest has no package version");
+    println!("cargo:rustc-env=FLEXPAD_FIRMWARE_VERSION={version}");
 }
 
 // Firmware image
