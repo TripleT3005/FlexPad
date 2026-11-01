@@ -14,6 +14,7 @@ pub struct GridProgram {
     pub tiles: Vec<Tile>,
     pub selected_tile_id: Option<String>,
     pub dragging_tile_id: Option<String>,
+    pub highlighted_tile_ids: Vec<String>,
 }
 
 impl Program<CanvasMessage> for GridProgram {
@@ -134,14 +135,19 @@ impl Program<CanvasMessage> for GridProgram {
             let box_path = Path::rectangle(rect_pos, rect_size);
 
             let is_selected = self.selected_tile_id.as_ref() == Some(&tile.id);
-            let box_color = if is_selected {
+            let is_highlighted = self.highlighted_tile_ids.contains(&tile.id);
+            let box_color = if is_highlighted {
+                Color::from_rgb8(0x2F, 0x6B, 0x4E)
+            } else if is_selected {
                 Color::from_rgba(0.25, 0.5, 0.9, 0.9)
             } else {
                 Color::from_rgba(0.15, 0.3, 0.6, 0.9)
             };
             frame.fill(&box_path, box_color);
 
-            let border_color = if is_selected {
+            let border_color = if is_highlighted {
+                Color::from_rgb8(0x86, 0xBC, 0x9C)
+            } else if is_selected {
                 Color::from_rgb(0.7, 0.9, 1.0)
             } else {
                 Color::from_rgb(0.4, 0.6, 1.0)
@@ -149,7 +155,13 @@ impl Program<CanvasMessage> for GridProgram {
 
             let border_stroke = Stroke {
                 style: canvas::stroke::Style::Solid(border_color),
-                width: if is_selected { 2.5 } else { 1.5 },
+                width: if is_highlighted {
+                    3.5
+                } else if is_selected {
+                    2.5
+                } else {
+                    1.5
+                },
                 ..Stroke::default()
             };
             frame.stroke(&box_path, border_stroke);
@@ -177,11 +189,13 @@ pub fn view_canvas(
     tiles: Vec<Tile>,
     selected_tile_id: Option<String>,
     dragging_tile_id: Option<String>,
+    highlighted_tile_ids: Vec<String>,
 ) -> Element<'static, CanvasMessage> {
     Canvas::new(GridProgram {
         tiles,
         selected_tile_id,
         dragging_tile_id,
+        highlighted_tile_ids,
     })
     .width(Length::Fill)
     .height(Length::Fill)
