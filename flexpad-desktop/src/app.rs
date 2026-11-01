@@ -25,6 +25,7 @@ use crate::profile::{self, Profile, Tile};
 use crate::ui::header::{view_header, view_status_bar};
 use crate::ui::workspace::view_workspace;
 use crate::update::{self, ReleaseInfo};
+use crate::window_state::{self, WindowGeometry};
 
 // UI state
 
@@ -201,6 +202,8 @@ pub enum Message {
     CheckForUpdate,
     UpdateChecked(Result<Option<ReleaseInfo>, String>),
     UpdateCheckToggled(bool),
+    CloseRequested(iced::window::Id),
+    WindowRead(iced::window::Id, Option<WindowGeometry>),
     OpenReleasePage,
     ProfileSelected(ProfileItem),
     SaveCurrentProfile,
@@ -321,7 +324,12 @@ impl FlexPadApp {
         } else {
             Subscription::none()
         };
-        Subscription::batch([events, highlights, updates])
+        Subscription::batch([
+            events,
+            highlights,
+            updates,
+            iced::window::close_requests().map(Message::CloseRequested),
+        ])
     }
 
     // Editing
@@ -413,6 +421,13 @@ impl FlexPadApp {
             Message::UpdateChecked(result) => self.handle_update_checked(result),
             Message::UpdateCheckToggled(enabled) => {
                 return self.handle_update_check_toggled(enabled);
+            }
+            Message::CloseRequested(id) => return read_window(id),
+            Message::WindowRead(id, geometry) => {
+                if let Some(geometry) = geometry {
+                    window_state::save_window_geometry(&geometry);
+                }
+                return iced::window::close(id);
             }
             Message::OpenReleasePage => {
                 if let Some(release) = &self.available_update {
@@ -1066,6 +1081,21 @@ fn flash_events(source: FlashSource) -> impl iced::futures::Stream<Item = FlashE
                 ))))
                 .await;
         }
+    })
+}
+
+fn read_window(id: iced::window::Id) -> Task<Message> {
+    iced::window::position(id).then(move |position| {
+        iced::window::size(id).then(move |size| {
+            iced::window::is_maximized(id).then(move |maximized| {
+                iced::window::raw_id::<Message>(id).map(move |raw_id| {
+                    let previous = window_state::load_window_geometry();
+                    let geometry =
+                        window_state::geometry(position, size, maximized, raw_id, previous);
+                    Message::WindowRead(id, geometry)
+                })
+            })
+        })
     })
 }
 

@@ -1,17 +1,19 @@
 # <img src="assets/logo.svg" alt="" width="40" align="center"> FlexPad
 
+<!-- web:skip -->
 [English](#english) · [Deutsch](#deutsch)
+<!-- /web:skip -->
 
 ## English
 
 FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial. The firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> **Work in progress.** Buttons and EC11 encoders work, but FlexPad is not finished yet. Known gaps:
-> - Text can only be typed for the US and German keyboard layouts so far.
->
-> See the [issues](../../issues) for details and plans.
->
 > Not affiliated with or endorsed by Espressif Systems.
+
+<p>
+  <img src="assets/screenshot-light.png" alt="FlexPad configurator with five tiles and the Tile Inspector (light mode)" width="49%">
+  <img src="assets/screenshot-dark.png" alt="FlexPad configurator with five tiles and the Tile Inspector (dark mode)" width="49%">
+</p>
 
 ### Features
 - Up to 25 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
@@ -38,7 +40,7 @@ Download the app and the firmware from [Releases](../../releases).
 
 **macOS:** open `…-macos-arm64.dmg` (Apple silicon) and drag FlexPad into the Applications folder.
 
-**Linux:** on Debian, Ubuntu, Linux Mint and similar, install `flexpad_<version>_amd64.deb` (e.g. `sudo apt install ./flexpad_1.0.0_amd64.deb`); on Fedora, openSUSE and similar, install `flexpad-<version>-1.x86_64.rpm` (e.g. `sudo dnf install ./flexpad-1.0.0-1.x86_64.rpm`). Both add FlexPad to the application menu. For other distributions, extract `…-linux-x64.tar.gz` and start `flexpad`; it needs `libudev`. To access the USB serial port, your user must be in the group `dialout` (Debian, Ubuntu, Fedora) or `uucp` (Arch): `sudo usermod -aG dialout $USER`, then log in again.
+**Linux:** on Debian, Ubuntu, Linux Mint and similar, install `flexpad_<version>_amd64.deb` (e.g. `sudo apt install ./flexpad_1.1.0_amd64.deb`); on Fedora, openSUSE and similar, install `flexpad-<version>-1.x86_64.rpm` (e.g. `sudo dnf install ./flexpad-1.1.0-1.x86_64.rpm`). Both add FlexPad to the application menu. For other distributions, extract `…-linux-x64.tar.gz` and start `flexpad`; it needs `libudev`. To access the USB serial port, your user must be in the group `dialout` (Debian, Ubuntu, Fedora) or `uucp` (Arch): `sudo usermod -aG dialout $USER`, then log in again.
 
 The app is not signed, so the system may warn on the first start:
 - **Windows:** SmartScreen → "More info" → "Run anyway"
@@ -58,7 +60,7 @@ Each download has a `.sha256` file to verify it.
 | `/NOICONS` | No Start menu entry |
 | `/LOG="C:\Path\setup.log"` | Write a log file |
 
-Example: `FlexPad-1.0.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
+Example: `FlexPad-1.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
 
 Profiles and settings are stored per user and are not set by the installer. Uninstalling removes the program and its shortcuts but keeps your profiles and settings (see [Privacy](#privacy) for the folders).
 
@@ -112,10 +114,12 @@ Each function of a tile holds a macro as a list of actions: `{"press":"<key>"}`,
 Key names describe the physical key position on a US keyboard, using the names of [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). On a German layout, `Semicolon` therefore types `ö` and `KeyZ` types `y`. The app shows the keys with the labels of the keyboard layout chosen in the profile (e.g. `KeyY` as "Z" on a German layout); older names from earlier versions (`lctrl`, `ael`, `kp_1` …) are converted when a profile is loaded. Macros run in the background: the device keeps answering serial commands, and all keys are released when a macro ends.
 
 ### Privacy
-- **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases` and receives the list of published releases (version numbers and links). Only the newest version is compared with the installed one; if it is newer, "Version x.y.z available" appears in the status bar at the bottom and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the status bar (saved in the settings); then the app makes no request at all.
+- **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases/latest` and receives the information about the latest release (version number and link), which is compared with the installed version; if it is newer, "Version x.y.z available" appears in the status bar at the bottom and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the status bar (saved in the settings); then the app makes no request at all.
 - The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched. A scan also looks in the port list for an ESP32-S3 in bootloader mode (`303A:0009`) without opening it; that port is only opened when you click "Install firmware" or "Update firmware".
-- Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
+- Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. Position and size of the window belong to the computer and are kept in `window.json`: on Windows in `%LOCALAPPDATA%\FlexPad`, on macOS next to the settings, on Linux in `~/.local/state/flexpad` (or `XDG_STATE_HOME`). The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
+
+<!-- web:skip -->
 
 ### Building
 #### Desktop app
@@ -155,7 +159,9 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The profile is stored in its own partition `flexpad` (64 KB) and is kept when a new firmware is flashed.
 
 #### Releases
-A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` (a test and the release workflow check that both and the newest changelog section match) together with a section for it in [CHANGELOG.md](CHANGELOG.md) creates a release when merged into `main`; the changelog section becomes the release notes. Changes without a new version are collected under `[Unreleased]`; a release fails while that section still has entries, so they have to be moved into the section of the new version. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases. The repository secret `VT_API_KEY` (VirusTotal) is optional.
+A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` (a test and the release workflow check that both and the newest changelog section match) together with a section for it in [CHANGELOG.md](CHANGELOG.md) creates a release when merged into `main`; the changelog section becomes the release notes. Changes without a new version are collected under `[Unreleased]`; a release fails while that section still has entries, so they have to be moved into the section of the new version. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases.
+
+<!-- /web:skip -->
 
 ### License
 [MIT](LICENSE)
@@ -164,12 +170,12 @@ A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` 
 
 FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät. Auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> **In Arbeit.** Taster und EC11-Encoder funktionieren, FlexPad ist aber noch nicht fertig. Bekannte Lücken:
-> - Text kann bisher nur für das US- und das deutsche Tastaturlayout getippt werden.
->
-> Details und Pläne stehen in den [Issues](../../issues).
->
 > Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
+
+<p>
+  <img src="assets/screenshot-light.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector (heller Modus)" width="49%">
+  <img src="assets/screenshot-dark.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector (dunkler Modus)" width="49%">
+</p>
 
 ### Funktionen
 - Bis zu 25 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
@@ -196,7 +202,7 @@ App und Firmware gibt es unter [Releases](../../releases).
 
 **macOS:** `…-macos-arm64.dmg` (Apple Silicon) öffnen und FlexPad in den Ordner Programme ziehen.
 
-**Linux:** Unter Debian, Ubuntu, Linux Mint und ähnlichen `flexpad_<Version>_amd64.deb` installieren (z. B. `sudo apt install ./flexpad_1.0.0_amd64.deb`), unter Fedora, openSUSE und ähnlichen `flexpad-<Version>-1.x86_64.rpm` (z. B. `sudo dnf install ./flexpad-1.0.0-1.x86_64.rpm`). Beide tragen FlexPad ins Anwendungsmenü ein. Für andere Distributionen `…-linux-x64.tar.gz` entpacken und `flexpad` starten; es braucht `libudev`. Für den Zugriff auf den USB-Seriell-Port muss der eigene Benutzer in der Gruppe `dialout` (Debian, Ubuntu, Fedora) bzw. `uucp` (Arch) sein: `sudo usermod -aG dialout $USER`, danach neu anmelden.
+**Linux:** Unter Debian, Ubuntu, Linux Mint und ähnlichen `flexpad_<Version>_amd64.deb` installieren (z. B. `sudo apt install ./flexpad_1.1.0_amd64.deb`), unter Fedora, openSUSE und ähnlichen `flexpad-<Version>-1.x86_64.rpm` (z. B. `sudo dnf install ./flexpad-1.1.0-1.x86_64.rpm`). Beide tragen FlexPad ins Anwendungsmenü ein. Für andere Distributionen `…-linux-x64.tar.gz` entpacken und `flexpad` starten; es braucht `libudev`. Für den Zugriff auf den USB-Seriell-Port muss der eigene Benutzer in der Gruppe `dialout` (Debian, Ubuntu, Fedora) bzw. `uucp` (Arch) sein: `sudo usermod -aG dialout $USER`, danach neu anmelden.
 
 Die Anwendung ist nicht signiert, deshalb warnt das System beim ersten Start eventuell:
 - **Windows:** SmartScreen → „Weitere Informationen“ → „Trotzdem ausführen“
@@ -216,7 +222,7 @@ Zu jedem Download gibt es eine `.sha256`-Datei, um ihn zu prüfen.
 | `/NOICONS` | Kein Startmenü-Eintrag |
 | `/LOG="C:\Pfad\setup.log"` | Protokolldatei schreiben |
 
-Beispiel: `FlexPad-1.0.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
+Beispiel: `FlexPad-1.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TASKS="desktopicon"`
 
 Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht gesetzt. Die Deinstallation entfernt Programm und Verknüpfungen, lässt Profile und Einstellungen aber stehen (Ordner siehe [Datenschutz](#datenschutz)).
 
@@ -270,10 +276,12 @@ Jede Funktion einer Kachel enthält ein Makro als Liste von Aktionen: `{"press":
 Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit den Namen von [`KeyboardEvent.code`](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values) (`KeyA`, `Digit1`, `ControlLeft`, `Semicolon`, `IntlBackslash`, `NumpadAdd`, `F13` …). Bei deutschem Layout tippt `Semicolon` daher `ö` und `KeyZ` ein `y`. Die App zeigt die Tasten mit den Beschriftungen des im Profil gewählten Tastaturlayouts (z. B. `KeyY` als „Z“ bei deutschem Layout); ältere Namen früherer Versionen (`lctrl`, `ael`, `kp_1` …) werden beim Laden eines Profils umgestellt. Makros laufen im Hintergrund: Das Gerät beantwortet weiter serielle Befehle, und am Ende eines Makros werden alle Tasten losgelassen.
 
 ### Datenschutz
-- **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases` und erhält die Liste der veröffentlichten Releases (Versionsnummern und Links). Nur die neueste Version wird mit der installierten verglichen; ist sie neuer, erscheint in der Statusleiste unten „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** in der Statusleiste (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
+- **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases/latest` und erhält die Angaben zum neuesten Release (Versionsnummer und Link), die mit der installierten Version verglichen werden; ist sie neuer, erscheint in der Statusleiste unten „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** in der Statusleiste (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
 - Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt. Ein Scan sucht in der Portliste außerdem nach einem ESP32-S3 im Bootloader-Modus (`303A:0009`), ohne ihn zu öffnen; dieser Port wird nur geöffnet, wenn man „Install firmware“ oder „Update firmware“ klickt.
-- Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
+- Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Position und Größe des Fensters gehören zum Rechner und liegen in `window.json`: unter Windows in `%LOCALAPPDATA%\FlexPad`, unter macOS neben den Einstellungen, unter Linux in `~/.local/state/flexpad` (bzw. `XDG_STATE_HOME`). Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
+
+<!-- web:skip -->
 
 ### Bauen
 #### Desktop-App
@@ -313,7 +321,9 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Das Profil liegt in einer eigenen Partition `flexpad` (64 KB) und bleibt beim Flashen einer neuen Firmware erhalten.
 
 #### Releases
-Eine neue Version in `flexpad-desktop/Cargo.toml` und `flexpad-firmware/Cargo.toml` (ein Test und der Release-Workflow prüfen, dass beide und der neueste Changelog-Abschnitt übereinstimmen) zusammen mit einem Abschnitt dafür in der [CHANGELOG.md](CHANGELOG.md) erzeugt beim Merge in `main` ein Release; der Changelog-Abschnitt wird zu den Release-Notizen. Änderungen ohne neue Version stehen unter `[Unreleased]`; ein Release schlägt fehl, solange dieser Abschnitt noch Einträge hat, sie müssen also in den Abschnitt der neuen Version verschoben werden. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion. Das Repository-Secret `VT_API_KEY` (VirusTotal) ist optional.
+Eine neue Version in `flexpad-desktop/Cargo.toml` und `flexpad-firmware/Cargo.toml` (ein Test und der Release-Workflow prüfen, dass beide und der neueste Changelog-Abschnitt übereinstimmen) zusammen mit einem Abschnitt dafür in der [CHANGELOG.md](CHANGELOG.md) erzeugt beim Merge in `main` ein Release; der Changelog-Abschnitt wird zu den Release-Notizen. Änderungen ohne neue Version stehen unter `[Unreleased]`; ein Release schlägt fehl, solange dieser Abschnitt noch Einträge hat, sie müssen also in den Abschnitt der neuen Version verschoben werden. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion.
+
+<!-- /web:skip -->
 
 ### Lizenz
 [MIT](LICENSE)

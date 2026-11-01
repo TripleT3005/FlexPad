@@ -34,14 +34,21 @@ fn device_bar(app: &FlexPadApp) -> Element<'_, Message> {
     )
     .placeholder("Select device...")
     .width(260);
-    let scan_btn = button("Scan").on_press_maybe(is_idle.then_some(Message::ScanDevices));
-    let conn_btn = if app.connected_device.is_some() {
+    let is_connected = app.connected_device.is_some();
+    let can_use_device = is_idle && is_connected;
+    let scan_btn =
+        button("Scan").on_press_maybe((is_idle && !is_connected).then_some(Message::ScanDevices));
+    let conn_btn = if is_connected {
         button("Disconnect").on_press_maybe(is_idle.then_some(Message::DisconnectDevice))
     } else {
-        button("Connect").on_press_maybe(is_idle.then_some(Message::ConnectDevice))
+        button("Connect").on_press_maybe(
+            (is_idle && app.selected_device.is_some()).then_some(Message::ConnectDevice),
+        )
     };
-    let load_btn = button("Load Config").on_press_maybe(is_idle.then_some(Message::LoadConfig));
-    let save_btn = button("Set Config").on_press_maybe(is_idle.then_some(Message::SetConfig));
+    let load_btn =
+        button("Load Config").on_press_maybe(can_use_device.then_some(Message::LoadConfig));
+    let save_btn =
+        button("Set Config").on_press_maybe(can_use_device.then_some(Message::SetConfig));
 
     row![
         label("Device"),

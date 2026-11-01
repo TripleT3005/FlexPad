@@ -14,6 +14,7 @@ mod profile;
 mod release;
 mod ui;
 mod update;
+mod window_state;
 
 use app::FlexPadApp;
 
@@ -30,13 +31,17 @@ fn main() -> iced::Result {
         u32::from(WINDOW_ICON_SIZE),
     )
     .ok();
+    let window = window_state::initial_window(window_state::load_window_geometry());
 
     iced::application(FlexPadApp::new, FlexPadApp::update, FlexPadApp::view)
         .title("FlexPad")
         .window(iced::window::Settings {
             icon,
-            size: iced::Size::new(1180.0, 780.0),
-            min_size: Some(iced::Size::new(1060.0, 640.0)),
+            size: window.size,
+            position: window.position.into(),
+            maximized: window.maximized,
+            min_size: Some(window_state::MIN_WINDOW_SIZE),
+            exit_on_close_request: false,
             ..iced::window::Settings::default()
         })
         .subscription(FlexPadApp::subscription)

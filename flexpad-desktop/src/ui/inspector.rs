@@ -36,8 +36,11 @@ fn view_tile<'a>(app: &'a FlexPadApp, tile: &'a Tile) -> Element<'a, Message> {
     let mut inspector_col = column![
         row![
             text("Tile Inspector").size(18),
-            container(advanced_toggler).align_x(iced::alignment::Horizontal::Right)
+            container(advanced_toggler)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Right)
         ]
+        .spacing(12)
         .width(Length::Fill)
         .align_y(iced::Alignment::Center),
         text(format!("Type: {}", component_name)).size(14),
