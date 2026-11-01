@@ -1,4 +1,4 @@
-# <img src="assets/logo.svg" alt="" width="40" align="center"> FlexPad
+# <img src="assets/logo.svg" alt="" width="40" height="40" align="center"> FlexPad
 
 <!-- web:skip -->
 [English](#english) · [Deutsch](#deutsch)
@@ -6,9 +6,9 @@
 
 ## English
 
-FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial. The firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
+FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial; the firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> Not affiliated with or endorsed by Espressif Systems.
+> Feedback and bug reports are welcome as [issues](../../issues). Not affiliated with or endorsed by Espressif Systems.
 
 <p>
   <img src="assets/screenshot-light.png" alt="FlexPad configurator with five tiles and the Tile Inspector (light mode)" width="49%">
@@ -95,6 +95,9 @@ A profile already stored on the device is kept: the image ends before the profil
 
 Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status bar names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
 
+#### Updates
+At start and then every 24 hours, the app checks whether a newer release exists and then shows "Version x.y.z available" in the status bar; a click opens the release page. Nothing is downloaded or installed automatically. **Check for updates** in the status bar switches the check off (see [Privacy](#privacy)).
+
 ### How it works
 The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
 
@@ -168,9 +171,9 @@ App and firmware have their own versions: `flexpad-desktop/Cargo.toml` with [fle
 
 ## Deutsch
 
-FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät. Auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
+FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät; auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
-> Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
+> Rückmeldungen und Fehlerberichte gern als [Issue](../../issues). Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
 
 <p>
   <img src="assets/screenshot-light.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector (heller Modus)" width="49%">
@@ -256,6 +259,9 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
 6. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
 
 Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statusleiste nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
+
+#### Updates
+Beim Start und danach alle 24 Stunden prüft die App, ob es ein neueres Release gibt, und zeigt dann in der Statusleiste „Version x.y.z available“; ein Klick öffnet die Release-Seite. Es wird nichts automatisch heruntergeladen oder installiert. **Check for updates** in der Statusleiste schaltet die Prüfung ab (siehe [Datenschutz](#datenschutz)).
 
 ### Funktionsweise
 Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
