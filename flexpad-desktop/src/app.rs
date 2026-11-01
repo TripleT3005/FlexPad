@@ -14,6 +14,10 @@ use crate::device::{
     FlexPadDeviceInfo, SharedPort, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
     set_config_to_device,
 };
+use crate::flasher::{
+    FlashEvent, FlashOutcome, FlashSource, FlashStage, embedded_image, find_download_port,
+    update_firmware,
+};
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
@@ -67,6 +71,7 @@ pub enum DeviceTask {
     Connecting,
     Loading,
     Saving,
+    Flashing,
 }
 
 impl DeviceTask {
@@ -76,6 +81,7 @@ impl DeviceTask {
             DeviceTask::Connecting => "Connecting to the device...",
             DeviceTask::Loading => "Loading the configuration from the device...",
             DeviceTask::Saving => "Saving the configuration to the device...",
+            DeviceTask::Flashing => "Updating the firmware...",
         }
     }
 }
@@ -101,6 +107,9 @@ pub struct FlexPadApp {
     pub check_for_updates: bool,
     pub available_update: Option<ReleaseInfo>,
 
+    pub flash_stage: Option<FlashStage>,
+    pub download_port: Option<String>,
+
     pub ui: UiState,
 }
 
@@ -112,11 +121,13 @@ pub enum Message {
     DisconnectDevice,
     LoadConfig,
     SetConfig,
-    DevicesScanned(Vec<FlexPadDeviceInfo>),
+    DevicesScanned(Vec<FlexPadDeviceInfo>, Option<String>),
     DeviceConnected(FlexPadDeviceInfo, Result<SharedPort, String>),
     ConfigLoaded(Result<String, String>),
     ConfigSet(Result<(), String>),
     DeviceTaskFailed,
+    UpdateFirmware,
+    Flash(FlashEvent),
     CheckConnectionTick,
     CheckForUpdate,
     UpdateChecked(Result<Option<ReleaseInfo>, String>),
@@ -208,6 +219,8 @@ impl FlexPadApp {
                 selected_profile: initial_selected,
                 check_for_updates: user_settings.check_for_updates,
                 available_update: None,
+                flash_stage: None,
+                download_port: None,
                 ui: ui_state,
             },
             if user_settings.check_for_updates {
@@ -272,7 +285,9 @@ impl FlexPadApp {
             }
             Message::LoadConfig => return self.handle_load_config(),
             Message::SetConfig => return self.handle_set_config(),
-            Message::DevicesScanned(devices) => self.handle_devices_scanned(devices),
+            Message::DevicesScanned(devices, download_port) => {
+                self.handle_devices_scanned(devices, download_port)
+            }
             Message::DeviceConnected(device, result) => {
                 self.handle_device_connected(device, result)
             }
@@ -281,6 +296,11 @@ impl FlexPadApp {
             Message::DeviceTaskFailed => {
                 self.device_task = None;
                 self.status_message = "The device access failed unexpectedly.".to_string();
+            }
+            Message::UpdateFirmware => return self.handle_update_firmware(),
+            Message::Flash(FlashEvent::Progress(stage)) => self.flash_stage = Some(stage),
+            Message::Flash(FlashEvent::Finished(result)) => {
+                return self.handle_flash_finished(result);
             }
             Message::CheckConnectionTick => self.handle_connection_tick(),
             Message::CheckForUpdate => return self.handle_check_for_update(),
@@ -409,14 +429,28 @@ impl FlexPadApp {
         if !self.start_device_task(DeviceTask::Scanning) {
             return Task::none();
         }
-        in_background(scan_flexpad_devices, Message::DevicesScanned)
+        in_background(
+            || (scan_flexpad_devices(), find_download_port()),
+            |(devices, download_port)| Message::DevicesScanned(devices, download_port),
+        )
     }
 
-    fn handle_devices_scanned(&mut self, devices: Vec<FlexPadDeviceInfo>) {
+    fn handle_devices_scanned(
+        &mut self,
+        devices: Vec<FlexPadDeviceInfo>,
+        download_port: Option<String>,
+    ) {
+        self.download_port = download_port;
         self.device_task = None;
         self.available_devices = devices;
         if self.available_devices.is_empty() {
-            self.status_message = "No FlexPad devices found.".to_string();
+            self.status_message = match &self.download_port {
+                Some(port) => format!(
+                    "No FlexPad found, but a board in bootloader mode is on {port}. \
+                     Click 'Install firmware' to set it up."
+                ),
+                None => "No FlexPad devices found.".to_string(),
+            };
             self.selected_device = None;
         } else {
             self.status_message = format!("Found {} device(s).", self.available_devices.len());
@@ -424,6 +458,53 @@ impl FlexPadApp {
                 self.selected_device = self.available_devices.first().cloned();
             }
         }
+    }
+
+    fn handle_update_firmware(&mut self) -> Task<Message> {
+        if self.is_device_busy() || embedded_image().is_none() {
+            return Task::none();
+        }
+        let source = match (self.serial_port.clone(), self.download_port.clone()) {
+            (Some(port), _) => FlashSource::Device(port),
+            (None, Some(port_name)) => FlashSource::DownloadPort(port_name),
+            (None, None) => {
+                self.status_message = "Not connected to any device.".to_string();
+                return Task::none();
+            }
+        };
+        if !self.start_device_task(DeviceTask::Flashing) {
+            return Task::none();
+        }
+        self.serial_port = None;
+        self.connected_device = None;
+        self.download_port = None;
+        self.flash_stage = None;
+        Task::run(flash_events(source), Message::Flash)
+    }
+
+    fn handle_flash_finished(&mut self, result: Result<FlashOutcome, String>) -> Task<Message> {
+        self.device_task = None;
+        self.flash_stage = None;
+        match result {
+            Ok(FlashOutcome::Restarted) => {
+                let scan = self.handle_scan_devices();
+                self.status_message =
+                    "Firmware updated. The FlexPad restarted, scanning for it...".to_string();
+                return scan;
+            }
+            Ok(FlashOutcome::NeedsManualReset) => {
+                self.status_message = "Firmware updated. Press RESET on the FlexPad (or unplug \
+                                       and replug it), then click 'Scan Devices'."
+                    .to_string();
+            }
+            Err(e) => {
+                self.status_message = format!(
+                    "Firmware update failed: {e}. Click 'Scan Devices' and try again; \
+                     your configuration is kept."
+                );
+            }
+        }
+        Task::none()
     }
 
     fn handle_connect_device(&mut self) -> Task<Message> {
@@ -753,6 +834,30 @@ fn check_for_update() -> Task<Message> {
     )
 }
 
+fn flash_events(source: FlashSource) -> impl iced::futures::Stream<Item = FlashEvent> {
+    iced::stream::channel(16, async move |mut output| {
+        use iced::futures::SinkExt;
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        let worker = tokio::task::spawn_blocking(move || {
+            let progress = sender.clone();
+            let result = update_firmware(source, &mut |stage| {
+                let _ = progress.send(FlashEvent::Progress(stage));
+            });
+            let _ = sender.send(FlashEvent::Finished(result));
+        });
+        while let Some(event) = receiver.recv().await {
+            let _ = output.send(event).await;
+        }
+        if let Err(e) = worker.await {
+            let _ = output
+                .send(FlashEvent::Finished(Err(format!(
+                    "the update stopped: {e}"
+                ))))
+                .await;
+        }
+    })
+}
+
 fn in_background<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
     done: impl FnOnce(T) -> Message + Send + 'static,
@@ -785,6 +890,8 @@ mod tests {
             selected_profile: None,
             check_for_updates: true,
             available_update: None,
+            flash_stage: None,
+            download_port: None,
             ui: UiState::default(),
         }
     }
@@ -854,7 +961,7 @@ mod tests {
         app.selected_device = None;
 
         let _ = app.update(Message::ScanDevices);
-        let _ = app.update(Message::DevicesScanned(vec![device()]));
+        let _ = app.update(Message::DevicesScanned(vec![device()], None));
 
         assert!(!app.is_device_busy());
         assert_eq!(app.available_devices, [device()]);
@@ -911,5 +1018,75 @@ mod tests {
         app.device_task = None;
         let _ = app.update(Message::DisconnectDevice);
         assert!(app.connected_device.is_none());
+    }
+
+    // Firmware update
+
+    #[test]
+    fn scanning_reports_a_board_in_bootloader_mode() {
+        let mut app = test_app();
+
+        let _ = app.update(Message::ScanDevices);
+        let _ = app.update(Message::DevicesScanned(
+            Vec::new(),
+            Some("COM10".to_string()),
+        ));
+
+        assert_eq!(app.download_port.as_deref(), Some("COM10"));
+        assert!(app.status_message.contains("bootloader mode is on COM10"));
+    }
+
+    #[test]
+    fn firmware_update_tracks_progress_until_finished() {
+        let mut app = test_app();
+        app.device_task = Some(DeviceTask::Flashing);
+
+        let stage = FlashStage::Writing {
+            written: 1024,
+            total: 4096,
+        };
+        let _ = app.update(Message::Flash(FlashEvent::Progress(stage)));
+        assert_eq!(app.flash_stage, Some(stage));
+        assert!(app.is_device_busy());
+
+        let _ = app.update(Message::Flash(FlashEvent::Finished(Ok(
+            FlashOutcome::NeedsManualReset,
+        ))));
+        assert!(!app.is_device_busy());
+        assert_eq!(app.flash_stage, None);
+        assert!(app.status_message.contains("Press RESET"));
+
+        app.device_task = Some(DeviceTask::Flashing);
+        let _ = app.update(Message::Flash(FlashEvent::Finished(Err(
+            "the bootloader did not respond".to_string(),
+        ))));
+        assert!(!app.is_device_busy());
+        assert!(
+            app.status_message
+                .starts_with("Firmware update failed: the bootloader did not respond")
+        );
+
+        app.device_task = Some(DeviceTask::Flashing);
+        let _ = app.update(Message::Flash(FlashEvent::Finished(Ok(
+            FlashOutcome::Restarted,
+        ))));
+        assert_eq!(app.device_task, Some(DeviceTask::Scanning));
+        assert!(app.status_message.starts_with("Firmware updated."));
+    }
+
+    #[test]
+    fn firmware_update_needs_a_device_and_an_idle_port() {
+        let mut app = test_app();
+        app.download_port = Some("COM10".to_string());
+        app.device_task = Some(DeviceTask::Saving);
+
+        let _ = app.update(Message::UpdateFirmware);
+        assert_eq!(app.device_task, Some(DeviceTask::Saving));
+        assert_eq!(app.download_port.as_deref(), Some("COM10"));
+
+        app.device_task = None;
+        app.download_port = None;
+        let _ = app.update(Message::UpdateFirmware);
+        assert!(!app.is_device_busy());
     }
 }

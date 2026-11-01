@@ -1,7 +1,10 @@
-use crate::app::{FlexPadApp, Message};
+use crate::app::{DeviceTask, FlexPadApp, Message};
+use crate::flasher::{self, FlashStage};
 use crate::keys::KeyboardLayout;
 use crate::update::{self, APP_VERSION};
-use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
+use iced::widget::{
+    button, checkbox, column, container, pick_list, progress_bar, row, text, text_input,
+};
 use iced::{Element, Length};
 
 pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
@@ -46,6 +49,13 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
             ))
             .size(12),
         );
+        notices = notices.push(firmware_button("Update firmware", is_idle));
+    } else if !is_connected && is_idle && app.download_port.is_some() {
+        notices = notices.push(text("Board in bootloader mode found.").size(12));
+        notices = notices.push(firmware_button("Install firmware", is_idle));
+    }
+    if !has_firmware_image() && (outdated_firmware(app).is_some() || app.download_port.is_some()) {
+        notices = notices.push(text("This build of the app contains no firmware.").size(12));
     }
 
     let scan_btn = button("Scan Devices").on_press_maybe(is_idle.then_some(Message::ScanDevices));
@@ -103,16 +113,63 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
     ]
     .spacing(8);
 
+    let mut main_col = column![title, status_row, notices].spacing(10);
+    if let Some(progress) = flash_progress(app) {
+        main_col = main_col.push(progress);
+    }
+    main_col = main_col.push(top_action_row);
+
     row![
-        column![title, status_row, notices, top_action_row]
-            .spacing(10)
-            .width(Length::Fill),
+        main_col.width(Length::Fill),
         container(profile_controls_col).align_x(iced::alignment::Horizontal::Right)
     ]
     .width(Length::Fill)
     .align_y(iced::Alignment::Center)
     .into()
 }
+fn has_firmware_image() -> bool {
+    flasher::embedded_image().is_some()
+}
+
+fn firmware_button(label: &str, is_idle: bool) -> Element<'_, Message> {
+    button(text(label).size(12))
+        .padding([2, 8])
+        .on_press_maybe((is_idle && has_firmware_image()).then_some(Message::UpdateFirmware))
+        .into()
+}
+
+fn flash_progress(app: &FlexPadApp) -> Option<Element<'_, Message>> {
+    if app.device_task != Some(DeviceTask::Flashing) {
+        return None;
+    }
+    let (label, fraction) = match app.flash_stage {
+        None | Some(FlashStage::Rebooting) => {
+            ("Restarting the FlexPad into its bootloader...", 0.0)
+        }
+        Some(FlashStage::WaitingForBootloader) => ("Waiting for the bootloader...", 0.0),
+        Some(FlashStage::Connecting) => ("Connecting to the bootloader...", 0.0),
+        Some(FlashStage::Writing { written, total }) => (
+            "Writing the firmware...",
+            written as f32 / total.max(1) as f32,
+        ),
+        Some(FlashStage::Restarting) => ("Restarting the FlexPad...", 1.0),
+    };
+    Some(
+        column![
+            text("⚠ Do not unplug the FlexPad or close the app until the update is finished.")
+                .size(13),
+            row![
+                progress_bar(0.0..=1.0, fraction).length(300).girth(12),
+                text(format!("{label} {:.0} %", fraction * 100.0)).size(12),
+            ]
+            .spacing(10)
+            .align_y(iced::Alignment::Center),
+        ]
+        .spacing(4)
+        .into(),
+    )
+}
+
 fn outdated_firmware(app: &FlexPadApp) -> Option<&str> {
     let firmware = app.connected_device.as_ref()?.firmware_version.as_deref()?;
     update::is_newer(APP_VERSION, firmware).then_some(firmware)
