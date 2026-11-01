@@ -6,19 +6,33 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-11-01
+
 ### English
+
+#### Added
+- The window remembers its position and size (also maximized) in the local settings. On first start it opens centered at its minimum size; if the saved position is no longer on any screen, e.g. after unplugging a second monitor, it falls back to that. On Windows the position is restored, on macOS and Linux only the size.
 
 #### Changed
 - **Scan** is only available while no device is connected, **Connect** only with a selected device, and **Load Config** and **Set Config** only while connected.
-- The window opens centered on the screen at its minimum size.
 - The update check asks GitHub only for the latest release instead of a list of releases.
+
+#### Fixed
+- Drop-down lists no longer look broken for a moment when their content changes: the window is drawn with the graphics card again, with software drawing as fallback.
+- "Advanced View" no longer touches the "Tile Inspector" title.
 
 ### Deutsch
 
+#### Neu
+- Das Fenster merkt sich Position und Größe (auch maximiert) in den lokalen Einstellungen. Beim ersten Start öffnet es sich mittig in seiner Mindestgröße; liegt die gespeicherte Position auf keinem Bildschirm mehr, etwa nach dem Abstecken eines zweiten Monitors, fällt es darauf zurück. Unter Windows wird die Position wiederhergestellt, unter macOS und Linux nur die Größe.
+
 #### Geändert
 - **Scan** ist nur ohne verbundenes Gerät verfügbar, **Connect** nur mit ausgewähltem Gerät, **Load Config** und **Set Config** nur bei bestehender Verbindung.
-- Das Fenster öffnet sich in seiner Mindestgröße mittig auf dem Bildschirm.
 - Die Update-Prüfung fragt bei GitHub nur noch das neueste Release ab statt einer Liste von Releases.
+
+#### Behoben
+- Auswahllisten sehen nicht mehr kurz kaputt aus, wenn sich ihr Inhalt ändert: Das Fenster wird wieder mit der Grafikkarte gezeichnet, Software-Zeichnen bleibt als Rückfall.
+- „Advanced View“ klebt nicht mehr am Titel „Tile Inspector“.
 
 ## [1.0.0] – 2026-11-01
 
