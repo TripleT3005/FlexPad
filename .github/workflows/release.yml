@@ -394,6 +394,7 @@ jobs:
 
   discord-app:
     needs: [version, release-app]
+    if: ${{ !cancelled() && needs.release-app.result == 'success' }}
     uses: TripleT3005/TripleT3005/.github/workflows/discord-release.yml@main
     with:
       title: FlexPad ${{ needs.version.outputs.app_version }}
