@@ -1,7 +1,10 @@
-name: CI
+name: CI firmware
 
 on:
   pull_request:
+    paths:
+      - .github/workflows/ci-firmware.yml
+      - flexpad-firmware/**
   push:
     branches: [main]
 
@@ -9,51 +12,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-firmware-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  desktop:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: flexpad-desktop
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
-
-      - name: Install Rust
-        run: rustup toolchain install stable --profile minimal --component clippy,rustfmt && rustup default stable
-
-      - uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            flexpad-desktop/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('flexpad-desktop/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
-
-      - name: Check formatting
-        run: cargo fmt --check
-
-      - name: Lint
-        run: cargo clippy --all-targets --locked -- -D warnings
-
-      - name: Build
-        run: cargo build --locked
-
-      - name: Test
-        run: cargo test --locked
-
   firmware:
     runs-on: ubuntu-latest
     defaults:
