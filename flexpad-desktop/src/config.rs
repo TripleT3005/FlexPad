@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::profile::{self, Profile};
+use crate::window_state::WindowGeometry;
 
 // Constants
 
@@ -154,6 +155,8 @@ pub struct UserSettings {
     pub advanced_mode: bool,
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,
+    #[serde(default)]
+    pub window: Option<WindowGeometry>,
 }
 
 fn default_check_for_updates() -> bool {
@@ -166,6 +169,7 @@ impl Default for UserSettings {
             last_profile: None,
             advanced_mode: false,
             check_for_updates: default_check_for_updates(),
+            window: None,
         }
     }
 }
