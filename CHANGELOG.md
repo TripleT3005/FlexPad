@@ -11,12 +11,16 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 #### Added
 - The configurator checks GitHub for a newer release at start and every 24 hours and shows "Version x.y.z available" in the header with a link to the release page. Nothing is downloaded. The check can be switched off with "Check for updates" in the header; then no request is made.
 - The configurator points out when the firmware of the connected device is older than the app.
+- "Update firmware" next to that note writes the firmware built into the app to the FlexPad, with a progress bar, and restarts it. The profile stored on the device is kept.
+- A board in bootloader mode (e.g. a new board, or after holding BOOT) is found by "Scan Devices" and can be set up with "Install firmware".
 
 ### Deutsch
 
 #### Neu
 - Der Konfigurator prüft beim Start und alle 24 Stunden bei GitHub, ob es ein neueres Release gibt, und zeigt im Kopfbereich „Version x.y.z available“ mit Link zur Release-Seite an. Es wird nichts heruntergeladen. Die Prüfung lässt sich mit „Check for updates“ im Kopfbereich abschalten; dann erfolgt keine Anfrage.
 - Der Konfigurator weist darauf hin, wenn die Firmware des verbundenen Geräts älter ist als die App.
+- „Update firmware“ neben diesem Hinweis schreibt die in die App eingebaute Firmware mit Fortschrittsbalken auf den FlexPad und startet ihn neu. Das auf dem Gerät gespeicherte Profil bleibt erhalten.
+- Ein Board im Bootloader-Modus (z. B. ein neues Board oder nach Halten von BOOT) findet „Scan Devices“, und „Install firmware“ richtet es ein.
 
 ## [0.2.0] – 2026-10-31
 
