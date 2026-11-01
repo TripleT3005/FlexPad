@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/release.yml
       - .github/scripts/**
+      - assets/icons/**
       - installer/**
       - flexpad-desktop/Cargo.toml
       - flexpad-desktop/CHANGELOG.md
@@ -224,11 +225,10 @@ jobs:
           mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/usr/share/doc/flexpad"
           install -m 755 flexpad-desktop/target/release/flexpad "$stage/usr/bin/flexpad"
           install -m 644 installer/linux/flexpad.desktop "$stage/usr/share/applications/flexpad.desktop"
-          for icon in flexpad-desktop/target/release/icons/*.png; do
-            size=$(basename "$icon" .png)
-            install -D -m 644 "$icon" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/flexpad.png"
+          for size in 16 32 64 128 256; do
+            install -D -m 644 "assets/icons/icon-$size.png" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/flexpad.png"
           done
-          install -D -m 644 assets/logo.svg "$stage/usr/share/icons/hicolor/scalable/apps/flexpad.svg"
+          install -D -m 644 assets/icons/icon.svg "$stage/usr/share/icons/hicolor/scalable/apps/flexpad.svg"
           install -m 644 LICENSE README.md flexpad-desktop/CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
 
           deb="dist/flexpad_${package_version}_amd64.deb"

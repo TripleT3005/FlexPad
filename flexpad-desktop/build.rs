@@ -1,14 +1,10 @@
-#[path = "src/icon.rs"]
-#[allow(dead_code)]
-mod icon;
-
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 // Constants
 const FIRMWARE_IMAGE_VARIABLE: &str = "FLEXPAD_FIRMWARE_IMAGE";
-const ICON_SIZES: [u16; 7] = [16, 20, 24, 32, 48, 64, 256];
+const ICON_DIRECTORY: &str = "../assets/icons";
 const RT_ICON: u16 = 3;
 const RT_GROUP_ICON: u16 = 14;
 const RT_VERSION: u16 = 16;
@@ -16,17 +12,13 @@ const RT_MANIFEST: u16 = 24;
 const LANGUAGE_EN_US: u16 = 0x0409;
 const CODE_PAGE_UNICODE: u16 = 1200;
 const MEMORY_FLAGS: u16 = 0x1030;
-const ICNS_ENTRIES: [(&[u8; 4], u16); 6] = [
+const ICNS_ENTRIES: [(&[u8; 4], u16); 5] = [
     (b"icp4", 16),
     (b"icp5", 32),
     (b"icp6", 64),
     (b"ic07", 128),
     (b"ic08", 256),
-    (b"ic09", 512),
 ];
-const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'];
-const MAX_STORED_BLOCK: usize = 65_535;
-const LINUX_ICON_SIZES: [u16; 8] = [16, 24, 32, 48, 64, 128, 256, 512];
 const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
@@ -41,7 +33,7 @@ const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?
 // Build
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/icon.rs");
+    println!("cargo:rerun-if-changed={ICON_DIRECTORY}");
     println!("cargo:rerun-if-changed=Cargo.toml");
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let is_msvc = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|target_env| target_env == "msvc");
@@ -54,26 +46,12 @@ fn main() {
         fs::write(profile_dir.join("FlexPad.icns"), icns_file())
             .expect("writing the icon file failed");
     }
-    if target_os == "linux"
-        && let Some(profile_dir) = out_dir.ancestors().nth(3)
-    {
-        let icons = profile_dir.join("icons");
-        fs::create_dir_all(&icons).expect("creating the icon folder failed");
-        for size in LINUX_ICON_SIZES {
-            fs::write(icons.join(format!("{size}.png")), png_image(size))
-                .expect("writing an icon failed");
-        }
-    }
     if target_os != "windows" || !is_msvc {
         return;
     }
     let path = out_dir.join("flexpad.res");
     fs::write(&path, resources()).expect("writing the resource file failed");
     println!("cargo:rustc-link-arg-bins={}", path.display());
-    if let Some(profile_dir) = out_dir.ancestors().nth(3) {
-        fs::write(profile_dir.join("FlexPad.ico"), icon_file())
-            .expect("writing the icon file failed");
-    }
 }
 
 // Firmware version
@@ -116,37 +94,46 @@ fn embed_firmware_image(out_dir: &Path) {
     fs::write(out_dir.join("firmware.bin"), image).expect("writing the firmware image failed");
 }
 
-// Icon file
-fn icon_file() -> Vec<u8> {
-    let images: Vec<(u16, Vec<u8>)> = ICON_SIZES
-        .into_iter()
-        .map(|size| (size, icon_image(size)))
-        .collect();
-    let mut file = Vec::new();
-    push_u16(&mut file, 0);
-    push_u16(&mut file, 1);
-    push_u16(&mut file, u16::try_from(images.len()).unwrap_or(0));
-    let mut offset = 6 + 16 * images.len();
-    for (size, image) in &images {
-        let dimension = u8::try_from(*size).unwrap_or(0);
-        file.extend_from_slice(&[dimension, dimension, 0, 0]);
-        push_u16(&mut file, 1);
-        push_u16(&mut file, 32);
-        push_u32(&mut file, u32::try_from(image.len()).unwrap_or(0));
-        push_u32(&mut file, u32::try_from(offset).unwrap_or(0));
-        offset += image.len();
-    }
-    for (_, image) in &images {
-        file.extend_from_slice(image);
-    }
-    file
+// Icon
+fn icon_images() -> Vec<([u8; 8], Vec<u8>)> {
+    let file =
+        fs::read(format!("{ICON_DIRECTORY}/icon.ico")).expect("reading the icon file failed");
+    let read_u32 = |offset: usize| {
+        let bytes = file
+            .get(offset..offset + 4)
+            .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+            .expect("the icon file is truncated");
+        usize::try_from(u32::from_le_bytes(bytes)).expect("the icon file is too large")
+    };
+    let count = file
+        .get(4..6)
+        .map(|bytes| usize::from(u16::from_le_bytes([bytes[0], bytes[1]])))
+        .expect("the icon file has no header");
+    assert!(count > 0, "the icon file contains no images");
+    (0..count)
+        .map(|index| {
+            let entry = 6 + index * 16;
+            let mut header = [0; 8];
+            header.copy_from_slice(
+                file.get(entry..entry + 8)
+                    .expect("the icon file is truncated"),
+            );
+            let (length, offset) = (read_u32(entry + 8), read_u32(entry + 12));
+            let image = file
+                .get(offset..offset + length)
+                .expect("the icon file is truncated")
+                .to_vec();
+            (header, image)
+        })
+        .collect()
 }
 
 // macOS icon
 fn icns_file() -> Vec<u8> {
     let mut entries = Vec::new();
     for (kind, size) in ICNS_ENTRIES {
-        let png = png_image(size);
+        let png =
+            fs::read(format!("{ICON_DIRECTORY}/icon-{size}.png")).expect("reading an icon failed");
         entries.extend_from_slice(kind);
         entries.extend_from_slice(&u32::try_from(png.len() + 8).unwrap_or(0).to_be_bytes());
         entries.extend_from_slice(&png);
@@ -157,90 +144,21 @@ fn icns_file() -> Vec<u8> {
     file
 }
 
-fn png_image(size: u16) -> Vec<u8> {
-    let rgba = icon::icon_pixels(size);
-    let row = usize::from(size) * 4;
-    let mut raw = Vec::with_capacity((row + 1) * usize::from(size));
-    for line in rgba.chunks(row) {
-        raw.push(0);
-        raw.extend_from_slice(line);
-    }
-    let mut header = Vec::new();
-    header.extend_from_slice(&u32::from(size).to_be_bytes());
-    header.extend_from_slice(&u32::from(size).to_be_bytes());
-    header.extend_from_slice(&[8, 6, 0, 0, 0]);
-    let mut png = PNG_SIGNATURE.to_vec();
-    png_chunk(&mut png, *b"IHDR", &header);
-    png_chunk(&mut png, *b"IDAT", &zlib_stored(&raw));
-    png_chunk(&mut png, *b"IEND", &[]);
-    png
-}
-
-fn png_chunk(png: &mut Vec<u8>, kind: [u8; 4], data: &[u8]) {
-    png.extend_from_slice(&u32::try_from(data.len()).unwrap_or(0).to_be_bytes());
-    let start = png.len();
-    png.extend_from_slice(&kind);
-    png.extend_from_slice(data);
-    let checksum = crc32(&png[start..]);
-    png.extend_from_slice(&checksum.to_be_bytes());
-}
-
-fn zlib_stored(data: &[u8]) -> Vec<u8> {
-    let mut output = vec![0x78, 0x01];
-    let blocks: Vec<&[u8]> = data.chunks(MAX_STORED_BLOCK).collect();
-    for (index, block) in blocks.iter().enumerate() {
-        output.push(u8::from(index + 1 == blocks.len()));
-        let length = u16::try_from(block.len()).unwrap_or(u16::MAX);
-        output.extend_from_slice(&length.to_le_bytes());
-        output.extend_from_slice(&(!length).to_le_bytes());
-        output.extend_from_slice(block);
-    }
-    output.extend_from_slice(&adler32(data).to_be_bytes());
-    output
-}
-
-fn crc32(data: &[u8]) -> u32 {
-    let mut crc = 0xFFFF_FFFF_u32;
-    for byte in data {
-        crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            crc = if crc & 1 == 1 {
-                (crc >> 1) ^ 0xEDB8_8320
-            } else {
-                crc >> 1
-            };
-        }
-    }
-    !crc
-}
-
-fn adler32(data: &[u8]) -> u32 {
-    let (mut first, mut second) = (1_u32, 0_u32);
-    for byte in data {
-        first = (first + u32::from(*byte)) % 65_521;
-        second = (second + first) % 65_521;
-    }
-    (second << 16) | first
-}
-
 // Resources
 fn resources() -> Vec<u8> {
     let mut file = Vec::new();
     push_resource(&mut file, 0, 0, &[], 0, 0);
+    let images = icon_images();
     let mut group = Vec::new();
     push_u16(&mut group, 0);
     push_u16(&mut group, 1);
-    push_u16(&mut group, u16::try_from(ICON_SIZES.len()).unwrap_or(0));
-    for (index, size) in ICON_SIZES.into_iter().enumerate() {
+    push_u16(&mut group, u16::try_from(images.len()).unwrap_or(0));
+    for (index, (header, image)) in images.iter().enumerate() {
         let id = u16::try_from(index + 1).unwrap_or(u16::MAX);
-        let image = icon_image(size);
-        let dimension = u8::try_from(size).unwrap_or(0);
-        group.extend_from_slice(&[dimension, dimension, 0, 0]);
-        push_u16(&mut group, 1);
-        push_u16(&mut group, 32);
+        group.extend_from_slice(header);
         push_u32(&mut group, u32::try_from(image.len()).unwrap_or(0));
         push_u16(&mut group, id);
-        push_resource(&mut file, RT_ICON, id, &image, MEMORY_FLAGS, LANGUAGE_EN_US);
+        push_resource(&mut file, RT_ICON, id, image, MEMORY_FLAGS, LANGUAGE_EN_US);
     }
     push_resource(
         &mut file,
@@ -282,31 +200,6 @@ fn push_resource(file: &mut Vec<u8>, kind: u16, id: u16, data: &[u8], flags: u16
     push_u32(file, 0);
     file.extend_from_slice(data);
     align(file);
-}
-
-fn icon_image(size: u16) -> Vec<u8> {
-    let rgba = icon::icon_pixels(size);
-    let width = usize::from(size);
-    let mask_row = width.div_ceil(32) * 4;
-    let mut image = Vec::new();
-    push_u32(&mut image, 40);
-    push_u32(&mut image, u32::from(size));
-    push_u32(&mut image, u32::from(size) * 2);
-    push_u16(&mut image, 1);
-    push_u16(&mut image, 32);
-    push_u32(&mut image, 0);
-    push_u32(
-        &mut image,
-        u32::try_from(width * width * 4 + mask_row * width).unwrap_or(0),
-    );
-    image.extend_from_slice(&[0; 16]);
-    for row in rgba.chunks(width * 4).rev() {
-        for pixel in row.chunks(4) {
-            image.extend_from_slice(&[pixel[2], pixel[1], pixel[0], pixel[3]]);
-        }
-    }
-    image.resize(image.len() + mask_row * width, 0);
-    image
 }
 
 // Version
