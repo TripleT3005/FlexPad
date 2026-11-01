@@ -11,12 +11,22 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 #### Added
 - The configurator checks GitHub for a newer release at start and every 24 hours and shows "Version x.y.z available" in the header with a link to the release page. Nothing is downloaded. The check can be switched off with "Check for updates" in the header; then no request is made.
 - The configurator points out when the firmware of the connected device is older than the app.
+- "Test" button next to each function in the Tile Inspector: runs the macro once on the connected device without saving and shows the answer, e.g. an unknown key, at the function.
+- Wiring test: while connected, pressing a button or turning an encoder briefly highlights its tile on the canvas; pins without a tile are named in the status line, e.g. "GPIO 12 pressed – not assigned".
+
+#### Changed
+- The configurator reads from the device in the background all the time, so device events and command answers no longer get in each other's way; unplugging is noticed right away.
 
 ### Deutsch
 
 #### Neu
 - Der Konfigurator prüft beim Start und alle 24 Stunden bei GitHub, ob es ein neueres Release gibt, und zeigt im Kopfbereich „Version x.y.z available“ mit Link zur Release-Seite an. Es wird nichts heruntergeladen. Die Prüfung lässt sich mit „Check for updates“ im Kopfbereich abschalten; dann erfolgt keine Anfrage.
 - Der Konfigurator weist darauf hin, wenn die Firmware des verbundenen Geräts älter ist als die App.
+- Knopf „Test“ neben jeder Funktion im Tile Inspector: führt das Makro einmal auf dem verbundenen Gerät aus, ohne zu speichern, und zeigt die Antwort, z. B. eine unbekannte Taste, an der Funktion an.
+- Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die Kachel kurz auf der Arbeitsfläche hervor; Pins ohne Kachel nennt die Statuszeile, z. B. „GPIO 12 pressed – not assigned“.
+
+#### Geändert
+- Der Konfigurator liest im Hintergrund ständig vom Gerät, sodass sich Ereignisse und Antworten auf Befehle nicht mehr in die Quere kommen; das Abziehen des Geräts wird sofort bemerkt.
 
 ## [0.2.0] – 2026-10-31
 
