@@ -1,6 +1,7 @@
 use iced::widget::{column, container};
 use iced::{Element, Length, Subscription, Task};
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use crate::canvas;
 use crate::components::{self, Component};
@@ -10,8 +11,9 @@ use crate::config::{
 };
 use crate::constants::PRESETS;
 use crate::device::{
-    Connection, DeviceEvent, FlexPadDeviceInfo, connect_to_port, device_events,
-    fetch_config_from_device, scan_flexpad_devices, set_config_to_device,
+    Connection, DeviceEvent, FlexPadDeviceInfo, InputEvent, PinEdge, TurnDirection,
+    connect_to_port, device_events, fetch_config_from_device, scan_flexpad_devices,
+    set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
@@ -41,6 +43,16 @@ pub struct UiState {
     pub expanded_functions: Vec<String>,
     pub raw_macro_input: Option<(String, String)>,
     pub pending_overwrite: bool,
+    pub highlighted_tiles: Vec<(String, Instant)>,
+}
+
+impl UiState {
+    pub fn highlighted_tile_ids(&self) -> Vec<String> {
+        self.highlighted_tiles
+            .iter()
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
 }
 
 impl Default for UiState {
@@ -55,9 +67,15 @@ impl Default for UiState {
             expanded_functions: Vec::new(),
             raw_macro_input: None,
             pending_overwrite: false,
+            highlighted_tiles: Vec::new(),
         }
     }
 }
+
+// Constants
+
+const HIGHLIGHT_DURATION: Duration = Duration::from_millis(400);
+const HIGHLIGHT_TICK: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceTask {
@@ -113,6 +131,7 @@ pub enum Message {
     ConfigSet(Result<(), String>),
     DeviceTaskFailed,
     DeviceEvent(DeviceEvent),
+    HighlightTick(Instant),
     ProfileSelected(ProfileItem),
     SaveCurrentProfile,
     NewProfile,
@@ -204,12 +223,18 @@ impl FlexPadApp {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        match &self.serial_port {
+        let events = match &self.serial_port {
             Some(connection) => {
                 Subscription::run_with(connection.clone(), device_events).map(Message::DeviceEvent)
             }
             None => Subscription::none(),
-        }
+        };
+        let highlights = if self.ui.highlighted_tiles.is_empty() {
+            Subscription::none()
+        } else {
+            iced::time::every(HIGHLIGHT_TICK).map(Message::HighlightTick)
+        };
+        Subscription::batch([events, highlights])
     }
 
     pub fn selected_tile(&self) -> Option<&Tile> {
@@ -249,6 +274,7 @@ impl FlexPadApp {
                 if !self.is_device_busy() {
                     self.serial_port = None;
                     self.connected_device = None;
+                    self.ui.highlighted_tiles.clear();
                     self.status_message = "Disconnected.".to_string();
                 }
             }
@@ -264,7 +290,10 @@ impl FlexPadApp {
                 self.device_task = None;
                 self.status_message = "The device access failed unexpectedly.".to_string();
             }
-            Message::DeviceEvent(event) => self.handle_device_event(event),
+            Message::DeviceEvent(event) => self.handle_device_event(event, Instant::now()),
+            Message::HighlightTick(now) => {
+                self.ui.highlighted_tiles.retain(|(_, until)| *until > now);
+            }
             Message::ProfileSelected(profile) => self.handle_profile_selected(profile),
             Message::SaveCurrentProfile => self.handle_save_profile(),
             Message::NewProfile => self.handle_new_profile(),
@@ -529,15 +558,29 @@ impl FlexPadApp {
         };
     }
 
-    fn handle_device_event(&mut self, event: DeviceEvent) {
+    fn handle_device_event(&mut self, event: DeviceEvent, now: Instant) {
         match event {
             DeviceEvent::Disconnected => {
                 if self.serial_port.take().is_some() {
                     self.connected_device = None;
+                    self.ui.highlighted_tiles.clear();
                     self.status_message = "Device was unplugged! Disconnected.".to_string();
                 }
             }
-            DeviceEvent::Input(_) => {}
+            DeviceEvent::Input(input) => self.handle_input_event(input, now),
+        }
+    }
+
+    fn handle_input_event(&mut self, event: InputEvent, now: Instant) {
+        let tile = tile_for_input(&self.tiles, event);
+        if let Some(status) = input_status(event, tile) {
+            self.status_message = status;
+        }
+        if let Some(id) = tile.map(|tile| tile.id.clone()) {
+            self.ui.highlighted_tiles.retain(|(other, _)| *other != id);
+            self.ui
+                .highlighted_tiles
+                .push((id, now + HIGHLIGHT_DURATION));
         }
     }
 
@@ -679,6 +722,35 @@ impl FlexPadApp {
     }
 }
 
+fn tile_for_input(tiles: &[Tile], event: InputEvent) -> Option<&Tile> {
+    match event {
+        InputEvent::Pin(pin, _) => tiles
+            .iter()
+            .find(|tile| tile.pins.values().any(|&used| used == pin)),
+        InputEvent::Encoder(pin_a, _) => tiles.iter().find(|tile| tile.pin("a") == Some(pin_a)),
+    }
+}
+
+fn input_status(event: InputEvent, tile: Option<&Tile>) -> Option<String> {
+    let target = tile.map_or_else(
+        || "not assigned".to_string(),
+        |tile| tile.display_name.clone(),
+    );
+    match event {
+        InputEvent::Pin(pin, PinEdge::Pressed) => Some(format!("GPIO {pin} pressed – {target}")),
+        InputEvent::Pin(_, PinEdge::Released) => None,
+        InputEvent::Encoder(pin_a, direction) => {
+            let direction = match direction {
+                TurnDirection::Right => "right",
+                TurnDirection::Left => "left",
+            };
+            Some(format!(
+                "Encoder on GPIO {pin_a} turned {direction} – {target}"
+            ))
+        }
+    }
+}
+
 fn load_profile_items() -> Vec<ProfileItem> {
     list_saved_profiles()
         .into_iter()
@@ -813,5 +885,144 @@ mod tests {
         app.device_task = None;
         let _ = app.update(Message::DisconnectDevice);
         assert!(app.connected_device.is_none());
+    }
+
+    // Live wiring
+
+    fn wired_app() -> FlexPadApp {
+        let mut button = Tile::new(
+            &components::BUTTON,
+            "copy".to_string(),
+            "Copy".to_string(),
+            0.0,
+            0.0,
+        );
+        button.set_pin("switch", Some(4));
+        let mut encoder = Tile::new(
+            &components::EC11,
+            "volume".to_string(),
+            "Volume".to_string(),
+            0.0,
+            0.0,
+        );
+        encoder.set_pin("a", Some(15));
+        encoder.set_pin("b", Some(16));
+        encoder.set_pin("switch", Some(17));
+        let mut app = test_app();
+        app.tiles = vec![button, encoder];
+        app
+    }
+
+    fn input(app: &mut FlexPadApp, event: InputEvent, now: Instant) {
+        app.handle_device_event(DeviceEvent::Input(event), now);
+    }
+
+    #[test]
+    fn pin_events_highlight_their_tile() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Pressed), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy"]);
+        assert_eq!(app.status_message, "GPIO 4 pressed – Copy");
+
+        input(&mut app, InputEvent::Pin(17, PinEdge::Pressed), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy", "volume"]);
+        assert_eq!(app.status_message, "GPIO 17 pressed – Volume");
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Released), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["volume", "copy"]);
+        assert_eq!(app.status_message, "GPIO 17 pressed – Volume");
+    }
+
+    #[test]
+    fn encoder_events_use_pin_a() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Encoder(15, TurnDirection::Right), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["volume"]);
+        assert_eq!(
+            app.status_message,
+            "Encoder on GPIO 15 turned right – Volume"
+        );
+
+        app.ui.highlighted_tiles.clear();
+        input(&mut app, InputEvent::Encoder(16, TurnDirection::Left), now);
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(
+            app.status_message,
+            "Encoder on GPIO 16 turned left – not assigned"
+        );
+    }
+
+    #[test]
+    fn unassigned_pins_only_show_in_the_status_line() {
+        let mut app = wired_app();
+
+        input(
+            &mut app,
+            InputEvent::Pin(12, PinEdge::Pressed),
+            Instant::now(),
+        );
+
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(app.status_message, "GPIO 12 pressed – not assigned");
+    }
+
+    #[test]
+    fn highlights_expire() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Pressed), now);
+        let _ = app.update(Message::HighlightTick(now + HIGHLIGHT_DURATION / 2));
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy"]);
+
+        let _ = app.update(Message::HighlightTick(now + HIGHLIGHT_DURATION));
+        assert!(app.ui.highlighted_tiles.is_empty());
+    }
+
+    #[test]
+    fn unplugging_disconnects_and_clears_highlights() {
+        let mut app = wired_app();
+        app.serial_port = Some(Connection::open(UnpluggedLink));
+        app.connected_device = Some(device());
+        input(
+            &mut app,
+            InputEvent::Pin(4, PinEdge::Pressed),
+            Instant::now(),
+        );
+
+        let _ = app.update(Message::DeviceEvent(DeviceEvent::Disconnected));
+
+        assert!(app.serial_port.is_none());
+        assert!(app.connected_device.is_none());
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(app.status_message, "Device was unplugged! Disconnected.");
+    }
+
+    struct UnpluggedLink;
+
+    impl std::io::Read for UnpluggedLink {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+    }
+
+    impl std::io::Write for UnpluggedLink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl crate::device::Link for UnpluggedLink {
+        fn is_open(&self) -> bool {
+            false
+        }
     }
 }
