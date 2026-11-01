@@ -33,7 +33,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 **Usable pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 inputs). Left out on purpose: GPIO 0, 3, 45 and 46 (strapping pins), 19/20 (USB) and 33–37, which modules with octal PSRAM or octal flash (such as N16R8) use internally.
 
 ### Installation
-Download the app and the firmware from [Releases](../../releases).
+Download the app from [Releases](../../releases) (releases named `FlexPad <version>`, tag `v<version>`). The app contains the matching firmware and installs or updates it on the board (see [Firmware](#firmware)). The firmware is also published on its own as `FlexPad firmware <version>` (tag `firmware-v<version>`). Changes are listed in the changelogs of the [app](flexpad-desktop/CHANGELOG.md) and the [firmware](flexpad-firmware/CHANGELOG.md).
 
 #### App
 **Windows:** run `FlexPad-<version>-windows-x64-setup.exe`. It installs for the current user without administrator rights (to `%LOCALAPPDATA%\Programs\FlexPad`); "Install for all users" installs to `C:\Program Files\FlexPad` and asks for administrator rights. Options: Start menu entry (on), desktop shortcut (off). Instead of the installer you can use the portable archive `…-windows-x64-portable.zip`.
@@ -72,7 +72,7 @@ The app contains the firmware of its own version and writes it itself, no extra 
 
 Do not unplug the board while the progress bar is shown. If the board does not restart by itself afterwards, press **RESET** or unplug it briefly. The profile stored on the device is kept: only bootloader, partition table and app are written, and the image ends before the profile partition.
 
-Alternatively, `FlexPad-firmware-<version>-esp32s3.bin` from the release contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
+Alternatively, `FlexPad-firmware-<version>-esp32s3.bin` from the firmware release contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
 
 1. Put the board into download mode: hold **BOOT**, press **RESET**, release **BOOT**. If the FlexPad firmware is already running, sending `REBOOT_BOOTLOADER` over its serial port does the same.
 2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<version>-esp32s3.bin`
@@ -159,7 +159,7 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 After flashing, press **RESET** (or unplug the board briefly) to start the firmware. `espflash` may report an error for the final `FlashEnd` step; the firmware is written anyway. The profile is stored in its own partition `flexpad` (64 KB) and is kept when a new firmware is flashed.
 
 #### Releases
-A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` (a test and the release workflow check that both and the newest changelog section match) together with a section for it in [CHANGELOG.md](CHANGELOG.md) creates a release when merged into `main`; the changelog section becomes the release notes. Changes without a new version are collected under `[Unreleased]`; a release fails while that section still has entries, so they have to be moved into the section of the new version. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases.
+App and firmware have their own versions: `flexpad-desktop/Cargo.toml` with [flexpad-desktop/CHANGELOG.md](flexpad-desktop/CHANGELOG.md), and `flexpad-firmware/Cargo.toml` with [flexpad-firmware/CHANGELOG.md](flexpad-firmware/CHANGELOG.md). A test and the release workflow check that each version matches the newest section of its changelog. When a new version is merged into `main`, the release workflow publishes it: the app as `v<version>` (marked as latest release), the firmware as `firmware-v<version>`; the changelog section becomes the release notes. The app always contains the current firmware, so a new firmware version also needs a new app version, otherwise the release fails; a new app version alone does not need a firmware release. Changes without a new version are collected under `[Unreleased]`; a release fails while that section still has entries. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases. Compatibility between app and firmware is decided by the protocol version in `GET_DEVICE_INFO` (see [docs/protocol.md](docs/protocol.md)), not by equal version numbers.
 
 <!-- /web:skip -->
 
@@ -195,7 +195,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 **Nutzbare Pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 Eingänge). Bewusst ausgenommen: GPIO 0, 3, 45 und 46 (Strapping-Pins), 19/20 (USB) und 33–37, die Module mit Octal-PSRAM oder Octal-Flash (z. B. N16R8) intern nutzen.
 
 ### Installation
-App und Firmware gibt es unter [Releases](../../releases).
+Die App gibt es unter [Releases](../../releases) (Releases mit Namen `FlexPad <Version>`, Tag `v<Version>`). Die App enthält die passende Firmware und installiert oder aktualisiert sie auf dem Board (siehe [Firmware](#firmware-2)). Die Firmware erscheint außerdem einzeln als `FlexPad firmware <Version>` (Tag `firmware-v<Version>`). Änderungen stehen in den Changelogs von [App](flexpad-desktop/CHANGELOG.md) und [Firmware](flexpad-firmware/CHANGELOG.md).
 
 #### App
 **Windows:** `FlexPad-<Version>-windows-x64-setup.exe` ausführen. Es installiert für den aktuellen Benutzer ohne Administratorrechte (nach `%LOCALAPPDATA%\Programs\FlexPad`); „Für alle Benutzer installieren“ installiert nach `C:\Program Files\FlexPad` und fragt nach Administratorrechten. Optionen: Startmenü-Eintrag (an), Desktop-Verknüpfung (aus). Statt des Installers geht auch das portable Archiv `…-windows-x64-portable.zip`.
@@ -234,7 +234,7 @@ Die App enthält die Firmware ihrer eigenen Version und schreibt sie selbst, ohn
 
 Das Board nicht abziehen, solange der Fortschrittsbalken zu sehen ist. Startet es danach nicht von selbst neu, **RESET** drücken oder es kurz abziehen. Das auf dem Gerät gespeicherte Profil bleibt erhalten: Geschrieben werden nur Bootloader, Partitionstabelle und App, und das Image endet vor der Profil-Partition.
 
-Alternativ enthält `FlexPad-firmware-<Version>-esp32s3.bin` aus dem Release Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
+Alternativ enthält `FlexPad-firmware-<Version>-esp32s3.bin` aus dem Firmware-Release Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
 
 1. Das Board in den Download-Modus bringen: **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen. Läuft bereits die FlexPad-Firmware, geht das auch, indem man über ihren seriellen Port `REBOOT_BOOTLOADER` sendet.
 2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<Version>-esp32s3.bin`
@@ -321,7 +321,7 @@ espflash flash --no-stub --before no-reset --after watchdog-reset --partition-ta
 Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Firmware startet. `espflash` meldet beim letzten Schritt `FlashEnd` eventuell einen Fehler; die Firmware ist trotzdem geschrieben. Das Profil liegt in einer eigenen Partition `flexpad` (64 KB) und bleibt beim Flashen einer neuen Firmware erhalten.
 
 #### Releases
-Eine neue Version in `flexpad-desktop/Cargo.toml` und `flexpad-firmware/Cargo.toml` (ein Test und der Release-Workflow prüfen, dass beide und der neueste Changelog-Abschnitt übereinstimmen) zusammen mit einem Abschnitt dafür in der [CHANGELOG.md](CHANGELOG.md) erzeugt beim Merge in `main` ein Release; der Changelog-Abschnitt wird zu den Release-Notizen. Änderungen ohne neue Version stehen unter `[Unreleased]`; ein Release schlägt fehl, solange dieser Abschnitt noch Einträge hat, sie müssen also in den Abschnitt der neuen Version verschoben werden. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion.
+App und Firmware haben eigene Versionen: `flexpad-desktop/Cargo.toml` mit [flexpad-desktop/CHANGELOG.md](flexpad-desktop/CHANGELOG.md) und `flexpad-firmware/Cargo.toml` mit [flexpad-firmware/CHANGELOG.md](flexpad-firmware/CHANGELOG.md). Ein Test und der Release-Workflow prüfen, dass jede Version zum neuesten Abschnitt ihres Changelogs passt. Landet eine neue Version auf `main`, veröffentlicht der Release-Workflow sie: die App als `v<Version>` (als neuestes Release markiert), die Firmware als `firmware-v<Version>`; der Changelog-Abschnitt wird zu den Release-Notizen. Die App enthält immer die aktuelle Firmware, eine neue Firmware-Version braucht also auch eine neue App-Version, sonst schlägt das Release fehl; eine neue App-Version allein braucht kein Firmware-Release. Änderungen ohne neue Version stehen unter `[Unreleased]`; ein Release schlägt fehl, solange dieser Abschnitt noch Einträge hat. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion. Ob App und Firmware zusammenpassen, entscheidet die Protokollversion in `GET_DEVICE_INFO` (siehe [docs/protocol.md](docs/protocol.md)), nicht gleiche Versionsnummern.
 
 <!-- /web:skip -->
 
