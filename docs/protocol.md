@@ -13,7 +13,7 @@ This document describes how the desktop app and the Rust firmware (`flexpad-firm
 
 | Command | Response |
 |---|---|
-| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>,<firmware version>` |
+| `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>,<firmware version>,<protocol version>`; firmware before 1.2.0 sends no protocol version, which means protocol version 1 |
 | `GET_CONFIG` | `CONFIG_DATA:<profile JSON>`, exactly as stored; `CONFIG_DATA:{}` if none is stored |
 | `SET_CONFIG:<profile JSON>` | `CONFIG_SAVED`, or `CONFIG_ERROR:<reason>` (see [Errors](#errors)); on error the stored profile stays unchanged |
 | `RUN_MACRO:<function JSON>` | Runs a [function object](#functions) once, e.g. `RUN_MACRO:{"actions":[{"media":"mute"}]}`; `MACRO_QUEUED`, or `MACRO_ERROR:<reason>`; text actions use the `keyboard_layout` of the stored profile |
@@ -21,6 +21,8 @@ This document describes how the desktop app and the Rust firmware (`flexpad-firm
 | anything else | `ERROR:unknown_command` |
 
 The profile JSON must fit on one line (no line breaks inside) and may be up to 16 384 bytes.
+
+The protocol version (currently `1`) increases when commands, responses, events, the profile format or function objects change so that an older app or firmware no longer understands them. App and firmware have their own version numbers; the app compares the protocol version, not the firmware version, to decide whether it can work with a device.
 
 ## Events
 
