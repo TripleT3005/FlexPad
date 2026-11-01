@@ -1,6 +1,8 @@
 # <img src="assets/logo.svg" alt="" width="40" align="center"> FlexPad
 
+<!-- web:skip -->
 [English](#english) · [Deutsch](#deutsch)
+<!-- /web:skip -->
 
 ## English
 
@@ -8,10 +10,10 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 
 > Not affiliated with or endorsed by Espressif Systems.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-dark.png">
-  <img src="assets/screenshot-light.png" alt="FlexPad configurator with five tiles and the Tile Inspector">
-</picture>
+<p>
+  <img src="assets/screenshot-light.png" alt="FlexPad configurator with five tiles and the Tile Inspector (light mode)" width="49%">
+  <img src="assets/screenshot-dark.png" alt="FlexPad configurator with five tiles and the Tile Inspector (dark mode)" width="49%">
+</p>
 
 ### Features
 - Up to 25 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
@@ -117,6 +119,8 @@ Key names describe the physical key position on a US keyboard, using the names o
 - Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
 
+<!-- web:skip -->
+
 ### Building
 #### Desktop app
 Requires [Rust](https://www.rust-lang.org/tools/install) 1.88 or newer (edition 2024). On Linux, the serial port library also needs `libudev` (e.g. `sudo apt install libudev-dev pkg-config`).
@@ -157,6 +161,8 @@ After flashing, press **RESET** (or unplug the board briefly) to start the firmw
 #### Releases
 A new version in `flexpad-desktop/Cargo.toml` and `flexpad-firmware/Cargo.toml` (a test and the release workflow check that both and the newest changelog section match) together with a section for it in [CHANGELOG.md](CHANGELOG.md) creates a release when merged into `main`; the changelog section becomes the release notes. Changes without a new version are collected under `[Unreleased]`; a release fails while that section still has entries, so they have to be moved into the section of the new version. Versions `0.x` and versions with a suffix like `1.1.0-beta.1` are published as pre-releases.
 
+<!-- /web:skip -->
+
 ### License
 [MIT](LICENSE)
 
@@ -166,10 +172,10 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 
 > Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-dark.png">
-  <img src="assets/screenshot-light.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector">
-</picture>
+<p>
+  <img src="assets/screenshot-light.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector (heller Modus)" width="49%">
+  <img src="assets/screenshot-dark.png" alt="FlexPad-Konfigurator mit fünf Kacheln und dem Tile Inspector (dunkler Modus)" width="49%">
+</p>
 
 ### Funktionen
 - Bis zu 25 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
@@ -275,6 +281,8 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 - Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
 
+<!-- web:skip -->
+
 ### Bauen
 #### Desktop-App
 Voraussetzung ist [Rust](https://www.rust-lang.org/tools/install) 1.88 oder neuer (Edition 2024). Unter Linux braucht die Seriell-Bibliothek zusätzlich `libudev` (z. B. `sudo apt install libudev-dev pkg-config`).
@@ -314,6 +322,8 @@ Nach dem Flashen **RESET** drücken (oder das Board kurz abziehen), damit die Fi
 
 #### Releases
 Eine neue Version in `flexpad-desktop/Cargo.toml` und `flexpad-firmware/Cargo.toml` (ein Test und der Release-Workflow prüfen, dass beide und der neueste Changelog-Abschnitt übereinstimmen) zusammen mit einem Abschnitt dafür in der [CHANGELOG.md](CHANGELOG.md) erzeugt beim Merge in `main` ein Release; der Changelog-Abschnitt wird zu den Release-Notizen. Änderungen ohne neue Version stehen unter `[Unreleased]`; ein Release schlägt fehl, solange dieser Abschnitt noch Einträge hat, sie müssen also in den Abschnitt der neuen Version verschoben werden. Versionen `0.x` und Versionen mit Zusatz wie `1.1.0-beta.1` erscheinen als Vorabversion.
+
+<!-- /web:skip -->
 
 ### Lizenz
 [MIT](LICENSE)
