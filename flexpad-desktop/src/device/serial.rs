@@ -3,9 +3,13 @@ use std::time::Duration;
 
 use super::connection::{Connection, READ_TIMEOUT};
 
+// Constants
+
 const ESPRESSIF_VID: u16 = 0x303A;
 const SERIAL_PREFIX: &str = "FlexPad-";
 const PORT_SETTLE_MS: u64 = 100;
+
+// Types
 
 pub type Port = Box<dyn serialport::SerialPort>;
 
@@ -21,6 +25,8 @@ impl std::fmt::Display for FlexPadDeviceInfo {
         write!(f, "{} ({})", self.device_id, self.port_name)
     }
 }
+
+// Reading
 
 pub fn read_line_from_port(port: &mut impl Read, timeout: Duration) -> Option<String> {
     let start_time = std::time::Instant::now();
@@ -45,6 +51,8 @@ pub fn read_line_from_port(port: &mut impl Read, timeout: Duration) -> Option<St
         Some(String::from_utf8_lossy(&line).into_owned())
     }
 }
+
+// Discovery
 
 pub fn is_flexpad_port(port: &serialport::SerialPortInfo) -> bool {
     let serialport::SerialPortType::UsbPort(usb) = &port.port_type else {
@@ -95,6 +103,8 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
     devices
 }
 
+// Commands
+
 pub fn connect_to_port(port_name: &str) -> Result<Connection, String> {
     let mut port = serialport::new(port_name, 115200)
         .timeout(READ_TIMEOUT)
@@ -130,6 +140,8 @@ pub fn set_config_to_device(connection: &Connection, json_config: &str) -> Resul
             .map(|reason| Err(format!("The device rejected the configuration ({reason})")))
     })
 }
+
+// Macro test
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MacroTestResult {

@@ -3,139 +3,130 @@ use crate::flasher::{self, FlashStage};
 use crate::keys::KeyboardLayout;
 use crate::update::{self, APP_VERSION};
 use iced::widget::{
-    button, checkbox, column, container, pick_list, progress_bar, row, text, text_input,
+    Space, button, checkbox, column, container, pick_list, progress_bar, row, text, text_input,
 };
-use iced::{Element, Length};
+use iced::{Alignment, Element, Length};
+
+// Constants
+
+const LABEL_WIDTH: f32 = 60.0;
+const GROUP_SPACING: f32 = 24.0;
+
+// Header
 
 pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
-    let status_message = app.status_message.as_str();
-    let available_devices = &app.available_devices;
-    let selected_device = app.selected_device.as_ref();
-    let saved_profiles = &app.saved_profiles;
-    let selected_profile = app.selected_profile.as_ref();
-    let current_profile_name = app.current_profile_name.as_str();
-    let keyboard_layout = app.keyboard_layout;
+    let mut header = column![device_bar(app), profile_bar(app)].spacing(8);
+    if let Some(notice) = firmware_notice(app) {
+        header = header.push(notice);
+    }
+    if let Some(progress) = flash_progress(app) {
+        header = header.push(progress);
+    }
+    header.into()
+}
 
-    let title = text("FlexPad Configurator").size(24);
-    let is_connected = app.connected_device.is_some();
+fn device_bar(app: &FlexPadApp) -> Element<'_, Message> {
     let is_idle = !app.is_device_busy();
-    let status_indicator = if is_connected {
-        text("🟢 Connected").size(14)
-    } else {
-        text("🔴 Disconnected").size(14)
-    };
-    let status_row = row![status_indicator, text(status_message)].spacing(15);
-
-    let update_check = checkbox(app.check_for_updates)
-        .label("Check for updates")
-        .size(14)
-        .text_size(12)
-        .on_toggle(Message::UpdateCheckToggled);
-    let mut notices = row![update_check]
-        .spacing(15)
-        .align_y(iced::Alignment::Center);
-    if let Some(release) = &app.available_update {
-        notices = notices.push(
-            button(text(format!("Version {} available", release.version)).size(12))
-                .padding(0)
-                .style(button::text)
-                .on_press(Message::OpenReleasePage),
-        );
-    }
-    if let Some(firmware) = outdated_firmware(app) {
-        notices = notices.push(
-            text(format!(
-                "Firmware {firmware} is older than the app ({APP_VERSION})."
-            ))
-            .size(12),
-        );
-        notices = notices.push(firmware_button("Update firmware", is_idle));
-    } else if !is_connected && is_idle && app.download_port.is_some() {
-        notices = notices.push(text("Board in bootloader mode found.").size(12));
-        notices = notices.push(firmware_button("Install firmware", is_idle));
-    }
-    if !has_firmware_image() && (outdated_firmware(app).is_some() || app.download_port.is_some()) {
-        notices = notices.push(text("This build of the app contains no firmware.").size(12));
-    }
-
-    let scan_btn = button("Scan Devices").on_press_maybe(is_idle.then_some(Message::ScanDevices));
     let device_picker = pick_list(
-        available_devices.to_vec(),
-        selected_device.cloned(),
+        app.available_devices.as_slice(),
+        app.selected_device.clone(),
         Message::DeviceSelected,
     )
-    .placeholder("Select device...");
-    let conn_btn = if is_connected {
+    .placeholder("Select device...")
+    .width(260);
+    let scan_btn = button("Scan").on_press_maybe(is_idle.then_some(Message::ScanDevices));
+    let conn_btn = if app.connected_device.is_some() {
         button("Disconnect").on_press_maybe(is_idle.then_some(Message::DisconnectDevice))
     } else {
         button("Connect").on_press_maybe(is_idle.then_some(Message::ConnectDevice))
     };
-
     let load_btn = button("Load Config").on_press_maybe(is_idle.then_some(Message::LoadConfig));
     let save_btn = button("Set Config").on_press_maybe(is_idle.then_some(Message::SetConfig));
 
-    let top_action_row = row![scan_btn, device_picker, conn_btn, load_btn, save_btn,].spacing(10);
+    row![
+        label("Device"),
+        device_picker,
+        scan_btn,
+        conn_btn,
+        Space::new().width(GROUP_SPACING),
+        load_btn,
+        save_btn,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
 
+fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
     let profile_picker = pick_list(
-        saved_profiles.to_vec(),
-        selected_profile.cloned(),
+        app.saved_profiles.as_slice(),
+        app.selected_profile.clone(),
         Message::ProfileSelected,
     )
     .placeholder("Select profile...")
-    .width(220);
-
-    let name_input = text_input("Profile name", current_profile_name)
+    .width(260);
+    let name_input = text_input("Profile name", &app.current_profile_name)
         .on_input(Message::ProfileNameChanged)
-        .width(220)
+        .width(200)
         .padding(5);
-
     let layout_picker = pick_list(
         KeyboardLayout::ALL,
-        Some(keyboard_layout),
+        Some(app.keyboard_layout),
         Message::KeyboardLayoutSelected,
     )
-    .width(220);
-
-    let new_profile_btn = button("New Profile")
-        .padding(8)
-        .on_press(Message::NewProfile);
-    let save_profile_btn = button("Save Profile")
-        .padding(8)
-        .on_press(Message::SaveCurrentProfile);
-
-    let profile_controls_col = column![
-        profile_picker,
-        name_input,
-        row![text("Keyboard layout:").size(12), layout_picker]
-            .spacing(8)
-            .align_y(iced::Alignment::Center),
-        row![new_profile_btn, save_profile_btn].spacing(10),
-    ]
-    .spacing(8);
-
-    let mut main_col = column![title, status_row, notices].spacing(10);
-    if let Some(progress) = flash_progress(app) {
-        main_col = main_col.push(progress);
-    }
-    main_col = main_col.push(top_action_row);
+    .width(150);
+    let new_btn = button("New Profile").on_press(Message::NewProfile);
+    let save_btn = button("Save Profile").on_press(Message::SaveCurrentProfile);
 
     row![
-        main_col.width(Length::Fill),
-        container(profile_controls_col).align_x(iced::alignment::Horizontal::Right)
+        label("Profile"),
+        profile_picker,
+        name_input,
+        text("Layout").size(13),
+        layout_picker,
+        Space::new().width(GROUP_SPACING),
+        new_btn,
+        save_btn,
     ]
-    .width(Length::Fill)
-    .align_y(iced::Alignment::Center)
+    .spacing(8)
+    .align_y(Alignment::Center)
     .into()
 }
-fn has_firmware_image() -> bool {
-    flasher::embedded_image().is_some()
+
+fn label(content: &str) -> Element<'_, Message> {
+    text(content).size(13).width(LABEL_WIDTH).into()
 }
 
-fn firmware_button(label: &str, is_idle: bool) -> Element<'_, Message> {
-    button(text(label).size(12))
-        .padding([2, 8])
-        .on_press_maybe((is_idle && has_firmware_image()).then_some(Message::UpdateFirmware))
-        .into()
+// Firmware
+
+fn firmware_notice(app: &FlexPadApp) -> Option<Element<'_, Message>> {
+    let is_idle = !app.is_device_busy();
+    let (message, action) = if let Some(firmware) = outdated_firmware(app) {
+        (
+            format!("Firmware {firmware} is older than the app ({APP_VERSION})."),
+            "Update firmware",
+        )
+    } else if app.connected_device.is_none() && is_idle && app.download_port.is_some() {
+        (
+            "Board in bootloader mode found.".to_string(),
+            "Install firmware",
+        )
+    } else {
+        return None;
+    };
+    let mut content = row![text(message).size(13)]
+        .spacing(12)
+        .align_y(Alignment::Center);
+    content = if has_firmware_image() {
+        content.push(
+            button(text(action).size(13))
+                .padding([2, 10])
+                .on_press_maybe(is_idle.then_some(Message::UpdateFirmware)),
+        )
+    } else {
+        content.push(text("This build of the app contains no firmware.").size(13))
+    };
+    Some(banner(content.into()))
 }
 
 fn flash_progress(app: &FlexPadApp) -> Option<Element<'_, Message>> {
@@ -154,7 +145,7 @@ fn flash_progress(app: &FlexPadApp) -> Option<Element<'_, Message>> {
         ),
         Some(FlashStage::Restarting) => ("Restarting the FlexPad...", 1.0),
     };
-    Some(
+    Some(banner(
         column![
             text("⚠ Do not unplug the FlexPad or close the app until the update is finished.")
                 .size(13),
@@ -163,14 +154,60 @@ fn flash_progress(app: &FlexPadApp) -> Option<Element<'_, Message>> {
                 text(format!("{label} {:.0} %", fraction * 100.0)).size(12),
             ]
             .spacing(10)
-            .align_y(iced::Alignment::Center),
+            .align_y(Alignment::Center),
         ]
         .spacing(4)
         .into(),
-    )
+    ))
+}
+
+fn banner(content: Element<'_, Message>) -> Element<'_, Message> {
+    container(content)
+        .padding([6, 12])
+        .width(Length::Fill)
+        .style(container::rounded_box)
+        .into()
+}
+
+fn has_firmware_image() -> bool {
+    flasher::embedded_image().is_some()
 }
 
 fn outdated_firmware(app: &FlexPadApp) -> Option<&str> {
     let firmware = app.connected_device.as_ref()?.firmware_version.as_deref()?;
     update::is_newer(APP_VERSION, firmware).then_some(firmware)
+}
+
+// Status bar
+
+pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
+    let indicator = if app.connected_device.is_some() {
+        "🟢 Connected"
+    } else {
+        "🔴 Disconnected"
+    };
+    let mut bar = row![
+        text(indicator).size(13),
+        text(&app.status_message).size(13),
+        Space::new().width(Length::Fill),
+    ]
+    .spacing(15)
+    .align_y(Alignment::Center);
+    if let Some(release) = &app.available_update {
+        bar = bar.push(
+            button(text(format!("Version {} available", release.version)).size(13))
+                .padding(0)
+                .style(button::text)
+                .on_press(Message::OpenReleasePage),
+        );
+    }
+    bar.push(
+        checkbox(app.check_for_updates)
+            .label("Check for updates")
+            .size(14)
+            .text_size(13)
+            .on_toggle(Message::UpdateCheckToggled),
+    )
+    .push(text(format!("v{APP_VERSION}")).size(13))
+    .into()
 }
