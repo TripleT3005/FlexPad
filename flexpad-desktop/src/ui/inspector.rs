@@ -11,6 +11,8 @@ use iced::{Element, Length};
 
 const UNASSIGNED: &str = "-";
 const DEBOUNCE_CHOICES: &[u32] = &[0, 5, 10, 15, 20, 30, 50, 100, 150, 200];
+const TEST_NOTE: &str = "\"Test\" runs a macro on the connected device without saving it. \
+It types into the window that has the focus.";
 
 // Inspector
 
@@ -53,6 +55,10 @@ fn view_tile<'a>(app: &'a FlexPadApp, tile: &'a Tile) -> Element<'a, Message> {
         inspector_col = inspector_col
             .push(view_pins(app, tile, component))
             .push(view_parameters(tile, component));
+        if !component.functions.is_empty() {
+            inspector_col = inspector_col
+                .push(column![text("Functions").size(14), text(TEST_NOTE).size(10),].spacing(4));
+        }
         for function in component.functions {
             inspector_col = inspector_col.push(view_function(app, tile, function));
         }
@@ -207,8 +213,19 @@ fn view_function<'a>(
         button(text(format!("{} {} {}", toggle_arrow, function.label, summary)).size(12))
             .on_press(Message::ToggleFunctionSection(function.id.to_string()))
             .width(Length::Fill);
+    let can_test = app.connected_device.is_some() && !app.is_device_busy() && !actions.is_empty();
+    let test_btn = button(text("Test").size(12))
+        .on_press_maybe(can_test.then(|| Message::TestMacro(function.id.to_string())));
 
-    let mut section = column![toggle_btn].spacing(6);
+    let mut section = column![
+        row![toggle_btn, test_btn]
+            .spacing(6)
+            .align_y(iced::Alignment::Center)
+    ]
+    .spacing(6);
+    if let Some(state) = app.ui.macro_test_for(&tile.id, function.id) {
+        section = section.push(text(state.to_string()).size(11));
+    }
     if is_expanded {
         section = section.push(container(view_macro_editor(app, function.id, actions)).padding(8));
     }

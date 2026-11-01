@@ -6,7 +6,7 @@ pub use image::embedded_image;
 
 use image::FirmwareImage;
 
-use crate::device::{Port, SharedPort, is_flexpad_port, reboot_to_bootloader};
+use crate::device::{Connection, Port, is_flexpad_port, reboot_to_bootloader};
 use rom::{FLASH_BLOCK_SIZE, Opcode, Request, Response};
 use std::io::{ErrorKind, Read, Write};
 use std::time::{Duration, Instant};
@@ -112,7 +112,7 @@ fn open_download_port(port_name: &str) -> Result<Port, String> {
 
 #[derive(Debug, Clone)]
 pub enum FlashSource {
-    Device(SharedPort),
+    Device(Connection),
     DownloadPort(String),
 }
 
@@ -128,10 +128,10 @@ pub fn update_firmware(
 ) -> Result<FlashOutcome, String> {
     let image = embedded_image().ok_or("this build of the app contains no firmware image")?;
     let port_name = match source {
-        FlashSource::Device(port) => {
+        FlashSource::Device(connection) => {
             progress(FlashStage::Rebooting);
-            reboot_to_bootloader(&mut port.lock())?;
-            drop(port);
+            reboot_to_bootloader(&connection);
+            drop(connection);
             progress(FlashStage::WaitingForBootloader);
             wait_for_port(DOWNLOAD_PORT_TIMEOUT, is_download_port).ok_or(
                 "the FlexPad did not start its bootloader; hold BOOT while plugging it in, \
