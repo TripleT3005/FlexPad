@@ -6,6 +6,8 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.2.0] – 2026-11-01
+
 ### English
 
 #### Changed

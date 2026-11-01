@@ -6,6 +6,8 @@ Alle wichtigen Änderungen an der FlexPad-Firmware für den ESP32-S3, gegliedert
 
 ## [Unreleased]
 
+## [1.2.0] – 2026-11-01
+
 ### English
 
 #### Added
