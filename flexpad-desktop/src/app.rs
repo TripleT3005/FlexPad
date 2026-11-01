@@ -11,9 +11,9 @@ use crate::config::{
 };
 use crate::constants::PRESETS;
 use crate::device::{
-    Connection, DeviceEvent, FlexPadDeviceInfo, InputEvent, PinEdge, TurnDirection,
-    connect_to_port, device_events, fetch_config_from_device, scan_flexpad_devices,
-    set_config_to_device,
+    Connection, DeviceEvent, FlexPadDeviceInfo, InputEvent, MacroTestResult, PinEdge,
+    TurnDirection, connect_to_port, device_events, fetch_config_from_device, run_macro_on_device,
+    scan_flexpad_devices, set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
@@ -44,6 +44,7 @@ pub struct UiState {
     pub raw_macro_input: Option<(String, String)>,
     pub pending_overwrite: bool,
     pub highlighted_tiles: Vec<(String, Instant)>,
+    pub macro_test: Option<MacroTest>,
 }
 
 impl UiState {
@@ -52,6 +53,45 @@ impl UiState {
             .iter()
             .map(|(id, _)| id.clone())
             .collect()
+    }
+
+    pub fn macro_test_for(&self, tile_id: &str, function: &str) -> Option<&MacroTestState> {
+        self.macro_test
+            .as_ref()
+            .filter(|test| test.tile_id == tile_id && test.function == function)
+            .map(|test| &test.state)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MacroTest {
+    pub tile_id: String,
+    pub function: String,
+    pub state: MacroTestState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MacroTestState {
+    Sending,
+    Done(MacroTestResult),
+    Failed(String),
+}
+
+impl std::fmt::Display for MacroTestState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MacroTestState::Sending => f.write_str("Sending..."),
+            MacroTestState::Done(MacroTestResult::Queued) => {
+                f.write_str("Macro queued on the device.")
+            }
+            MacroTestState::Done(MacroTestResult::Busy) => {
+                f.write_str("The device is busy (macro queue full). Try again.")
+            }
+            MacroTestState::Done(MacroTestResult::Rejected(reason)) => {
+                write!(f, "Rejected by the device: {reason}")
+            }
+            MacroTestState::Failed(error) => write!(f, "Test failed: {error}"),
+        }
     }
 }
 
@@ -68,6 +108,7 @@ impl Default for UiState {
             raw_macro_input: None,
             pending_overwrite: false,
             highlighted_tiles: Vec::new(),
+            macro_test: None,
         }
     }
 }
@@ -83,6 +124,7 @@ pub enum DeviceTask {
     Connecting,
     Loading,
     Saving,
+    TestingMacro,
 }
 
 impl DeviceTask {
@@ -92,6 +134,7 @@ impl DeviceTask {
             DeviceTask::Connecting => "Connecting to the device...",
             DeviceTask::Loading => "Loading the configuration from the device...",
             DeviceTask::Saving => "Saving the configuration to the device...",
+            DeviceTask::TestingMacro => "Sending the test macro to the device...",
         }
     }
 }
@@ -158,6 +201,8 @@ pub enum Message {
     MoveMacroActionUp(String, usize),
     MoveMacroActionDown(String, usize),
     ApplyPreset(String, Preset),
+    TestMacro(String),
+    MacroTested(String, String, Result<MacroTestResult, String>),
 }
 
 impl FlexPadApp {
@@ -251,6 +296,14 @@ impl FlexPadApp {
         if let Some(tile) = self.selected_tile_mut() {
             edit(tile.functions.entry(function.to_string()).or_default());
         }
+        if self
+            .ui
+            .macro_test
+            .as_ref()
+            .is_some_and(|test| test.function == function && test.state != MacroTestState::Sending)
+        {
+            self.ui.macro_test = None;
+        }
     }
 
     fn edit_actions(&mut self, function: &str, edit: impl FnOnce(&mut Vec<MacroAction>)) {
@@ -286,8 +339,17 @@ impl FlexPadApp {
             }
             Message::ConfigLoaded(result) => self.handle_config_loaded(result),
             Message::ConfigSet(result) => self.handle_config_set(result),
+            Message::TestMacro(function) => return self.handle_test_macro(function),
+            Message::MacroTested(tile_id, function, result) => {
+                self.handle_macro_tested(tile_id, function, result)
+            }
             Message::DeviceTaskFailed => {
                 self.device_task = None;
+                if let Some(test) = &mut self.ui.macro_test
+                    && test.state == MacroTestState::Sending
+                {
+                    test.state = MacroTestState::Failed("unexpected error".to_string());
+                }
                 self.status_message = "The device access failed unexpectedly.".to_string();
             }
             Message::DeviceEvent(event) => self.handle_device_event(event, Instant::now()),
@@ -548,6 +610,57 @@ impl FlexPadApp {
             move || set_config_to_device(&port, &json_str),
             Message::ConfigSet,
         )
+    }
+
+    fn handle_test_macro(&mut self, function: String) -> Task<Message> {
+        let Some(port) = self.serial_port.clone() else {
+            self.status_message = "Not connected to any device.".to_string();
+            return Task::none();
+        };
+        let Some(tile) = self.selected_tile() else {
+            return Task::none();
+        };
+        let tile_id = tile.id.clone();
+        let function_json = match serde_json::to_string(&Macro {
+            actions: tile.macro_for(&function).to_vec(),
+        }) {
+            Ok(json) => json,
+            Err(e) => {
+                self.status_message = format!("Could not prepare the test macro: {e}");
+                return Task::none();
+            }
+        };
+        if !self.start_device_task(DeviceTask::TestingMacro) {
+            return Task::none();
+        }
+        self.ui.macro_test = Some(MacroTest {
+            tile_id: tile_id.clone(),
+            function: function.clone(),
+            state: MacroTestState::Sending,
+        });
+        in_background(
+            move || run_macro_on_device(&port, &function_json),
+            move |result| Message::MacroTested(tile_id, function, result),
+        )
+    }
+
+    fn handle_macro_tested(
+        &mut self,
+        tile_id: String,
+        function: String,
+        result: Result<MacroTestResult, String>,
+    ) {
+        self.device_task = None;
+        let state = match result {
+            Ok(result) => MacroTestState::Done(result),
+            Err(e) => MacroTestState::Failed(e),
+        };
+        self.status_message = state.to_string();
+        self.ui.macro_test = Some(MacroTest {
+            tile_id,
+            function,
+            state,
+        });
     }
 
     fn handle_config_set(&mut self, result: Result<(), String>) {
@@ -1000,6 +1113,114 @@ mod tests {
         assert!(app.connected_device.is_none());
         assert!(app.ui.highlighted_tiles.is_empty());
         assert_eq!(app.status_message, "Device was unplugged! Disconnected.");
+    }
+
+    // Macro test
+
+    fn app_ready_to_test() -> FlexPadApp {
+        let mut app = wired_app();
+        app.serial_port = Some(Connection::open(UnpluggedLink));
+        app.connected_device = Some(device());
+        app.selected_tile_id = Some("copy".to_string());
+        app.tiles[0].functions.insert(
+            "press".to_string(),
+            Macro {
+                actions: vec![MacroAction::Media("mute".to_string())],
+            },
+        );
+        app
+    }
+
+    #[test]
+    fn testing_needs_a_connection() {
+        let mut app = app_ready_to_test();
+        app.serial_port = None;
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+
+        assert!(!app.is_device_busy());
+        assert!(app.ui.macro_test.is_none());
+        assert_eq!(app.status_message, "Not connected to any device.");
+    }
+
+    #[test]
+    fn test_results_are_shown_at_their_function() {
+        let mut app = app_ready_to_test();
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+        assert_eq!(app.device_task, Some(DeviceTask::TestingMacro));
+        assert_eq!(
+            app.ui.macro_test_for("copy", "press"),
+            Some(&MacroTestState::Sending)
+        );
+
+        let _ = app.update(Message::LoadConfig);
+        assert_eq!(app.device_task, Some(DeviceTask::TestingMacro));
+
+        let _ = app.update(Message::MacroTested(
+            "copy".to_string(),
+            "press".to_string(),
+            Ok(MacroTestResult::Rejected("unknown_key:hyper".to_string())),
+        ));
+        assert!(!app.is_device_busy());
+        assert_eq!(
+            app.ui
+                .macro_test_for("copy", "press")
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("Rejected by the device: unknown_key:hyper")
+        );
+        assert_eq!(app.ui.macro_test_for("volume", "press"), None);
+        assert_eq!(app.ui.macro_test_for("copy", "turn_left"), None);
+    }
+
+    #[test]
+    fn test_states_have_readable_labels() {
+        assert_eq!(
+            MacroTestState::Done(MacroTestResult::Queued).to_string(),
+            "Macro queued on the device."
+        );
+        assert_eq!(
+            MacroTestState::Done(MacroTestResult::Busy).to_string(),
+            "The device is busy (macro queue full). Try again."
+        );
+        assert_eq!(
+            MacroTestState::Failed("The device did not answer in time".to_string()).to_string(),
+            "Test failed: The device did not answer in time"
+        );
+    }
+
+    #[test]
+    fn editing_the_macro_clears_its_test_result() {
+        let mut app = app_ready_to_test();
+        app.ui.macro_test = Some(MacroTest {
+            tile_id: "copy".to_string(),
+            function: "press".to_string(),
+            state: MacroTestState::Done(MacroTestResult::Queued),
+        });
+
+        let _ = app.update(Message::AddMacroAction(
+            "press".to_string(),
+            MacroAction::Delay(10),
+        ));
+
+        assert!(app.ui.macro_test.is_none());
+    }
+
+    #[test]
+    fn testing_does_not_change_the_profile() {
+        let mut app = app_ready_to_test();
+        let before = app.current_profile().to_json().unwrap();
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+        let _ = app.update(Message::MacroTested(
+            "copy".to_string(),
+            "press".to_string(),
+            Ok(MacroTestResult::Queued),
+        ));
+
+        assert_eq!(app.current_profile().to_json().unwrap(), before);
+        assert_eq!(app.status_message, "Macro queued on the device.");
     }
 
     struct UnpluggedLink;
