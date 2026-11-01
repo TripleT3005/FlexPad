@@ -68,7 +68,10 @@ mod tests {
 
     fn decode_all(bytes: &[u8]) -> Vec<Vec<u8>> {
         let mut decoder = Decoder::default();
-        bytes.iter().filter_map(|&byte| decoder.push(byte)).collect()
+        bytes
+            .iter()
+            .filter_map(|&byte| decoder.push(byte))
+            .collect()
     }
 
     // Encoding

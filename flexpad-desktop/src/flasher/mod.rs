@@ -2,8 +2,11 @@ mod image;
 mod rom;
 mod slip;
 
-pub use image::{FirmwareImage, embedded_image};
+pub use image::embedded_image;
 
+use image::FirmwareImage;
+
+use crate::device::{Port, SharedPort, is_flexpad_port, reboot_to_bootloader};
 use rom::{FLASH_BLOCK_SIZE, Opcode, Request, Response};
 use std::io::{ErrorKind, Read, Write};
 use std::time::{Duration, Instant};
@@ -20,8 +23,9 @@ const SYNC_ATTEMPTS: usize = 10;
 const SYNC_DRAIN: Duration = Duration::from_millis(100);
 const ERASE_TIMEOUT_PER_MEGABYTE: Duration = Duration::from_secs(30);
 const PORT_POLL_INTERVAL: Duration = Duration::from_millis(250);
-pub const DOWNLOAD_PORT_TIMEOUT: Duration = Duration::from_secs(10);
-pub const RESTART_TIMEOUT: Duration = Duration::from_secs(10);
+const OPEN_TIMEOUT: Duration = Duration::from_secs(3);
+const DOWNLOAD_PORT_TIMEOUT: Duration = Duration::from_secs(10);
+const RESTART_TIMEOUT: Duration = Duration::from_secs(10);
 
 const RTC_CNTL_OPTION1_REG: u32 = 0x6000_812C;
 const RTC_CNTL_FORCE_DOWNLOAD_BOOT: u32 = 1;
@@ -88,11 +92,63 @@ pub fn wait_for_port(
     }
 }
 
-pub fn open_download_port(port_name: &str) -> Result<crate::device::Port, String> {
-    serialport::new(port_name, BAUD_RATE)
-        .timeout(READ_TIMEOUT)
-        .open()
-        .map_err(|e| format!("could not open {port_name}: {e}"))
+fn open_download_port(port_name: &str) -> Result<Port, String> {
+    let deadline = Instant::now() + OPEN_TIMEOUT;
+    loop {
+        match serialport::new(port_name, BAUD_RATE)
+            .timeout(READ_TIMEOUT)
+            .open()
+        {
+            Ok(port) => return Ok(port),
+            Err(e) if Instant::now() >= deadline => {
+                return Err(format!("could not open {port_name}: {e}"));
+            }
+            Err(_) => std::thread::sleep(PORT_POLL_INTERVAL),
+        }
+    }
+}
+
+// Update
+
+#[derive(Debug, Clone)]
+pub enum FlashSource {
+    Device(SharedPort),
+    DownloadPort(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum FlashEvent {
+    Progress(FlashStage),
+    Finished(Result<FlashOutcome, String>),
+}
+
+pub fn update_firmware(
+    source: FlashSource,
+    progress: &mut impl FnMut(FlashStage),
+) -> Result<FlashOutcome, String> {
+    let image = embedded_image().ok_or("this build of the app contains no firmware image")?;
+    let port_name = match source {
+        FlashSource::Device(port) => {
+            progress(FlashStage::Rebooting);
+            reboot_to_bootloader(&mut port.lock())?;
+            drop(port);
+            progress(FlashStage::WaitingForBootloader);
+            wait_for_port(DOWNLOAD_PORT_TIMEOUT, is_download_port).ok_or(
+                "the FlexPad did not start its bootloader; hold BOOT while plugging it in, \
+                 then scan again",
+            )?
+        }
+        FlashSource::DownloadPort(port_name) => port_name,
+    };
+    let mut port = open_download_port(&port_name)?;
+    let outcome = flash_image(&mut port, &image, progress)?;
+    drop(port);
+    if outcome == FlashOutcome::Restarted
+        && wait_for_port(RESTART_TIMEOUT, is_flexpad_port).is_none()
+    {
+        return Ok(FlashOutcome::NeedsManualReset);
+    }
+    Ok(outcome)
 }
 
 // Flashing
@@ -327,10 +383,19 @@ mod tests {
                         (0, 1)
                     }
                 }
-                0x0A => (self.registers.get(&Self::word(data, 0)).copied().unwrap_or(0), 0),
+                0x0A => (
+                    self.registers
+                        .get(&Self::word(data, 0))
+                        .copied()
+                        .unwrap_or(0),
+                    0,
+                ),
                 0x09 => {
-                    let (address, value, mask) =
-                        (Self::word(data, 0), Self::word(data, 1), Self::word(data, 2));
+                    let (address, value, mask) = (
+                        Self::word(data, 0),
+                        Self::word(data, 1),
+                        Self::word(data, 2),
+                    );
                     let register = self.registers.entry(address).or_default();
                     *register = (*register & !mask) | (value & mask);
                     (0, 0)

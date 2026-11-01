@@ -150,6 +150,15 @@ pub fn fetch_config_from_device(port: &mut Port) -> Result<String, String> {
     Err("Timeout waiting for config response".to_string())
 }
 
+pub fn reboot_to_bootloader(port: &mut Port) -> Result<(), String> {
+    let _ = port.clear(serialport::ClearBuffer::All);
+    port.write_all(b"REBOOT_BOOTLOADER\n")
+        .and_then(|()| port.flush())
+        .map_err(|e| e.to_string())?;
+    let _ = read_line_from_port(port, Duration::from_millis(500));
+    Ok(())
+}
+
 pub fn set_config_to_device(port: &mut Port, json_config: &str) -> Result<(), String> {
     let _ = port.clear(serialport::ClearBuffer::All);
     let command = format!("SET_CONFIG:{}\n", json_config);

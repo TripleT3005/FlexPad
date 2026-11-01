@@ -34,7 +34,9 @@ impl Partition {
 
 pub fn parse_partition_table(table: &[u8]) -> Vec<Partition> {
     table
-        .chunks_exact(PARTITION_ENTRY_LEN)
+        .as_chunks::<PARTITION_ENTRY_LEN>()
+        .0
+        .iter()
         .take_while(|entry| entry[..2] == PARTITION_MAGIC)
         .map(|entry| Partition {
             label: String::from_utf8_lossy(&entry[PARTITION_LABEL])
@@ -126,7 +128,10 @@ impl<'a> FirmwareImage<'a> {
     }
 
     pub fn written_len(&self) -> usize {
-        self.segments().iter().map(|segment| segment.data.len()).sum()
+        self.segments()
+            .iter()
+            .map(|segment| segment.data.len())
+            .sum()
     }
 }
 
