@@ -6,6 +6,8 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 ## [Unreleased]
 
+## [1.0.0] – 2026-11-01
+
 ### English
 
 #### Added
