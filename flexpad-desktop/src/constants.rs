@@ -1,8 +1,12 @@
 use crate::macros::Preset;
 
+// Pins
+
 pub const FIRMWARE_PINS: &[u8] = &[
     1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 38, 39, 40, 41, 42, 47, 48,
 ];
+
+// Media keys
 
 pub const MEDIA_ACTIONS: &[(&str, &str)] = &[
     ("Volume Up", "vol_up"),
@@ -12,6 +16,8 @@ pub const MEDIA_ACTIONS: &[(&str, &str)] = &[
     ("Previous Track", "prev"),
     ("Play/Pause", "play"),
 ];
+
+// Presets
 
 pub const PRESETS: &[(&str, Preset)] = &[
     ("Copy [Universal]", Preset::Chord(&["ControlLeft", "KeyC"])),

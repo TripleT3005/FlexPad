@@ -3,12 +3,16 @@ use crate::ui::inspector::pin_summary;
 use iced::widget::canvas::{self, Action, Canvas, Frame, Geometry, Path, Program, Stroke};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
+// Messages
+
 #[derive(Debug, Clone)]
 pub enum CanvasMessage {
     SelectAndDrag(Option<String>),
     DragPosition(f32, f32),
     EndDrag,
 }
+
+// Program
 
 pub struct GridProgram {
     pub tiles: Vec<Tile>,
@@ -184,6 +188,8 @@ impl Program<CanvasMessage> for GridProgram {
         vec![frame.into_geometry()]
     }
 }
+
+// View
 
 pub fn view_canvas(
     tiles: Vec<Tile>,

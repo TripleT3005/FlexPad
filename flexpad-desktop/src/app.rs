@@ -26,6 +26,8 @@ use crate::ui::header::view_header;
 use crate::ui::workspace::view_workspace;
 use crate::update::{self, ReleaseInfo};
 
+// UI state
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProfileItem {
     pub name: String,
@@ -123,6 +125,8 @@ impl Default for UiState {
 const HIGHLIGHT_DURATION: Duration = Duration::from_millis(400);
 const HIGHLIGHT_TICK: Duration = Duration::from_millis(100);
 
+// Device tasks
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceTask {
     Scanning,
@@ -145,6 +149,8 @@ impl DeviceTask {
         }
     }
 }
+
+// App
 
 pub struct FlexPadApp {
     pub status_message: String,
@@ -172,6 +178,8 @@ pub struct FlexPadApp {
 
     pub ui: UiState,
 }
+
+// Messages
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -225,6 +233,8 @@ pub enum Message {
 }
 
 impl FlexPadApp {
+    // Setup
+
     pub fn new() -> (Self, Task<Message>) {
         let moved_files = migrate_legacy_files();
         let profiles = load_profile_items();
@@ -314,6 +324,8 @@ impl FlexPadApp {
         Subscription::batch([events, highlights, updates])
     }
 
+    // Editing
+
     pub fn selected_tile(&self) -> Option<&Tile> {
         let id = self.selected_tile_id.as_ref()?;
         self.tiles.iter().find(|t| t.id == *id)
@@ -349,6 +361,8 @@ impl FlexPadApp {
             ..Profile::new(self.current_profile_name.clone(), self.tiles.clone())
         }
     }
+
+    // Update
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
@@ -503,6 +517,8 @@ impl FlexPadApp {
         }
         Task::none()
     }
+
+    // Device access
 
     fn start_device_task(&mut self, task: DeviceTask) -> bool {
         if self.is_device_busy() {
@@ -775,6 +791,8 @@ impl FlexPadApp {
         };
     }
 
+    // Live wiring
+
     fn handle_device_event(&mut self, event: DeviceEvent, now: Instant) {
         match event {
             DeviceEvent::Disconnected => {
@@ -800,6 +818,8 @@ impl FlexPadApp {
                 .push((id, now + HIGHLIGHT_DURATION));
         }
     }
+
+    // Settings and update check
 
     fn persist_settings(&self, last_profile: String) {
         save_user_settings(&UserSettings {
@@ -836,6 +856,8 @@ impl FlexPadApp {
             Task::none()
         }
     }
+
+    // Profiles
 
     fn handle_profile_selected(&mut self, item: ProfileItem) {
         match load_profile_from_disk(&item.path) {
@@ -912,6 +934,8 @@ impl FlexPadApp {
         }
     }
 
+    // Canvas
+
     fn handle_canvas_event(&mut self, event: canvas::CanvasMessage) {
         match event {
             canvas::CanvasMessage::SelectAndDrag(maybe_id) => {
@@ -952,6 +976,8 @@ impl FlexPadApp {
         self.status_message = "Added new tile to canvas.".to_string();
     }
 
+    // View
+
     pub fn view(&self) -> Element<'_, Message> {
         let header = view_header(self);
 
@@ -965,6 +991,8 @@ impl FlexPadApp {
             .into()
     }
 }
+
+// Helpers
 
 fn tile_for_input(tiles: &[Tile], event: InputEvent) -> Option<&Tile> {
     match event {
