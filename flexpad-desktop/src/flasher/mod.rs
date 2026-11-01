@@ -181,7 +181,6 @@ pub fn flash_image(
             progress(FlashStage::Writing { written, total });
         }
     }
-    let _ = rom.command(&Request::flash_end(false), COMMAND_TIMEOUT);
 
     progress(FlashStage::Restarting);
     rom.restart()
@@ -451,6 +450,7 @@ mod tests {
         assert_eq!(rom.registers[&RTC_CNTL_OPTION1_REG], 0);
         assert_eq!(rom.registers[&RTC_CNTL_WDTCONFIG0_REG], RTC_WDT_CONFIG);
         assert_eq!(rom.registers[&RTC_CNTL_WDTWPROTECT_REG], 0);
+        assert!(!rom.requests.contains(&0x04));
         assert_eq!(stages.first(), Some(&FlashStage::Connecting));
         assert_eq!(stages.last(), Some(&FlashStage::Restarting));
         assert!(stages.contains(&FlashStage::Writing {

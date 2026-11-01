@@ -24,7 +24,6 @@ const ALL_BITS: u32 = 0xFFFF_FFFF;
 pub enum Opcode {
     FlashBegin = 0x02,
     FlashData = 0x03,
-    FlashEnd = 0x04,
     Sync = 0x08,
     WriteReg = 0x09,
     ReadReg = 0x0A,
@@ -93,10 +92,6 @@ impl Request {
         request.checksum = checksum(&payload);
         request.data.extend(payload);
         request
-    }
-
-    pub fn flash_end(reboot: bool) -> Self {
-        Self::new(Opcode::FlashEnd, &[u32::from(!reboot)])
     }
 
     pub fn read_reg(address: u32) -> Self {
@@ -239,8 +234,6 @@ mod tests {
             words(&Request::spi_set_params(0x80_0000).data),
             [0, 0x80_0000, 0x1_0000, 0x1000, 0x100, 0xFFFF]
         );
-        assert_eq!(words(&Request::flash_end(false).data), [1]);
-        assert_eq!(words(&Request::flash_end(true).data), [0]);
         assert_eq!(
             words(&Request::write_reg_masked(0x6000_812C, 0, 1).data),
             [0x6000_812C, 0, 1, 0]
