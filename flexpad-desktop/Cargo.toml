@@ -12,7 +12,7 @@ name = "flexpad"
 path = "src/main.rs"
 
 [dependencies]
-iced = { version = "0.14", default-features = false, features = ["canvas", "crisp", "linux-theme-detection", "tiny-skia", "tokio", "wayland", "web-colors", "x11"] }
+iced = { version = "0.14", default-features = false, features = ["canvas", "crisp", "linux-theme-detection", "tiny-skia", "tokio", "wayland", "web-colors", "wgpu", "x11"] }
 serialport = "4.10.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
