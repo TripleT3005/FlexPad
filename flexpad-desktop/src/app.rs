@@ -22,7 +22,7 @@ use crate::flasher::{
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
-use crate::ui::header::view_header;
+use crate::ui::header::{view_header, view_status_bar};
 use crate::ui::workspace::view_workspace;
 use crate::update::{self, ReleaseInfo};
 
@@ -979,13 +979,14 @@ impl FlexPadApp {
     // View
 
     pub fn view(&self) -> Element<'_, Message> {
-        let header = view_header(self);
+        let content = column![
+            view_header(self),
+            view_workspace(self),
+            view_status_bar(self)
+        ]
+        .spacing(12);
 
-        let workspace = view_workspace(self);
-
-        let content = column![header, workspace,].spacing(15);
-
-        container(content.padding(20))
+        container(content.padding([12, 16]))
             .width(Length::Fill)
             .height(Length::Fill)
             .into()

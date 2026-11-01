@@ -35,6 +35,8 @@ fn main() -> iced::Result {
         .title("FlexPad")
         .window(iced::window::Settings {
             icon,
+            size: iced::Size::new(1180.0, 780.0),
+            min_size: Some(iced::Size::new(1060.0, 640.0)),
             ..iced::window::Settings::default()
         })
         .subscription(FlexPadApp::subscription)
