@@ -12,6 +12,7 @@ mod keys;
 mod macros;
 mod profile;
 mod release;
+mod theme;
 mod ui;
 mod update;
 mod window_state;
@@ -45,5 +46,6 @@ fn main() -> iced::Result {
             ..iced::window::Settings::default()
         })
         .subscription(FlexPadApp::subscription)
+        .theme(FlexPadApp::theme)
         .run()
 }

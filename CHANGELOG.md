@@ -6,6 +6,18 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 ## [Unreleased]
 
+### English
+
+#### Changed
+- The configurator uses the green of the logo for buttons, selections and tiles; backgrounds stay neutral gray in light and dark mode. All colors are defined in one place (`flexpad-desktop/src/theme.rs`).
+- The connection state in the status bar is a colored dot instead of an emoji, and the arrows of the function list no longer show as blue emoji on Windows.
+
+### Deutsch
+
+#### Geändert
+- Der Konfigurator nutzt das Grün des Logos für Knöpfe, Auswahl und Kacheln; Hintergründe bleiben im hellen und dunklen Modus neutral grau. Alle Farben sind an einer Stelle festgelegt (`flexpad-desktop/src/theme.rs`).
+- Der Verbindungsstatus in der Statusleiste ist ein farbiger Punkt statt eines Emojis, und die Pfeile der Funktionsliste erscheinen unter Windows nicht mehr als blaue Emojis.
+
 ## [1.1.0] – 2026-11-01
 
 ### English
