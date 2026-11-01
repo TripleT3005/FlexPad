@@ -1,7 +1,7 @@
 use iced::widget::{column, container};
 use iced::{Element, Length, Subscription, Task};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::canvas;
 use crate::components::{self, Component};
@@ -11,8 +11,9 @@ use crate::config::{
 };
 use crate::constants::PRESETS;
 use crate::device::{
-    FlexPadDeviceInfo, SharedPort, connect_to_port, fetch_config_from_device, scan_flexpad_devices,
-    set_config_to_device,
+    Connection, DeviceEvent, FlexPadDeviceInfo, InputEvent, MacroTestResult, PinEdge,
+    TurnDirection, connect_to_port, device_events, fetch_config_from_device, run_macro_on_device,
+    scan_flexpad_devices, set_config_to_device,
 };
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
@@ -43,6 +44,56 @@ pub struct UiState {
     pub expanded_functions: Vec<String>,
     pub raw_macro_input: Option<(String, String)>,
     pub pending_overwrite: bool,
+    pub highlighted_tiles: Vec<(String, Instant)>,
+    pub macro_test: Option<MacroTest>,
+}
+
+impl UiState {
+    pub fn highlighted_tile_ids(&self) -> Vec<String> {
+        self.highlighted_tiles
+            .iter()
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
+    pub fn macro_test_for(&self, tile_id: &str, function: &str) -> Option<&MacroTestState> {
+        self.macro_test
+            .as_ref()
+            .filter(|test| test.tile_id == tile_id && test.function == function)
+            .map(|test| &test.state)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MacroTest {
+    pub tile_id: String,
+    pub function: String,
+    pub state: MacroTestState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MacroTestState {
+    Sending,
+    Done(MacroTestResult),
+    Failed(String),
+}
+
+impl std::fmt::Display for MacroTestState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MacroTestState::Sending => f.write_str("Sending..."),
+            MacroTestState::Done(MacroTestResult::Queued) => {
+                f.write_str("Macro queued on the device.")
+            }
+            MacroTestState::Done(MacroTestResult::Busy) => {
+                f.write_str("The device is busy (macro queue full). Try again.")
+            }
+            MacroTestState::Done(MacroTestResult::Rejected(reason)) => {
+                write!(f, "Rejected by the device: {reason}")
+            }
+            MacroTestState::Failed(error) => write!(f, "Test failed: {error}"),
+        }
+    }
 }
 
 impl Default for UiState {
@@ -57,9 +108,16 @@ impl Default for UiState {
             expanded_functions: Vec::new(),
             raw_macro_input: None,
             pending_overwrite: false,
+            highlighted_tiles: Vec::new(),
+            macro_test: None,
         }
     }
 }
+
+// Constants
+
+const HIGHLIGHT_DURATION: Duration = Duration::from_millis(400);
+const HIGHLIGHT_TICK: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceTask {
@@ -67,6 +125,7 @@ pub enum DeviceTask {
     Connecting,
     Loading,
     Saving,
+    TestingMacro,
 }
 
 impl DeviceTask {
@@ -76,6 +135,7 @@ impl DeviceTask {
             DeviceTask::Connecting => "Connecting to the device...",
             DeviceTask::Loading => "Loading the configuration from the device...",
             DeviceTask::Saving => "Saving the configuration to the device...",
+            DeviceTask::TestingMacro => "Sending the test macro to the device...",
         }
     }
 }
@@ -85,7 +145,7 @@ pub struct FlexPadApp {
     pub available_devices: Vec<FlexPadDeviceInfo>,
     pub selected_device: Option<FlexPadDeviceInfo>,
     pub connected_device: Option<FlexPadDeviceInfo>,
-    pub serial_port: Option<SharedPort>,
+    pub serial_port: Option<Connection>,
     pub device_task: Option<DeviceTask>,
 
     pub tiles: Vec<Tile>,
@@ -113,11 +173,12 @@ pub enum Message {
     LoadConfig,
     SetConfig,
     DevicesScanned(Vec<FlexPadDeviceInfo>),
-    DeviceConnected(FlexPadDeviceInfo, Result<SharedPort, String>),
+    DeviceConnected(FlexPadDeviceInfo, Result<Connection, String>),
     ConfigLoaded(Result<String, String>),
     ConfigSet(Result<(), String>),
     DeviceTaskFailed,
-    CheckConnectionTick,
+    DeviceEvent(DeviceEvent),
+    HighlightTick(Instant),
     CheckForUpdate,
     UpdateChecked(Result<Option<ReleaseInfo>, String>),
     UpdateCheckToggled(bool),
@@ -148,6 +209,8 @@ pub enum Message {
     MoveMacroActionUp(String, usize),
     MoveMacroActionDown(String, usize),
     ApplyPreset(String, Preset),
+    TestMacro(String),
+    MacroTested(String, String, Result<MacroTestResult, String>),
 }
 
 impl FlexPadApp {
@@ -219,15 +282,23 @@ impl FlexPadApp {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let connection =
-            iced::time::every(Duration::from_secs(1)).map(|_| Message::CheckConnectionTick);
-        if self.check_for_updates {
-            let updates =
-                iced::time::every(update::CHECK_INTERVAL).map(|_| Message::CheckForUpdate);
-            Subscription::batch([connection, updates])
+        let events = match &self.serial_port {
+            Some(connection) => {
+                Subscription::run_with(connection.clone(), device_events).map(Message::DeviceEvent)
+            }
+            None => Subscription::none(),
+        };
+        let highlights = if self.ui.highlighted_tiles.is_empty() {
+            Subscription::none()
         } else {
-            connection
-        }
+            iced::time::every(HIGHLIGHT_TICK).map(Message::HighlightTick)
+        };
+        let updates = if self.check_for_updates {
+            iced::time::every(update::CHECK_INTERVAL).map(|_| Message::CheckForUpdate)
+        } else {
+            Subscription::none()
+        };
+        Subscription::batch([events, highlights, updates])
     }
 
     pub fn selected_tile(&self) -> Option<&Tile> {
@@ -243,6 +314,14 @@ impl FlexPadApp {
     fn edit_macro(&mut self, function: &str, edit: impl FnOnce(&mut Macro)) {
         if let Some(tile) = self.selected_tile_mut() {
             edit(tile.functions.entry(function.to_string()).or_default());
+        }
+        if self
+            .ui
+            .macro_test
+            .as_ref()
+            .is_some_and(|test| test.function == function && test.state != MacroTestState::Sending)
+        {
+            self.ui.macro_test = None;
         }
     }
 
@@ -267,6 +346,7 @@ impl FlexPadApp {
                 if !self.is_device_busy() {
                     self.serial_port = None;
                     self.connected_device = None;
+                    self.ui.highlighted_tiles.clear();
                     self.status_message = "Disconnected.".to_string();
                 }
             }
@@ -278,11 +358,23 @@ impl FlexPadApp {
             }
             Message::ConfigLoaded(result) => self.handle_config_loaded(result),
             Message::ConfigSet(result) => self.handle_config_set(result),
+            Message::TestMacro(function) => return self.handle_test_macro(function),
+            Message::MacroTested(tile_id, function, result) => {
+                self.handle_macro_tested(tile_id, function, result)
+            }
             Message::DeviceTaskFailed => {
                 self.device_task = None;
+                if let Some(test) = &mut self.ui.macro_test
+                    && test.state == MacroTestState::Sending
+                {
+                    test.state = MacroTestState::Failed("unexpected error".to_string());
+                }
                 self.status_message = "The device access failed unexpectedly.".to_string();
             }
-            Message::CheckConnectionTick => self.handle_connection_tick(),
+            Message::DeviceEvent(event) => self.handle_device_event(event, Instant::now()),
+            Message::HighlightTick(now) => {
+                self.ui.highlighted_tiles.retain(|(_, until)| *until > now);
+            }
             Message::CheckForUpdate => return self.handle_check_for_update(),
             Message::UpdateChecked(result) => self.handle_update_checked(result),
             Message::UpdateCheckToggled(enabled) => {
@@ -435,7 +527,7 @@ impl FlexPadApp {
         }
         let port_name = device.port_name.clone();
         in_background(
-            move || connect_to_port(&port_name).map(SharedPort::new),
+            move || connect_to_port(&port_name),
             move |result| Message::DeviceConnected(device, result),
         )
     }
@@ -443,7 +535,7 @@ impl FlexPadApp {
     fn handle_device_connected(
         &mut self,
         device: FlexPadDeviceInfo,
-        result: Result<SharedPort, String>,
+        result: Result<Connection, String>,
     ) {
         self.device_task = None;
         match result {
@@ -470,7 +562,7 @@ impl FlexPadApp {
             return Task::none();
         }
         in_background(
-            move || fetch_config_from_device(&mut port.lock()),
+            move || fetch_config_from_device(&port),
             Message::ConfigLoaded,
         )
     }
@@ -538,9 +630,60 @@ impl FlexPadApp {
             return Task::none();
         }
         in_background(
-            move || set_config_to_device(&mut port.lock(), &json_str),
+            move || set_config_to_device(&port, &json_str),
             Message::ConfigSet,
         )
+    }
+
+    fn handle_test_macro(&mut self, function: String) -> Task<Message> {
+        let Some(port) = self.serial_port.clone() else {
+            self.status_message = "Not connected to any device.".to_string();
+            return Task::none();
+        };
+        let Some(tile) = self.selected_tile() else {
+            return Task::none();
+        };
+        let tile_id = tile.id.clone();
+        let function_json = match serde_json::to_string(&Macro {
+            actions: tile.macro_for(&function).to_vec(),
+        }) {
+            Ok(json) => json,
+            Err(e) => {
+                self.status_message = format!("Could not prepare the test macro: {e}");
+                return Task::none();
+            }
+        };
+        if !self.start_device_task(DeviceTask::TestingMacro) {
+            return Task::none();
+        }
+        self.ui.macro_test = Some(MacroTest {
+            tile_id: tile_id.clone(),
+            function: function.clone(),
+            state: MacroTestState::Sending,
+        });
+        in_background(
+            move || run_macro_on_device(&port, &function_json),
+            move |result| Message::MacroTested(tile_id, function, result),
+        )
+    }
+
+    fn handle_macro_tested(
+        &mut self,
+        tile_id: String,
+        function: String,
+        result: Result<MacroTestResult, String>,
+    ) {
+        self.device_task = None;
+        let state = match result {
+            Ok(result) => MacroTestState::Done(result),
+            Err(e) => MacroTestState::Failed(e),
+        };
+        self.status_message = state.to_string();
+        self.ui.macro_test = Some(MacroTest {
+            tile_id,
+            function,
+            state,
+        });
     }
 
     fn handle_config_set(&mut self, result: Result<(), String>) {
@@ -551,19 +694,29 @@ impl FlexPadApp {
         };
     }
 
-    fn handle_connection_tick(&mut self) {
-        if self.is_device_busy() {
-            return;
+    fn handle_device_event(&mut self, event: DeviceEvent, now: Instant) {
+        match event {
+            DeviceEvent::Disconnected => {
+                if self.serial_port.take().is_some() {
+                    self.connected_device = None;
+                    self.ui.highlighted_tiles.clear();
+                    self.status_message = "Device was unplugged! Disconnected.".to_string();
+                }
+            }
+            DeviceEvent::Input(input) => self.handle_input_event(input, now),
         }
-        let unplugged = self
-            .serial_port
-            .as_ref()
-            .and_then(SharedPort::try_lock)
-            .is_some_and(|port| port.clear(serialport::ClearBuffer::Input).is_err());
-        if unplugged {
-            self.serial_port = None;
-            self.connected_device = None;
-            self.status_message = "Device was unplugged! Disconnected.".to_string();
+    }
+
+    fn handle_input_event(&mut self, event: InputEvent, now: Instant) {
+        let tile = tile_for_input(&self.tiles, event);
+        if let Some(status) = input_status(event, tile) {
+            self.status_message = status;
+        }
+        if let Some(id) = tile.map(|tile| tile.id.clone()) {
+            self.ui.highlighted_tiles.retain(|(other, _)| *other != id);
+            self.ui
+                .highlighted_tiles
+                .push((id, now + HIGHLIGHT_DURATION));
         }
     }
 
@@ -729,6 +882,35 @@ impl FlexPadApp {
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
+    }
+}
+
+fn tile_for_input(tiles: &[Tile], event: InputEvent) -> Option<&Tile> {
+    match event {
+        InputEvent::Pin(pin, _) => tiles
+            .iter()
+            .find(|tile| tile.pins.values().any(|&used| used == pin)),
+        InputEvent::Encoder(pin_a, _) => tiles.iter().find(|tile| tile.pin("a") == Some(pin_a)),
+    }
+}
+
+fn input_status(event: InputEvent, tile: Option<&Tile>) -> Option<String> {
+    let target = tile.map_or_else(
+        || "not assigned".to_string(),
+        |tile| tile.display_name.clone(),
+    );
+    match event {
+        InputEvent::Pin(pin, PinEdge::Pressed) => Some(format!("GPIO {pin} pressed – {target}")),
+        InputEvent::Pin(_, PinEdge::Released) => None,
+        InputEvent::Encoder(pin_a, direction) => {
+            let direction = match direction {
+                TurnDirection::Right => "right",
+                TurnDirection::Left => "left",
+            };
+            Some(format!(
+                "Encoder on GPIO {pin_a} turned {direction} – {target}"
+            ))
+        }
     }
 }
 
@@ -911,5 +1093,252 @@ mod tests {
         app.device_task = None;
         let _ = app.update(Message::DisconnectDevice);
         assert!(app.connected_device.is_none());
+    }
+
+    // Live wiring
+
+    fn wired_app() -> FlexPadApp {
+        let mut button = Tile::new(
+            &components::BUTTON,
+            "copy".to_string(),
+            "Copy".to_string(),
+            0.0,
+            0.0,
+        );
+        button.set_pin("switch", Some(4));
+        let mut encoder = Tile::new(
+            &components::EC11,
+            "volume".to_string(),
+            "Volume".to_string(),
+            0.0,
+            0.0,
+        );
+        encoder.set_pin("a", Some(15));
+        encoder.set_pin("b", Some(16));
+        encoder.set_pin("switch", Some(17));
+        let mut app = test_app();
+        app.tiles = vec![button, encoder];
+        app
+    }
+
+    fn input(app: &mut FlexPadApp, event: InputEvent, now: Instant) {
+        app.handle_device_event(DeviceEvent::Input(event), now);
+    }
+
+    #[test]
+    fn pin_events_highlight_their_tile() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Pressed), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy"]);
+        assert_eq!(app.status_message, "GPIO 4 pressed – Copy");
+
+        input(&mut app, InputEvent::Pin(17, PinEdge::Pressed), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy", "volume"]);
+        assert_eq!(app.status_message, "GPIO 17 pressed – Volume");
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Released), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["volume", "copy"]);
+        assert_eq!(app.status_message, "GPIO 17 pressed – Volume");
+    }
+
+    #[test]
+    fn encoder_events_use_pin_a() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Encoder(15, TurnDirection::Right), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["volume"]);
+        assert_eq!(
+            app.status_message,
+            "Encoder on GPIO 15 turned right – Volume"
+        );
+
+        app.ui.highlighted_tiles.clear();
+        input(&mut app, InputEvent::Encoder(16, TurnDirection::Left), now);
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(
+            app.status_message,
+            "Encoder on GPIO 16 turned left – not assigned"
+        );
+    }
+
+    #[test]
+    fn unassigned_pins_only_show_in_the_status_line() {
+        let mut app = wired_app();
+
+        input(
+            &mut app,
+            InputEvent::Pin(12, PinEdge::Pressed),
+            Instant::now(),
+        );
+
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(app.status_message, "GPIO 12 pressed – not assigned");
+    }
+
+    #[test]
+    fn highlights_expire() {
+        let mut app = wired_app();
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Pin(4, PinEdge::Pressed), now);
+        let _ = app.update(Message::HighlightTick(now + HIGHLIGHT_DURATION / 2));
+        assert_eq!(app.ui.highlighted_tile_ids(), ["copy"]);
+
+        let _ = app.update(Message::HighlightTick(now + HIGHLIGHT_DURATION));
+        assert!(app.ui.highlighted_tiles.is_empty());
+    }
+
+    #[test]
+    fn unplugging_disconnects_and_clears_highlights() {
+        let mut app = wired_app();
+        app.serial_port = Some(Connection::open(UnpluggedLink));
+        app.connected_device = Some(device());
+        input(
+            &mut app,
+            InputEvent::Pin(4, PinEdge::Pressed),
+            Instant::now(),
+        );
+
+        let _ = app.update(Message::DeviceEvent(DeviceEvent::Disconnected));
+
+        assert!(app.serial_port.is_none());
+        assert!(app.connected_device.is_none());
+        assert!(app.ui.highlighted_tiles.is_empty());
+        assert_eq!(app.status_message, "Device was unplugged! Disconnected.");
+    }
+
+    // Macro test
+
+    fn app_ready_to_test() -> FlexPadApp {
+        let mut app = wired_app();
+        app.serial_port = Some(Connection::open(UnpluggedLink));
+        app.connected_device = Some(device());
+        app.selected_tile_id = Some("copy".to_string());
+        app.tiles[0].functions.insert(
+            "press".to_string(),
+            Macro {
+                actions: vec![MacroAction::Media("mute".to_string())],
+            },
+        );
+        app
+    }
+
+    #[test]
+    fn testing_needs_a_connection() {
+        let mut app = app_ready_to_test();
+        app.serial_port = None;
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+
+        assert!(!app.is_device_busy());
+        assert!(app.ui.macro_test.is_none());
+        assert_eq!(app.status_message, "Not connected to any device.");
+    }
+
+    #[test]
+    fn test_results_are_shown_at_their_function() {
+        let mut app = app_ready_to_test();
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+        assert_eq!(app.device_task, Some(DeviceTask::TestingMacro));
+        assert_eq!(
+            app.ui.macro_test_for("copy", "press"),
+            Some(&MacroTestState::Sending)
+        );
+
+        let _ = app.update(Message::LoadConfig);
+        assert_eq!(app.device_task, Some(DeviceTask::TestingMacro));
+
+        let _ = app.update(Message::MacroTested(
+            "copy".to_string(),
+            "press".to_string(),
+            Ok(MacroTestResult::Rejected("unknown_key:hyper".to_string())),
+        ));
+        assert!(!app.is_device_busy());
+        assert_eq!(
+            app.ui
+                .macro_test_for("copy", "press")
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("Rejected by the device: unknown_key:hyper")
+        );
+        assert_eq!(app.ui.macro_test_for("volume", "press"), None);
+        assert_eq!(app.ui.macro_test_for("copy", "turn_left"), None);
+    }
+
+    #[test]
+    fn test_states_have_readable_labels() {
+        assert_eq!(
+            MacroTestState::Done(MacroTestResult::Queued).to_string(),
+            "Macro queued on the device."
+        );
+        assert_eq!(
+            MacroTestState::Done(MacroTestResult::Busy).to_string(),
+            "The device is busy (macro queue full). Try again."
+        );
+        assert_eq!(
+            MacroTestState::Failed("The device did not answer in time".to_string()).to_string(),
+            "Test failed: The device did not answer in time"
+        );
+    }
+
+    #[test]
+    fn editing_the_macro_clears_its_test_result() {
+        let mut app = app_ready_to_test();
+        app.ui.macro_test = Some(MacroTest {
+            tile_id: "copy".to_string(),
+            function: "press".to_string(),
+            state: MacroTestState::Done(MacroTestResult::Queued),
+        });
+
+        let _ = app.update(Message::AddMacroAction(
+            "press".to_string(),
+            MacroAction::Delay(10),
+        ));
+
+        assert!(app.ui.macro_test.is_none());
+    }
+
+    #[test]
+    fn testing_does_not_change_the_profile() {
+        let mut app = app_ready_to_test();
+        let before = app.current_profile().to_json().unwrap();
+
+        let _ = app.update(Message::TestMacro("press".to_string()));
+        let _ = app.update(Message::MacroTested(
+            "copy".to_string(),
+            "press".to_string(),
+            Ok(MacroTestResult::Queued),
+        ));
+
+        assert_eq!(app.current_profile().to_json().unwrap(), before);
+        assert_eq!(app.status_message, "Macro queued on the device.");
+    }
+
+    struct UnpluggedLink;
+
+    impl std::io::Read for UnpluggedLink {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+    }
+
+    impl std::io::Write for UnpluggedLink {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl crate::device::Link for UnpluggedLink {
+        fn is_open(&self) -> bool {
+            false
+        }
     }
 }

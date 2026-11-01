@@ -81,7 +81,10 @@ A profile already stored on the device is kept: the image ends before the profil
    - **Parameters**: debounce time, and for encoders the steps per detent and the direction,
    - **Functions** (e.g. press, turn right, turn left): open one to edit its macro,
    - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the macro as raw JSON for editing.
+   - **Test** next to a function runs its macro once on the connected device without saving anything; the answer (queued, busy or the reason for an error) is shown at the function. The macro types into the window that has the focus; text uses the keyboard layout of the profile stored on the device.
 6. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
+
+Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status line names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
 
 ### How it works
 The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
@@ -227,7 +230,10 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
    - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung,
    - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen): aufklappen, um das Makro zu bearbeiten,
    - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt das Makro als rohes JSON zum Bearbeiten.
+   - **Test** neben einer Funktion führt ihr Makro einmal auf dem verbundenen Gerät aus, ohne etwas zu speichern; die Antwort (in der Warteschlange, ausgelastet oder der Grund eines Fehlers) erscheint an der Funktion. Das Makro tippt in das Fenster, das den Fokus hat; Text verwendet das Tastaturlayout des auf dem Gerät gespeicherten Profils.
 6. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
+
+Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statuszeile nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
 
 ### Funktionsweise
 Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.

@@ -16,7 +16,7 @@ This document describes how the desktop app and the Rust firmware (`flexpad-firm
 | `GET_DEVICE_INFO` | `DEVICE_INFO:FlexPad,<serial number>,<firmware version>` |
 | `GET_CONFIG` | `CONFIG_DATA:<profile JSON>`, exactly as stored; `CONFIG_DATA:{}` if none is stored |
 | `SET_CONFIG:<profile JSON>` | `CONFIG_SAVED`, or `CONFIG_ERROR:<reason>` (see [Errors](#errors)); on error the stored profile stays unchanged |
-| `RUN_MACRO:<function JSON>` | Runs a [function object](#functions) once, e.g. `RUN_MACRO:{"actions":[{"media":"mute"}]}`; `MACRO_QUEUED`, or `MACRO_ERROR:<reason>` |
+| `RUN_MACRO:<function JSON>` | Runs a [function object](#functions) once, e.g. `RUN_MACRO:{"actions":[{"media":"mute"}]}`; `MACRO_QUEUED`, or `MACRO_ERROR:<reason>`; text actions use the `keyboard_layout` of the stored profile |
 | `REBOOT_BOOTLOADER` | `REBOOTING:bootloader`; the device then restarts in the ROM download mode (USB ID `303A:0009`) for flashing |
 | anything else | `ERROR:unknown_command` |
 

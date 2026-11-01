@@ -1,39 +1,13 @@
 use std::io::{Read, Write};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::Duration;
+
+use super::connection::{Connection, READ_TIMEOUT};
 
 const ESPRESSIF_VID: u16 = 0x303A;
 const SERIAL_PREFIX: &str = "FlexPad-";
 const PORT_SETTLE_MS: u64 = 100;
 
 pub type Port = Box<dyn serialport::SerialPort>;
-
-#[derive(Clone)]
-pub struct SharedPort(Arc<Mutex<Port>>);
-
-impl SharedPort {
-    pub fn new(port: Port) -> Self {
-        Self(Arc::new(Mutex::new(port)))
-    }
-
-    pub fn lock(&self) -> MutexGuard<'_, Port> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    pub fn try_lock(&self) -> Option<MutexGuard<'_, Port>> {
-        match self.0.try_lock() {
-            Ok(guard) => Some(guard),
-            Err(TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
-            Err(TryLockError::WouldBlock) => None,
-        }
-    }
-}
-
-impl std::fmt::Debug for SharedPort {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SharedPort")
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlexPadDeviceInfo {
@@ -121,59 +95,60 @@ pub fn scan_flexpad_devices() -> Vec<FlexPadDeviceInfo> {
     devices
 }
 
-pub fn connect_to_port(port_name: &str) -> Result<Port, String> {
+pub fn connect_to_port(port_name: &str) -> Result<Connection, String> {
     let mut port = serialport::new(port_name, 115200)
-        .timeout(Duration::from_millis(500))
+        .timeout(READ_TIMEOUT)
         .open()
         .map_err(|e| e.to_string())?;
     let _ = port.write_data_terminal_ready(true);
     std::thread::sleep(Duration::from_millis(1000));
     let _ = port.clear(serialport::ClearBuffer::All);
-    Ok(port)
+    Ok(Connection::open(port))
 }
 
-pub fn fetch_config_from_device(port: &mut Port) -> Result<String, String> {
-    let _ = port.clear(serialport::ClearBuffer::All);
-    port.write_all(b"GET_CONFIG\n").map_err(|e| e.to_string())?;
-
-    let start_time = std::time::Instant::now();
-    let timeout = Duration::from_millis(2000);
-
-    while start_time.elapsed() < timeout {
-        if let Some(response) = read_line_from_port(port, Duration::from_millis(500))
-            && response.starts_with("CONFIG_DATA:")
-        {
-            let json_data = response.strip_prefix("CONFIG_DATA:").unwrap().trim();
-            return Ok(json_data.to_string());
-        }
-    }
-    Err("Timeout waiting for config response".to_string())
+pub fn fetch_config_from_device(connection: &Connection) -> Result<String, String> {
+    connection.request("GET_CONFIG", |response| {
+        response
+            .strip_prefix("CONFIG_DATA:")
+            .map(|json| Ok(json.trim().to_string()))
+    })
 }
 
-pub fn set_config_to_device(port: &mut Port, json_config: &str) -> Result<(), String> {
-    let _ = port.clear(serialport::ClearBuffer::All);
-    let command = format!("SET_CONFIG:{}\n", json_config);
-    port.write_all(command.as_bytes())
-        .map_err(|e| e.to_string())?;
-
-    let start_time = std::time::Instant::now();
-    let timeout = Duration::from_millis(2000);
-
-    while start_time.elapsed() < timeout {
-        let Some(response) = read_line_from_port(port, Duration::from_millis(500)) else {
-            continue;
-        };
-        if response.contains("CONFIG_SAVED")
-            || response.contains("CONFIG_OK")
-            || response.contains("ACK")
-        {
-            return Ok(());
+pub fn set_config_to_device(connection: &Connection, json_config: &str) -> Result<(), String> {
+    connection.request(&format!("SET_CONFIG:{json_config}"), |response| {
+        if response == "CONFIG_SAVED" {
+            return Some(Ok(()));
         }
-        if let Some(reason) = response.strip_prefix("CONFIG_ERROR:") {
-            return Err(format!("The device rejected the configuration ({reason})"));
-        }
+        response
+            .strip_prefix("CONFIG_ERROR:")
+            .map(|reason| Err(format!("The device rejected the configuration ({reason})")))
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MacroTestResult {
+    Queued,
+    Busy,
+    Rejected(String),
+}
+
+pub fn parse_macro_response(response: &str) -> Option<MacroTestResult> {
+    match response {
+        "MACRO_QUEUED" => Some(MacroTestResult::Queued),
+        "MACRO_ERROR:busy" => Some(MacroTestResult::Busy),
+        _ => response
+            .strip_prefix("MACRO_ERROR:")
+            .map(|reason| MacroTestResult::Rejected(reason.to_string())),
     }
-    Err("Timeout waiting for ACK after setting config".to_string())
+}
+
+pub fn run_macro_on_device(
+    connection: &Connection,
+    function_json: &str,
+) -> Result<MacroTestResult, String> {
+    connection.request(&format!("RUN_MACRO:{function_json}"), |response| {
+        parse_macro_response(response).map(Ok)
+    })
 }
 
 #[cfg(test)]
@@ -223,6 +198,25 @@ mod tests {
             port_name: "COM1".to_string(),
             port_type: serialport::SerialPortType::PciPort,
         }));
+    }
+
+    // Macro responses
+
+    #[test]
+    fn parses_macro_responses() {
+        assert_eq!(
+            parse_macro_response("MACRO_QUEUED"),
+            Some(MacroTestResult::Queued)
+        );
+        assert_eq!(
+            parse_macro_response("MACRO_ERROR:busy"),
+            Some(MacroTestResult::Busy)
+        );
+        assert_eq!(
+            parse_macro_response("MACRO_ERROR:unknown_key:hyper"),
+            Some(MacroTestResult::Rejected("unknown_key:hyper".to_string()))
+        );
+        assert_eq!(parse_macro_response("CONFIG_SAVED"), None);
     }
 
     // Line reading

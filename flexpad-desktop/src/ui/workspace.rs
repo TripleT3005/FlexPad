@@ -9,6 +9,7 @@ pub fn view_workspace(app: &FlexPadApp) -> Element<'_, Message> {
         app.tiles.clone(),
         app.selected_tile_id.clone(),
         app.dragging_tile_id.clone(),
+        app.ui.highlighted_tile_ids(),
     )
     .map(Message::CanvasEvent);
 
