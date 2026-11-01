@@ -379,3 +379,27 @@ jobs:
           export EXTRA_NOTES="Includes firmware $FIRMWARE_VERSION ([firmware-v$FIRMWARE_VERSION](https://github.com/${{ github.repository }}/releases/tag/firmware-v$FIRMWARE_VERSION)). · Enthält Firmware $FIRMWARE_VERSION."
           bash .github/scripts/publish-release.sh "v$VERSION" "FlexPad $VERSION" "$VERSION" \
             flexpad-desktop/CHANGELOG.md true dist/*
+
+  discord-firmware:
+    needs: [version, release-firmware]
+    uses: TripleT3005/TripleT3005/.github/workflows/discord-release.yml@main
+    with:
+      title: FlexPad Firmware ${{ needs.version.outputs.firmware_version }}
+      version: ${{ needs.version.outputs.firmware_version }}
+      tag: firmware-v${{ needs.version.outputs.firmware_version }}
+      changelog: flexpad-firmware/CHANGELOG.md
+      page: flexpad
+    secrets:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
+  discord-app:
+    needs: [version, release-app]
+    uses: TripleT3005/TripleT3005/.github/workflows/discord-release.yml@main
+    with:
+      title: FlexPad ${{ needs.version.outputs.app_version }}
+      version: ${{ needs.version.outputs.app_version }}
+      tag: v${{ needs.version.outputs.app_version }}
+      changelog: flexpad-desktop/CHANGELOG.md
+      page: flexpad
+    secrets:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
