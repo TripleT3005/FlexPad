@@ -6,6 +6,20 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 
 ## [Unreleased]
 
+### English
+
+#### Changed
+- **Scan** is only available while no device is connected, **Connect** only with a selected device, and **Load Config** and **Set Config** only while connected.
+- The window opens centered on the screen at its minimum size.
+- The update check asks GitHub only for the latest release instead of a list of releases.
+
+### Deutsch
+
+#### Geändert
+- **Scan** ist nur ohne verbundenes Gerät verfügbar, **Connect** nur mit ausgewähltem Gerät, **Load Config** und **Set Config** nur bei bestehender Verbindung.
+- Das Fenster öffnet sich in seiner Mindestgröße mittig auf dem Bildschirm.
+- Die Update-Prüfung fragt bei GitHub nur noch das neueste Release ab statt einer Liste von Releases.
+
 ## [1.0.0] – 2026-11-01
 
 ### English
