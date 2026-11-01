@@ -63,7 +63,14 @@ Example: `FlexPad-0.2.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TAS
 Profiles and settings are stored per user and are not set by the installer. Uninstalling removes the program and its shortcuts but keeps your profiles and settings (see [Privacy](#privacy) for the folders).
 
 #### Firmware
-`FlexPad-firmware-<version>-esp32s3.bin` contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
+The app contains the firmware of its own version and writes it itself, no extra tool needed:
+
+- **Update:** if the connected FlexPad runs an older firmware, the header shows "Update firmware". The app restarts the FlexPad into its bootloader, writes the firmware and restarts it.
+- **First installation or recovery:** hold **BOOT**, press **RESET**, release **BOOT** (or hold **BOOT** while plugging in the board), then click **Scan Devices**. The header shows "Install firmware" for the board in bootloader mode.
+
+Do not unplug the board while the progress bar is shown. If the board does not restart by itself afterwards, press **RESET** or unplug it briefly. The profile stored on the device is kept: only bootloader, partition table and app are written, and the image ends before the profile partition.
+
+Alternatively, `FlexPad-firmware-<version>-esp32s3.bin` from the release contains bootloader, partition table and firmware in one image for an ESP32-S3 with at least 8 MB flash. It is written with [espflash](https://github.com/esp-rs/espflash) (prebuilt downloads on its releases page, or `cargo install espflash`):
 
 1. Put the board into download mode: hold **BOOT**, press **RESET**, release **BOOT**. If the FlexPad firmware is already running, sending `REBOOT_BOOTLOADER` over its serial port does the same.
 2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<version>-esp32s3.bin`
@@ -106,7 +113,7 @@ Key names describe the physical key position on a US keyboard, using the names o
 
 ### Privacy
 - **The firmware never connects to the internet.** The app makes one optional request, the update check: at start and then every 24 hours while it runs, it sends an HTTPS GET request to `https://api.github.com/repos/TripleT3005/FlexPad/releases` and receives the list of published releases (version numbers and links). Only the newest version is compared with the installed one; if it is newer, "Version x.y.z available" appears in the header and opens the release page in your browser when clicked. Nothing is downloaded or installed. GitHub sees your IP address and the `User-Agent` `FlexPad/<version>`; nothing else is sent. Switch it off with **Check for updates** in the header (saved in the settings); then the app makes no request at all.
-- The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched.
+- The app only talks to serial ports on your computer. To find FlexPad devices it only opens USB serial ports whose USB serial number starts with `FlexPad-` (Espressif vendor ID `303A`) and asks them with `GET_DEVICE_INFO`; other devices are not touched. A scan also looks in the port list for an ESP32-S3 in bootloader mode (`303A:0009`) without opening it; that port is only opened when you click "Install firmware" or "Update firmware".
 - Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The device identifies itself with a serial number derived from the chip's MAC address.
 
@@ -120,6 +127,8 @@ cargo run --release
 ```
 
 `cargo test` runs the unit tests; CI checks formatting, `clippy` and tests on Windows, Linux and macOS.
+
+Without further setup the app is built without firmware, and firmware updates are disabled. To embed a firmware image, point `FLEXPAD_FIRMWARE_IMAGE` to a merged image (built as in [Firmware](#firmware-1) with `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), e.g. `FLEXPAD_FIRMWARE_IMAGE=/path/to/firmware.bin cargo build --release`. The release workflow does this with the firmware built in the same run.
 
 #### Firmware
 The firmware in `flexpad-firmware/` needs the Xtensa Rust toolchain and `espflash`:
@@ -212,7 +221,14 @@ Beispiel: `FlexPad-0.2.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TA
 Profile und Einstellungen gelten pro Benutzer und werden vom Installer nicht gesetzt. Die Deinstallation entfernt Programm und Verknüpfungen, lässt Profile und Einstellungen aber stehen (Ordner siehe [Datenschutz](#datenschutz)).
 
 #### Firmware
-`FlexPad-firmware-<Version>-esp32s3.bin` enthält Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
+Die App enthält die Firmware ihrer eigenen Version und schreibt sie selbst, ohne zusätzliches Werkzeug:
+
+- **Aktualisieren:** Läuft auf dem verbundenen FlexPad eine ältere Firmware, zeigt der Kopfbereich „Update firmware“. Die App startet den FlexPad in seinen Bootloader neu, schreibt die Firmware und startet ihn wieder.
+- **Erstinstallation oder Wiederherstellung:** **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen (oder **BOOT** beim Einstecken gedrückt halten), dann **Scan Devices** klicken. Der Kopfbereich zeigt für das Board im Bootloader-Modus „Install firmware“.
+
+Das Board nicht abziehen, solange der Fortschrittsbalken zu sehen ist. Startet es danach nicht von selbst neu, **RESET** drücken oder es kurz abziehen. Das auf dem Gerät gespeicherte Profil bleibt erhalten: Geschrieben werden nur Bootloader, Partitionstabelle und App, und das Image endet vor der Profil-Partition.
+
+Alternativ enthält `FlexPad-firmware-<Version>-esp32s3.bin` aus dem Release Bootloader, Partitionstabelle und Firmware in einem Image für einen ESP32-S3 mit mindestens 8 MB Flash. Geschrieben wird es mit [espflash](https://github.com/esp-rs/espflash) (fertige Downloads auf dessen Release-Seite oder `cargo install espflash`):
 
 1. Das Board in den Download-Modus bringen: **BOOT** gedrückt halten, **RESET** drücken, **BOOT** loslassen. Läuft bereits die FlexPad-Firmware, geht das auch, indem man über ihren seriellen Port `REBOOT_BOOTLOADER` sendet.
 2. `espflash write-bin --chip esp32s3 --no-stub --before no-reset --after no-reset --port <port> 0x0 FlexPad-firmware-<Version>-esp32s3.bin`
@@ -255,7 +271,7 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 
 ### Datenschutz
 - **Die Firmware verbindet sich nie mit dem Internet.** Die App macht eine einzige optionale Anfrage, die Update-Prüfung: beim Start und danach alle 24 Stunden, solange sie läuft, sendet sie eine HTTPS-GET-Anfrage an `https://api.github.com/repos/TripleT3005/FlexPad/releases` und erhält die Liste der veröffentlichten Releases (Versionsnummern und Links). Nur die neueste Version wird mit der installierten verglichen; ist sie neuer, erscheint im Kopfbereich „Version x.y.z available“, ein Klick öffnet die Release-Seite im Browser. Es wird nichts heruntergeladen oder installiert. GitHub sieht deine IP-Adresse und den `User-Agent` `FlexPad/<Version>`; sonst wird nichts gesendet. Abschalten lässt sich die Prüfung mit **Check for updates** im Kopfbereich (wird in den Einstellungen gespeichert); dann macht die App überhaupt keine Anfrage.
-- Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt.
+- Die App spricht nur mit seriellen Ports am eigenen Rechner. Um FlexPad-Geräte zu finden, öffnet sie nur USB-Seriell-Ports, deren USB-Seriennummer mit `FlexPad-` beginnt (Espressif-Hersteller-ID `303A`), und fragt sie mit `GET_DEVICE_INFO` ab; andere Geräte bleiben unberührt. Ein Scan sucht in der Portliste außerdem nach einem ESP32-S3 im Bootloader-Modus (`303A:0009`), ohne ihn zu öffnen; dieser Port wird nur geöffnet, wenn man „Install firmware“ oder „Update firmware“ klickt.
 - Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
 
@@ -269,6 +285,8 @@ cargo run --release
 ```
 
 `cargo test` führt die Unit-Tests aus; die CI prüft Formatierung, `clippy` und Tests unter Windows, Linux und macOS.
+
+Ohne weitere Einstellung wird die App ohne Firmware gebaut, Firmware-Updates sind dann abgeschaltet. Um ein Firmware-Image einzubetten, `FLEXPAD_FIRMWARE_IMAGE` auf ein zusammengeführtes Image setzen (gebaut wie unter [Firmware](#firmware-3) mit `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), z. B. `FLEXPAD_FIRMWARE_IMAGE=/pfad/zu/firmware.bin cargo build --release`. Der Release-Workflow macht das mit der Firmware, die im selben Lauf gebaut wird.
 
 #### Firmware
 Die Firmware in `flexpad-firmware/` braucht die Xtensa-Rust-Toolchain und `espflash`:

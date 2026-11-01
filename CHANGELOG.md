@@ -13,6 +13,8 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - The configurator points out when the firmware of the connected device is older than the app.
 - "Test" button next to each function in the Tile Inspector: runs the macro once on the connected device without saving and shows the answer, e.g. an unknown key, at the function.
 - Wiring test: while connected, pressing a button or turning an encoder briefly highlights its tile on the canvas; pins without a tile are named in the status line, e.g. "GPIO 12 pressed – not assigned".
+- "Update firmware" next to the outdated-firmware note writes the firmware built into the app to the FlexPad, with a progress bar, and restarts it. The profile stored on the device is kept.
+- A board in bootloader mode (e.g. a new board, or after holding BOOT) is found by "Scan Devices" and can be set up with "Install firmware".
 
 #### Changed
 - The configurator reads from the device in the background all the time, so device events and command answers no longer get in each other's way; unplugging is noticed right away.
@@ -24,6 +26,8 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 - Der Konfigurator weist darauf hin, wenn die Firmware des verbundenen Geräts älter ist als die App.
 - Knopf „Test“ neben jeder Funktion im Tile Inspector: führt das Makro einmal auf dem verbundenen Gerät aus, ohne zu speichern, und zeigt die Antwort, z. B. eine unbekannte Taste, an der Funktion an.
 - Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die Kachel kurz auf der Arbeitsfläche hervor; Pins ohne Kachel nennt die Statuszeile, z. B. „GPIO 12 pressed – not assigned“.
+- „Update firmware“ neben dem Hinweis auf veraltete Firmware schreibt die in die App eingebaute Firmware mit Fortschrittsbalken auf den FlexPad und startet ihn neu. Das auf dem Gerät gespeicherte Profil bleibt erhalten.
+- Ein Board im Bootloader-Modus (z. B. ein neues Board oder nach Halten von BOOT) findet „Scan Devices“, und „Install firmware“ richtet es ein.
 
 #### Geändert
 - Der Konfigurator liest im Hintergrund ständig vom Gerät, sodass sich Ereignisse und Antworten auf Befehle nicht mehr in die Quere kommen; das Abziehen des Geräts wird sofort bemerkt.

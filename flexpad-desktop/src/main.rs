@@ -6,6 +6,7 @@ mod components;
 mod config;
 mod constants;
 mod device;
+mod flasher;
 mod icon;
 mod keys;
 mod macros;

@@ -114,6 +114,12 @@ pub fn fetch_config_from_device(connection: &Connection) -> Result<String, Strin
     })
 }
 
+pub fn reboot_to_bootloader(connection: &Connection) {
+    let _ = connection.request("REBOOT_BOOTLOADER", |response| {
+        response.starts_with("REBOOTING:").then_some(Ok(()))
+    });
+}
+
 pub fn set_config_to_device(connection: &Connection, json_config: &str) -> Result<(), String> {
     connection.request(&format!("SET_CONFIG:{json_config}"), |response| {
         if response == "CONFIG_SAVED" {

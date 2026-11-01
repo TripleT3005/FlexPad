@@ -4,9 +4,10 @@ mod icon;
 
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // Constants
+const FIRMWARE_IMAGE_VARIABLE: &str = "FLEXPAD_FIRMWARE_IMAGE";
 const ICON_SIZES: [u16; 7] = [16, 20, 24, 32, 48, 64, 256];
 const RT_ICON: u16 = 3;
 const RT_GROUP_ICON: u16 = 14;
@@ -45,6 +46,7 @@ fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let is_msvc = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|target_env| target_env == "msvc");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
+    embed_firmware_image(&out_dir);
     if target_os == "macos"
         && let Some(profile_dir) = out_dir.ancestors().nth(3)
     {
@@ -71,6 +73,24 @@ fn main() {
         fs::write(profile_dir.join("FlexPad.ico"), icon_file())
             .expect("writing the icon file failed");
     }
+}
+
+// Firmware image
+fn embed_firmware_image(out_dir: &Path) {
+    println!("cargo:rerun-if-env-changed={FIRMWARE_IMAGE_VARIABLE}");
+    let image = match env::var_os(FIRMWARE_IMAGE_VARIABLE).filter(|path| !path.is_empty()) {
+        Some(path) => {
+            println!("cargo:rerun-if-changed={}", path.to_string_lossy());
+            fs::read(&path).unwrap_or_else(|e| {
+                panic!(
+                    "reading the firmware image {} failed: {e}",
+                    path.to_string_lossy()
+                )
+            })
+        }
+        None => Vec::new(),
+    };
+    fs::write(out_dir.join("firmware.bin"), image).expect("writing the firmware image failed");
 }
 
 // Icon file

@@ -9,7 +9,8 @@ on:
       - CHANGELOG.md
       - installer/**
       - flexpad-desktop/build.rs
-      - flexpad-firmware/partitions.csv
+      - flexpad-desktop/src/flasher/**
+      - flexpad-firmware/**
   workflow_dispatch:
 
 permissions:
@@ -64,7 +65,7 @@ jobs:
           fi
 
   build:
-    needs: version
+    needs: [version, firmware]
     if: needs.version.outputs.exists == 'false' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
@@ -96,9 +97,23 @@ jobs:
       - name: Install Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: firmware
+          path: firmware
+
       - name: Build app
         working-directory: flexpad-desktop
-        run: cargo build --release --locked
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          image="$GITHUB_WORKSPACE/firmware/FlexPad-firmware-$VERSION-esp32s3.bin"
+          test -f "$image"
+          FLEXPAD_FIRMWARE_IMAGE="$image" cargo build --release --locked
+          if [ "$RUNNER_OS" = Linux ]; then
+            FLEXPAD_FIRMWARE_IMAGE="$image" cargo test --release --locked embedded_image
+          fi
 
       - name: Package
         if: runner.os != 'macOS'
@@ -259,6 +274,7 @@ jobs:
             target/xtensa-esp32s3-none-elf/release/flexpad-firmware "../dist/$image"
           cd ../dist
           test "$(head -c 1 "$image" | od -An -tx1 | tr -d ' ')" = "e9"
+          test "$(wc -c < "$image")" -le $((0x410000))
           sha256sum "$image" > "$image.sha256"
 
       - uses: actions/upload-artifact@v7
