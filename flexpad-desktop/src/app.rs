@@ -1168,6 +1168,7 @@ mod tests {
             port_name: "COM9".to_string(),
             device_id: "FlexPad-0123456789AB".to_string(),
             firmware_version: Some("0.2.0".to_string()),
+            protocol_version: 1,
         }
     }
 

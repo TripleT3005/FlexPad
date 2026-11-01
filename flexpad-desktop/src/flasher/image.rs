@@ -14,6 +14,7 @@ const TYPE_DATA: u8 = 0x01;
 const SUBTYPE_FACTORY: u8 = 0x00;
 const SUBTYPE_OTA_0: u8 = 0x10;
 pub const CONFIG_PARTITION: &str = "flexpad";
+pub const FIRMWARE_VERSION: &str = env!("FLEXPAD_FIRMWARE_VERSION");
 
 // Partitions
 

@@ -1,5 +1,6 @@
 use crate::app::{DeviceTask, FlexPadApp, Message};
-use crate::flasher::{self, FlashStage};
+use crate::device::PROTOCOL_VERSION;
+use crate::flasher::{self, FIRMWARE_VERSION, FlashStage};
 use crate::keys::KeyboardLayout;
 use crate::update::{self, APP_VERSION};
 use iced::widget::{
@@ -109,9 +110,18 @@ fn label(content: &str) -> Element<'_, Message> {
 
 fn firmware_notice(app: &FlexPadApp) -> Option<Element<'_, Message>> {
     let is_idle = !app.is_device_busy();
+    if needs_newer_app(app) {
+        return Some(banner(
+            text("This FlexPad uses a newer protocol than this app understands. Please update the app.")
+                .size(13)
+                .into(),
+        ));
+    }
     let (message, action) = if let Some(firmware) = outdated_firmware(app) {
         (
-            format!("Firmware {firmware} is older than the app ({APP_VERSION})."),
+            format!(
+                "Firmware {firmware} is older than the firmware built into the app ({FIRMWARE_VERSION})."
+            ),
             "Update firmware",
         )
     } else if app.connected_device.is_none() && is_idle && app.download_port.is_some() {
@@ -183,7 +193,13 @@ fn has_firmware_image() -> bool {
 
 fn outdated_firmware(app: &FlexPadApp) -> Option<&str> {
     let firmware = app.connected_device.as_ref()?.firmware_version.as_deref()?;
-    update::is_newer(APP_VERSION, firmware).then_some(firmware)
+    update::is_newer(FIRMWARE_VERSION, firmware).then_some(firmware)
+}
+
+fn needs_newer_app(app: &FlexPadApp) -> bool {
+    app.connected_device
+        .as_ref()
+        .is_some_and(|device| device.protocol_version > PROTOCOL_VERSION)
 }
 
 // Status bar

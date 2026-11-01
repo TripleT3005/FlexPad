@@ -2,7 +2,7 @@ mod image;
 mod rom;
 mod slip;
 
-pub use image::embedded_image;
+pub use image::{FIRMWARE_VERSION, embedded_image};
 
 use image::FirmwareImage;
 
