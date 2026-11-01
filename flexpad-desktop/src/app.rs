@@ -20,6 +20,7 @@ use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
 use crate::ui::header::view_header;
 use crate::ui::workspace::view_workspace;
+use crate::update::{self, ReleaseInfo};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProfileItem {
@@ -157,6 +158,9 @@ pub struct FlexPadApp {
     pub saved_profiles: Vec<ProfileItem>,
     pub selected_profile: Option<ProfileItem>,
 
+    pub check_for_updates: bool,
+    pub available_update: Option<ReleaseInfo>,
+
     pub ui: UiState,
 }
 
@@ -175,6 +179,10 @@ pub enum Message {
     DeviceTaskFailed,
     DeviceEvent(DeviceEvent),
     HighlightTick(Instant),
+    CheckForUpdate,
+    UpdateChecked(Result<Option<ReleaseInfo>, String>),
+    UpdateCheckToggled(bool),
+    OpenReleasePage,
     ProfileSelected(ProfileItem),
     SaveCurrentProfile,
     NewProfile,
@@ -261,9 +269,15 @@ impl FlexPadApp {
                 keyboard_layout: initial_profile.keyboard_layout,
                 saved_profiles: profiles,
                 selected_profile: initial_selected,
+                check_for_updates: user_settings.check_for_updates,
+                available_update: None,
                 ui: ui_state,
             },
-            Task::none(),
+            if user_settings.check_for_updates {
+                check_for_update()
+            } else {
+                Task::none()
+            },
         )
     }
 
@@ -279,7 +293,12 @@ impl FlexPadApp {
         } else {
             iced::time::every(HIGHLIGHT_TICK).map(Message::HighlightTick)
         };
-        Subscription::batch([events, highlights])
+        let updates = if self.check_for_updates {
+            iced::time::every(update::CHECK_INTERVAL).map(|_| Message::CheckForUpdate)
+        } else {
+            Subscription::none()
+        };
+        Subscription::batch([events, highlights, updates])
     }
 
     pub fn selected_tile(&self) -> Option<&Tile> {
@@ -356,6 +375,16 @@ impl FlexPadApp {
             Message::HighlightTick(now) => {
                 self.ui.highlighted_tiles.retain(|(_, until)| *until > now);
             }
+            Message::CheckForUpdate => return self.handle_check_for_update(),
+            Message::UpdateChecked(result) => self.handle_update_checked(result),
+            Message::UpdateCheckToggled(enabled) => {
+                return self.handle_update_check_toggled(enabled);
+            }
+            Message::OpenReleasePage => {
+                if let Some(release) = &self.available_update {
+                    update::open_in_browser(&release.url);
+                }
+            }
             Message::ProfileSelected(profile) => self.handle_profile_selected(profile),
             Message::SaveCurrentProfile => self.handle_save_profile(),
             Message::NewProfile => self.handle_new_profile(),
@@ -415,10 +444,7 @@ impl FlexPadApp {
             Message::PresetSelected(preset_name) => self.ui.selected_preset = preset_name,
             Message::AdvancedModeToggled(val) => {
                 self.ui.advanced_mode = val;
-                save_user_settings(&UserSettings {
-                    last_profile: Some(self.current_profile_name.clone()),
-                    advanced_mode: self.ui.advanced_mode,
-                });
+                self.persist_settings(self.current_profile_name.clone());
             }
             Message::RawMacroChanged(function, raw) => {
                 if let Ok(parsed) = serde_json::from_str::<Macro>(&raw) {
@@ -581,10 +607,7 @@ impl FlexPadApp {
             self.selected_profile = self.saved_profiles.iter().find(|p| p.path == path).cloned();
         }
 
-        save_user_settings(&UserSettings {
-            last_profile: Some(profile_name),
-            advanced_mode: self.ui.advanced_mode,
-        });
+        self.persist_settings(profile_name);
         self.status_message = "Configuration loaded from device and saved locally.".to_string();
     }
 
@@ -697,6 +720,42 @@ impl FlexPadApp {
         }
     }
 
+    fn persist_settings(&self, last_profile: String) {
+        save_user_settings(&UserSettings {
+            last_profile: Some(last_profile),
+            advanced_mode: self.ui.advanced_mode,
+            check_for_updates: self.check_for_updates,
+        });
+    }
+
+    fn handle_check_for_update(&mut self) -> Task<Message> {
+        if self.check_for_updates {
+            check_for_update()
+        } else {
+            Task::none()
+        }
+    }
+
+    fn handle_update_checked(&mut self, result: Result<Option<ReleaseInfo>, String>) {
+        if !self.check_for_updates {
+            return;
+        }
+        if let Ok(release) = result {
+            self.available_update = release;
+        }
+    }
+
+    fn handle_update_check_toggled(&mut self, enabled: bool) -> Task<Message> {
+        self.check_for_updates = enabled;
+        self.persist_settings(self.current_profile_name.clone());
+        if enabled {
+            check_for_update()
+        } else {
+            self.available_update = None;
+            Task::none()
+        }
+    }
+
     fn handle_profile_selected(&mut self, item: ProfileItem) {
         match load_profile_from_disk(&item.path) {
             Ok(loaded) => {
@@ -709,10 +768,7 @@ impl FlexPadApp {
                 self.ui.expanded_functions.clear();
                 self.ui.raw_macro_input = None;
 
-                save_user_settings(&UserSettings {
-                    last_profile: Some(loaded.profile_name),
-                    advanced_mode: self.ui.advanced_mode,
-                });
+                self.persist_settings(loaded.profile_name);
                 self.status_message = "Loaded profile from disk.".to_string();
             }
             Err(e) => {
@@ -752,10 +808,7 @@ impl FlexPadApp {
                 self.selected_profile =
                     self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
-                save_user_settings(&UserSettings {
-                    last_profile: Some(self.current_profile_name.clone()),
-                    advanced_mode: self.ui.advanced_mode,
-                });
+                self.persist_settings(self.current_profile_name.clone());
                 self.status_message = "Profile successfully saved/renamed to disk.".to_string();
             }
             Err(e) => {
@@ -773,10 +826,7 @@ impl FlexPadApp {
             self.saved_profiles = load_profile_items();
             self.selected_profile = self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
-            save_user_settings(&UserSettings {
-                last_profile: Some(new_name.clone()),
-                advanced_mode: self.ui.advanced_mode,
-            });
+            self.persist_settings(new_name.clone());
             self.status_message = format!("Created profile template: {}", new_name);
         }
     }
@@ -878,6 +928,13 @@ fn uuid_short() -> String {
     format!("{:x}", since_epoch.subsec_nanos())
 }
 
+fn check_for_update() -> Task<Message> {
+    Task::perform(
+        async { tokio::task::spawn_blocking(update::check_for_update).await },
+        |result| Message::UpdateChecked(result.unwrap_or_else(|e| Err(e.to_string()))),
+    )
+}
+
 fn in_background<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
     done: impl FnOnce(T) -> Message + Send + 'static,
@@ -908,6 +965,8 @@ mod tests {
             keyboard_layout: KeyboardLayout::Us,
             saved_profiles: Vec::new(),
             selected_profile: None,
+            check_for_updates: true,
+            available_update: None,
             ui: UiState::default(),
         }
     }
@@ -916,7 +975,43 @@ mod tests {
         FlexPadDeviceInfo {
             port_name: "COM9".to_string(),
             device_id: "FlexPad-0123456789AB".to_string(),
+            firmware_version: Some("0.2.0".to_string()),
         }
+    }
+
+    // Update notice
+
+    fn release() -> ReleaseInfo {
+        ReleaseInfo {
+            version: "0.3.0".to_string(),
+            url: "https://github.com/TripleT3005/FlexPad/releases/tag/v0.3.0".to_string(),
+        }
+    }
+
+    #[test]
+    fn a_found_release_is_kept_and_errors_leave_it() {
+        let mut app = test_app();
+
+        let _ = app.update(Message::UpdateChecked(Ok(Some(release()))));
+        assert_eq!(app.available_update, Some(release()));
+
+        let _ = app.update(Message::UpdateChecked(Err("offline".to_string())));
+        assert_eq!(app.available_update, Some(release()));
+    }
+
+    #[test]
+    fn switching_the_check_off_clears_the_notice_and_ignores_results() {
+        let mut app = test_app();
+        app.available_update = Some(release());
+        app.check_for_updates = false;
+
+        let _ = app.handle_check_for_update();
+        let _ = app.update(Message::UpdateChecked(Ok(Some(release()))));
+        assert_eq!(app.available_update, Some(release()));
+
+        app.available_update = None;
+        let _ = app.update(Message::UpdateChecked(Ok(Some(release()))));
+        assert_eq!(app.available_update, None);
     }
 
     // Device access

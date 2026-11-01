@@ -1,6 +1,7 @@
 use crate::app::{FlexPadApp, Message};
 use crate::keys::KeyboardLayout;
-use iced::widget::{button, column, container, pick_list, row, text, text_input};
+use crate::update::{self, APP_VERSION};
+use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Element, Length};
 
 pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
@@ -21,6 +22,31 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
         text("🔴 Disconnected").size(14)
     };
     let status_row = row![status_indicator, text(status_message)].spacing(15);
+
+    let update_check = checkbox(app.check_for_updates)
+        .label("Check for updates")
+        .size(14)
+        .text_size(12)
+        .on_toggle(Message::UpdateCheckToggled);
+    let mut notices = row![update_check]
+        .spacing(15)
+        .align_y(iced::Alignment::Center);
+    if let Some(release) = &app.available_update {
+        notices = notices.push(
+            button(text(format!("Version {} available", release.version)).size(12))
+                .padding(0)
+                .style(button::text)
+                .on_press(Message::OpenReleasePage),
+        );
+    }
+    if let Some(firmware) = outdated_firmware(app) {
+        notices = notices.push(
+            text(format!(
+                "Firmware {firmware} is older than the app ({APP_VERSION})."
+            ))
+            .size(12),
+        );
+    }
 
     let scan_btn = button("Scan Devices").on_press_maybe(is_idle.then_some(Message::ScanDevices));
     let device_picker = pick_list(
@@ -78,7 +104,7 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
     .spacing(8);
 
     row![
-        column![title, status_row, top_action_row]
+        column![title, status_row, notices, top_action_row]
             .spacing(10)
             .width(Length::Fill),
         container(profile_controls_col).align_x(iced::alignment::Horizontal::Right)
@@ -86,4 +112,8 @@ pub fn view_header(app: &FlexPadApp) -> Element<'_, Message> {
     .width(Length::Fill)
     .align_y(iced::Alignment::Center)
     .into()
+}
+fn outdated_firmware(app: &FlexPadApp) -> Option<&str> {
+    let firmware = app.connected_device.as_ref()?.firmware_version.as_deref()?;
+    update::is_newer(APP_VERSION, firmware).then_some(firmware)
 }

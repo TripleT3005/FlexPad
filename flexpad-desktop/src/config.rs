@@ -147,11 +147,27 @@ fn move_file(from: &Path, to: &Path) -> bool {
 
 // Settings
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSettings {
     pub last_profile: Option<String>,
     #[serde(default)]
     pub advanced_mode: bool,
+    #[serde(default = "default_check_for_updates")]
+    pub check_for_updates: bool,
+}
+
+fn default_check_for_updates() -> bool {
+    true
+}
+
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self {
+            last_profile: None,
+            advanced_mode: false,
+            check_for_updates: default_check_for_updates(),
+        }
+    }
 }
 
 pub fn load_user_settings() -> UserSettings {
@@ -243,6 +259,20 @@ pub fn list_saved_profiles() -> Vec<(String, PathBuf)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Settings
+
+    #[test]
+    fn update_check_is_on_by_default() {
+        assert!(UserSettings::default().check_for_updates);
+        let old: UserSettings =
+            serde_json::from_str(r#"{"last_profile":"A","advanced_mode":true}"#).unwrap();
+        assert!(old.check_for_updates);
+        assert!(old.advanced_mode);
+        let off: UserSettings =
+            serde_json::from_str(r#"{"last_profile":null,"check_for_updates":false}"#).unwrap();
+        assert!(!off.check_for_updates);
+    }
 
     // Directories
 
