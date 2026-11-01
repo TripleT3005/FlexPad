@@ -1,7 +1,7 @@
 use crate::profile::Tile;
 use crate::ui::inspector::pin_summary;
 use iced::widget::canvas::{self, Action, Canvas, Frame, Geometry, Path, Program, Stroke};
-use iced::{Color, Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
+use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
 // Messages
 
@@ -106,19 +106,9 @@ impl Program<CanvasMessage> for GridProgram {
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
 
-        let is_dark = theme.extended_palette().is_dark;
-        let background_color = if is_dark {
-            Color::from_rgb(0.08, 0.09, 0.11)
-        } else {
-            Color::from_rgb(0.94, 0.95, 0.96)
-        };
-        frame.fill_rectangle(Point::ORIGIN, bounds.size(), background_color);
+        let colors = crate::theme::canvas_colors(theme);
+        frame.fill_rectangle(Point::ORIGIN, bounds.size(), colors.background);
 
-        let dot_color = if is_dark {
-            Color::from_rgba(1.0, 1.0, 1.0, 0.15)
-        } else {
-            Color::from_rgba(0.0, 0.0, 0.0, 0.2)
-        };
         let spacing: f32 = 30.0;
         let dot_radius: f32 = 1.5;
 
@@ -126,7 +116,7 @@ impl Program<CanvasMessage> for GridProgram {
         while x < bounds.width {
             let mut y = spacing;
             while y < bounds.height {
-                frame.fill(&Path::circle(Point::new(x, y), dot_radius), dot_color);
+                frame.fill(&Path::circle(Point::new(x, y), dot_radius), colors.dots);
                 y += spacing;
             }
             x += spacing;
@@ -140,22 +130,14 @@ impl Program<CanvasMessage> for GridProgram {
 
             let is_selected = self.selected_tile_id.as_ref() == Some(&tile.id);
             let is_highlighted = self.highlighted_tile_ids.contains(&tile.id);
-            let box_color = if is_highlighted {
-                Color::from_rgb8(0x2F, 0x6B, 0x4E)
+            let (box_color, border_color) = if is_highlighted {
+                (colors.highlighted, colors.highlighted_border)
             } else if is_selected {
-                Color::from_rgba(0.25, 0.5, 0.9, 0.9)
+                (colors.selected, colors.selected_border)
             } else {
-                Color::from_rgba(0.15, 0.3, 0.6, 0.9)
+                (colors.tile, colors.tile_border)
             };
             frame.fill(&box_path, box_color);
-
-            let border_color = if is_highlighted {
-                Color::from_rgb8(0x86, 0xBC, 0x9C)
-            } else if is_selected {
-                Color::from_rgb(0.7, 0.9, 1.0)
-            } else {
-                Color::from_rgb(0.4, 0.6, 1.0)
-            };
 
             let border_stroke = Stroke {
                 style: canvas::stroke::Style::Solid(border_color),
@@ -178,7 +160,7 @@ impl Program<CanvasMessage> for GridProgram {
             let text = canvas::Text {
                 content: text_content,
                 position: Point::new(rect_pos.x + 8.0, rect_pos.y + 10.0),
-                color: Color::WHITE,
+                color: colors.tile_text,
                 size: iced::Pixels(12.0),
                 ..canvas::Text::default()
             };

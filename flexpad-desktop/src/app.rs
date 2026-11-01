@@ -22,6 +22,7 @@ use crate::flasher::{
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
+use crate::theme;
 use crate::ui::header::{view_header, view_status_bar};
 use crate::ui::workspace::view_workspace;
 use crate::update::{self, ReleaseInfo};
@@ -155,6 +156,7 @@ impl DeviceTask {
 
 pub struct FlexPadApp {
     pub status_message: String,
+    pub theme_mode: iced::theme::Mode,
     pub available_devices: Vec<FlexPadDeviceInfo>,
     pub selected_device: Option<FlexPadDeviceInfo>,
     pub connected_device: Option<FlexPadDeviceInfo>,
@@ -203,6 +205,7 @@ pub enum Message {
     UpdateChecked(Result<Option<ReleaseInfo>, String>),
     UpdateCheckToggled(bool),
     CloseRequested(iced::window::Id),
+    ThemeModeChanged(iced::theme::Mode),
     WindowRead(iced::window::Id, Option<WindowGeometry>),
     OpenReleasePage,
     ProfileSelected(ProfileItem),
@@ -280,6 +283,7 @@ impl FlexPadApp {
         (
             Self {
                 status_message,
+                theme_mode: theme::mode_override().unwrap_or_default(),
                 available_devices: Vec::new(),
                 selected_device: None,
                 connected_device: None,
@@ -299,11 +303,14 @@ impl FlexPadApp {
                 download_port: None,
                 ui: ui_state,
             },
-            if user_settings.check_for_updates {
-                check_for_update()
-            } else {
-                Task::none()
-            },
+            Task::batch([
+                read_system_theme(),
+                if user_settings.check_for_updates {
+                    check_for_update()
+                } else {
+                    Task::none()
+                },
+            ]),
         )
     }
 
@@ -329,6 +336,11 @@ impl FlexPadApp {
             highlights,
             updates,
             iced::window::close_requests().map(Message::CloseRequested),
+            if theme::mode_override().is_some() {
+                Subscription::none()
+            } else {
+                iced::system::theme_changes().map(Message::ThemeModeChanged)
+            },
         ])
     }
 
@@ -423,6 +435,7 @@ impl FlexPadApp {
                 return self.handle_update_check_toggled(enabled);
             }
             Message::CloseRequested(id) => return read_window(id),
+            Message::ThemeModeChanged(mode) => self.theme_mode = mode,
             Message::WindowRead(id, geometry) => {
                 if let Some(geometry) = geometry {
                     window_state::save_window_geometry(&geometry);
@@ -993,6 +1006,10 @@ impl FlexPadApp {
 
     // View
 
+    pub fn theme(&self) -> iced::Theme {
+        theme::app_theme(self.theme_mode)
+    }
+
     pub fn view(&self) -> Element<'_, Message> {
         let content = column![
             view_header(self),
@@ -1084,6 +1101,14 @@ fn flash_events(source: FlashSource) -> impl iced::futures::Stream<Item = FlashE
     })
 }
 
+fn read_system_theme() -> Task<Message> {
+    if theme::mode_override().is_some() {
+        Task::none()
+    } else {
+        iced::system::theme().map(Message::ThemeModeChanged)
+    }
+}
+
 fn read_window(id: iced::window::Id) -> Task<Message> {
     iced::window::position(id).then(move |position| {
         iced::window::size(id).then(move |size| {
@@ -1116,6 +1141,7 @@ mod tests {
     fn test_app() -> FlexPadApp {
         FlexPadApp {
             status_message: String::new(),
+            theme_mode: iced::theme::Mode::None,
             available_devices: Vec::new(),
             selected_device: Some(device()),
             connected_device: None,
