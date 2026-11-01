@@ -3,8 +3,10 @@ mod tests {
     // Constants
 
     const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const APP_CHANGELOG: &str = include_str!("../CHANGELOG.md");
     const FIRMWARE_MANIFEST: &str = include_str!("../../flexpad-firmware/Cargo.toml");
-    const CHANGELOG: &str = include_str!("../../CHANGELOG.md");
+    const FIRMWARE_CHANGELOG: &str = include_str!("../../flexpad-firmware/CHANGELOG.md");
+    const LAST_SHARED_VERSION: &str = "1.1.0";
     const UNRELEASED: &str = "Unreleased";
 
     // Helpers
@@ -44,43 +46,61 @@ mod tests {
         Some(rest[..end].trim())
     }
 
-    // Versions
-
-    #[test]
-    fn firmware_has_the_app_version() {
-        assert_eq!(package_version(FIRMWARE_MANIFEST), Some(APP_VERSION));
-    }
-
-    #[test]
-    fn newest_changelog_section_has_the_app_version() {
-        assert_eq!(newest_changelog_version(CHANGELOG), Some(APP_VERSION));
-    }
-
-    #[test]
-    fn changelog_section_has_both_languages() {
-        let section = changelog_section(CHANGELOG, APP_VERSION).unwrap_or_default();
-
+    fn assert_both_languages(section: &str) {
         assert!(section.contains("### English"), "{section}");
         assert!(section.contains("### Deutsch"), "{section}");
     }
 
-    // Unreleased
+    fn assert_unreleased_is_valid(changelog: &str) {
+        let position = changelog_headings(changelog).position(|name| name == UNRELEASED);
+        assert!(matches!(position, None | Some(0)), "{position:?}");
+
+        let section = changelog_section(changelog, UNRELEASED).unwrap_or_default();
+        if !section.is_empty() {
+            assert_both_languages(section);
+        }
+    }
+
+    // App
 
     #[test]
-    fn unreleased_section_comes_first() {
-        let position = changelog_headings(CHANGELOG).position(|name| name == UNRELEASED);
-
-        assert!(matches!(position, None | Some(0)), "{position:?}");
+    fn newest_app_changelog_section_has_the_app_version() {
+        assert_eq!(newest_changelog_version(APP_CHANGELOG), Some(APP_VERSION));
+        assert_both_languages(changelog_section(APP_CHANGELOG, APP_VERSION).unwrap_or_default());
     }
 
     #[test]
-    fn unreleased_section_has_both_languages_when_filled() {
-        let section = changelog_section(CHANGELOG, UNRELEASED).unwrap_or_default();
+    fn app_changelog_keeps_unreleased_on_top() {
+        assert_unreleased_is_valid(APP_CHANGELOG);
+    }
 
-        if !section.is_empty() {
-            assert!(section.contains("### English"), "{section}");
-            assert!(section.contains("### Deutsch"), "{section}");
+    // Firmware
+
+    #[test]
+    fn newest_firmware_changelog_section_has_the_firmware_version() {
+        let version = package_version(FIRMWARE_MANIFEST).expect("firmware version");
+        match newest_changelog_version(FIRMWARE_CHANGELOG) {
+            Some(newest) => {
+                assert_eq!(newest, version);
+                assert_both_languages(
+                    changelog_section(FIRMWARE_CHANGELOG, version).unwrap_or_default(),
+                );
+            }
+            None => assert_eq!(version, LAST_SHARED_VERSION),
         }
+    }
+
+    #[test]
+    fn firmware_changelog_keeps_unreleased_on_top() {
+        assert_unreleased_is_valid(FIRMWARE_CHANGELOG);
+    }
+
+    #[test]
+    fn app_embeds_the_current_firmware_version() {
+        assert_eq!(
+            package_version(FIRMWARE_MANIFEST),
+            Some(crate::flasher::FIRMWARE_VERSION)
+        );
     }
 
     // Helpers
@@ -96,6 +116,10 @@ mod tests {
         assert_eq!(package_version(manifest), Some("1.2.3"));
         assert_eq!(newest_changelog_version(changelog), Some("1.2.3"));
         assert_eq!(newest_changelog_version(with_unreleased), Some("1.2.3"));
+        assert_eq!(
+            newest_changelog_version("# Changelog\n\n## [Unreleased]\n"),
+            None
+        );
         assert_eq!(changelog_section(with_unreleased, UNRELEASED), Some("new"));
         assert_eq!(
             changelog_section(changelog, "1.2.3"),

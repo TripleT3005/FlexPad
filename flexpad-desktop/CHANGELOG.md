@@ -1,8 +1,8 @@
-# Changelog
+# Changelog: FlexPad configurator
 
-All notable changes to FlexPad, grouped by version in the style of [Keep a Changelog](https://keepachangelog.com/). The section of each version is used as its release notes. Changes on `main` that are not released yet are collected under [Unreleased] and move into the section of the next version.
+All notable changes to the FlexPad configurator (desktop app), grouped by version in the style of [Keep a Changelog](https://keepachangelog.com/). The section of each version is used as its release notes (tag `v<version>`). Changes on `main` that are not released yet are collected under [Unreleased] and move into the section of the next version. Up to 1.1.0, app and firmware were released together, so those sections also list firmware changes; the firmware has its own [changelog](../flexpad-firmware/CHANGELOG.md) since then.
 
-Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep a Changelog](https://keepachangelog.com/de/). Der Abschnitt einer Version wird als ihre Release-Notizen verwendet. Änderungen auf `main`, die noch nicht veröffentlicht sind, stehen unter [Unreleased] und wandern mit der nächsten Version in deren Abschnitt.
+Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nach Version im Stil von [Keep a Changelog](https://keepachangelog.com/de/). Der Abschnitt einer Version wird als ihre Release-Notizen verwendet (Tag `v<Version>`). Änderungen auf `main`, die noch nicht veröffentlicht sind, stehen unter [Unreleased] und wandern mit der nächsten Version in deren Abschnitt. Bis 1.1.0 erschienen App und Firmware gemeinsam, diese Abschnitte nennen daher auch Änderungen an der Firmware; seitdem hat die Firmware ihren eigenen [Changelog](../flexpad-firmware/CHANGELOG.md).
 
 ## [Unreleased]
 
@@ -11,12 +11,14 @@ Alle wichtigen Änderungen an FlexPad, gegliedert nach Version im Stil von [Keep
 #### Changed
 - The configurator uses the green of the logo for buttons, selections and tiles; backgrounds stay neutral gray in light and dark mode. All colors are defined in one place (`flexpad-desktop/src/theme.rs`).
 - The connection state in the status bar is a colored dot instead of an emoji, and the arrows of the function list no longer show as blue emoji on Windows.
+- App and firmware have their own version numbers and release notes. The note about an outdated firmware compares the device with the firmware built into the app, and a device with a newer protocol than the app understands asks for an app update.
 
 ### Deutsch
 
 #### Geändert
 - Der Konfigurator nutzt das Grün des Logos für Knöpfe, Auswahl und Kacheln; Hintergründe bleiben im hellen und dunklen Modus neutral grau. Alle Farben sind an einer Stelle festgelegt (`flexpad-desktop/src/theme.rs`).
 - Der Verbindungsstatus in der Statusleiste ist ein farbiger Punkt statt eines Emojis, und die Pfeile der Funktionsliste erscheinen unter Windows nicht mehr als blaue Emojis.
+- App und Firmware haben eigene Versionsnummern und Release-Notizen. Der Hinweis auf eine veraltete Firmware vergleicht das Gerät mit der in die App eingebauten Firmware, und ein Gerät mit neuerem Protokoll, als die App versteht, bittet um ein Update der App.
 
 ## [1.1.0] – 2026-11-01
 
