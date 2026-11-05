@@ -6,6 +6,16 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+### English
+
+#### Added
+- Release packages, the setup and the Linux packages include the licenses of all third-party components in `THIRD-PARTY-LICENSES.txt`.
+
+### Deutsch
+
+#### Neu
+- Release-Pakete, Setup und Linux-Pakete enthalten die Lizenzen aller Fremdkomponenten in `THIRD-PARTY-LICENSES.txt`.
+
 ## [1.2.2] – 2026-11-01
 
 ### English

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci-desktop.yml
+      - .github/scripts/*.py
       - assets/icons/**
       - flexpad-desktop/**
       - flexpad-firmware/Cargo.toml
@@ -62,4 +63,12 @@ jobs:
 
       - name: Test
         run: cargo test --locked
+
+      - name: Test license script
+        if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s ../.github/scripts
+
+      - name: Check third-party licenses
+        if: runner.os == 'Linux'
+        run: python3 ../.github/scripts/third_party_licenses.py --rust-std --platform x86_64-pc-windows-msvc --platform x86_64-unknown-linux-gnu --platform aarch64-apple-darwin
 
