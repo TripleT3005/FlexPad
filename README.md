@@ -135,6 +135,8 @@ cargo run --release
 
 `cargo test` runs the unit tests; CI checks formatting, `clippy` and tests on Windows, Linux and macOS.
 
+The license list for releases is created with Python 3 (standard library only), e.g. `python ../.github/scripts/third_party_licenses.py --rust-std --output ../THIRD-PARTY-LICENSES.txt` in `flexpad-desktop`. The Windows installer needs this file. `python -m unittest discover -s .github/scripts` tests the script.
+
 Without further setup the app is built without firmware, and firmware updates are disabled. To embed a firmware image, point `FLEXPAD_FIRMWARE_IMAGE` to a merged image (built as in [Firmware](#firmware-1) with `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), e.g. `FLEXPAD_FIRMWARE_IMAGE=/path/to/firmware.bin cargo build --release`. The release workflow does this with the firmware built in the same run.
 
 The icons in [`assets/icons`](assets/icons) (ICO and PNG in all common sizes) are generated from `icon.svg` with [`render-icons.mjs`](https://github.com/TripleT3005/TripleT3005/blob/main/scripts/render-icons.mjs), which needs Node.js and Edge or Chrome: `node render-icons.mjs assets/icons`. The app, the setup, the Linux and macOS packages and the release announcement take their icon from there.
@@ -170,6 +172,8 @@ App and firmware have their own versions: `flexpad-desktop/Cargo.toml` with [fle
 
 ### License
 [MIT](LICENSE)
+
+Release packages, the installer and the Linux packages include `THIRD-PARTY-LICENSES.txt` with the licenses of all third-party components built into the app and its embedded firmware; each firmware release has its own `FlexPad-firmware-<version>-third-party-licenses.txt`. The CI fails if a dependency uses a license that is not on the allow list in [`.github/scripts/third_party_licenses.py`](.github/scripts/third_party_licenses.py).
 
 ## Deutsch
 
@@ -302,6 +306,8 @@ cargo run --release
 
 `cargo test` führt die Unit-Tests aus; die CI prüft Formatierung, `clippy` und Tests unter Windows, Linux und macOS.
 
+Die Lizenzliste für Releases entsteht mit Python 3 (nur Standardbibliothek), z. B. mit `python ../.github/scripts/third_party_licenses.py --rust-std --output ../THIRD-PARTY-LICENSES.txt` in `flexpad-desktop`. Der Windows-Installer braucht diese Datei. `python -m unittest discover -s .github/scripts` testet das Skript.
+
 Ohne weitere Einstellung wird die App ohne Firmware gebaut, Firmware-Updates sind dann abgeschaltet. Um ein Firmware-Image einzubetten, `FLEXPAD_FIRMWARE_IMAGE` auf ein zusammengeführtes Image setzen (gebaut wie unter [Firmware](#firmware-3) mit `espflash save-image --chip esp32s3 --merge --skip-padding --flash-size 8mb --partition-table partitions.csv <elf> <image>`), z. B. `FLEXPAD_FIRMWARE_IMAGE=/pfad/zu/firmware.bin cargo build --release`. Der Release-Workflow macht das mit der Firmware, die im selben Lauf gebaut wird.
 
 Die Icons in [`assets/icons`](assets/icons) (ICO und PNG in allen gängigen Größen) entstehen aus `icon.svg` mit [`render-icons.mjs`](https://github.com/TripleT3005/TripleT3005/blob/main/scripts/render-icons.mjs), das Node.js und Edge oder Chrome braucht: `node render-icons.mjs assets/icons`. App, Setup, Linux- und macOS-Pakete und die Release-Ankündigung nehmen ihr Icon von dort.
@@ -337,3 +343,5 @@ App und Firmware haben eigene Versionen: `flexpad-desktop/Cargo.toml` mit [flexp
 
 ### Lizenz
 [MIT](LICENSE)
+
+Release-Pakete, Installer und Linux-Pakete enthalten `THIRD-PARTY-LICENSES.txt` mit den Lizenzen aller Fremdkomponenten, die in der App und ihrer eingebetteten Firmware stecken; jedes Firmware-Release hat eine eigene `FlexPad-firmware-<Version>-third-party-licenses.txt`. Die CI schlägt fehl, wenn eine Abhängigkeit eine Lizenz verwendet, die nicht auf der Liste erlaubter Lizenzen in [`.github/scripts/third_party_licenses.py`](.github/scripts/third_party_licenses.py) steht.

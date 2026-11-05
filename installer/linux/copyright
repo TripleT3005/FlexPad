@@ -1,6 +1,8 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: FlexPad
 Source: https://github.com/TripleT3005/FlexPad
+Comment: Licenses of the third-party components built into FlexPad and its
+ embedded firmware: /usr/share/doc/flexpad/THIRD-PARTY-LICENSES.txt
 
 Files: *
 Copyright: TripleT3005

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ci-firmware.yml
+      - .github/scripts/*.py
       - flexpad-firmware/**
   push:
     branches: [main]
@@ -58,3 +59,6 @@ jobs:
 
       - name: Build
         run: . "$HOME/export-esp.sh" && cargo build --release --locked
+
+      - name: Check third-party licenses
+        run: . "$HOME/export-esp.sh" && python3 ../.github/scripts/third_party_licenses.py --rust-std --platform xtensa-esp32s3-none-elf

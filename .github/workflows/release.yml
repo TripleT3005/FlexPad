@@ -141,11 +141,24 @@ jobs:
           test "$(wc -c < "$image")" -le $((0x410000))
           sha256sum "$image" > "$image.sha256"
 
+      - name: Collect firmware third-party licenses
+        working-directory: flexpad-firmware
+        env:
+          VERSION: ${{ needs.version.outputs.firmware_version }}
+        run: |
+          . "$HOME/export-esp.sh"
+          licenses="FlexPad-firmware-$VERSION-third-party-licenses.txt"
+          python3 ../.github/scripts/third_party_licenses.py --title "FlexPad firmware $VERSION" \
+            --rust-std --platform xtensa-esp32s3-none-elf --output "../dist/$licenses"
+          cd ../dist
+          sha256sum "$licenses" > "$licenses.sha256"
+
       - uses: actions/upload-artifact@v7
         with:
           name: firmware
           path: |
             dist/*.bin
+            dist/*.txt
             dist/*.sha256
           if-no-files-found: error
 
@@ -161,16 +174,19 @@ jobs:
             suffix: -portable
             binary: flexpad.exe
             packaged: FlexPad.exe
+            target: x86_64-pc-windows-msvc
           - os: ubuntu-latest
             platform: linux-x64
             suffix: ""
             binary: flexpad
             packaged: flexpad
+            target: x86_64-unknown-linux-gnu
           - os: macos-latest
             platform: macos-arm64
             suffix: ""
             binary: flexpad
             packaged: FlexPad
+            target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -200,6 +216,21 @@ jobs:
             FLEXPAD_FIRMWARE_IMAGE="$image" cargo test --release --locked embedded_image
           fi
 
+      - name: Collect third-party licenses
+        working-directory: flexpad-desktop
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.app_version }}
+          FIRMWARE_VERSION: ${{ needs.version.outputs.firmware_version }}
+        run: |
+          python=python3
+          command -v python3 > /dev/null || python=python
+          "$python" ../.github/scripts/third_party_licenses.py --title "FlexPad $VERSION" \
+            --rust-std --platform "${{ matrix.target }}" \
+            --source-note "serialport=used unmodified; the source code is available at the source link" \
+            --append "$GITHUB_WORKSPACE/firmware/FlexPad-firmware-$FIRMWARE_VERSION-third-party-licenses.txt" \
+            --output ../THIRD-PARTY-LICENSES.txt
+
       - name: Package
         if: runner.os != 'macOS'
         shell: bash
@@ -207,7 +238,7 @@ jobs:
           name="FlexPad-${{ needs.version.outputs.app_version }}-${{ matrix.platform }}${{ matrix.suffix }}"
           mkdir -p "dist/$name"
           cp "flexpad-desktop/target/release/${{ matrix.binary }}" "dist/$name/${{ matrix.packaged }}"
-          cp LICENSE README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
+          cp LICENSE THIRD-PARTY-LICENSES.txt README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
           cd dist
           case "${{ runner.os }}" in
             Windows) 7z a -tzip -bso0 "$name.zip" "$name" && archive="$name.zip" ;;
@@ -229,7 +260,7 @@ jobs:
             install -D -m 644 "assets/icons/icon-$size.png" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/flexpad.png"
           done
           install -D -m 644 assets/icons/icon.svg "$stage/usr/share/icons/hicolor/scalable/apps/flexpad.svg"
-          install -m 644 LICENSE README.md flexpad-desktop/CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
+          install -m 644 LICENSE THIRD-PARTY-LICENSES.txt README.md flexpad-desktop/CHANGELOG.md installer/linux/copyright "$stage/usr/share/doc/flexpad/"
 
           deb="dist/flexpad_${package_version}_amd64.deb"
           deb_root="$RUNNER_TEMP/package/deb"
@@ -280,7 +311,7 @@ jobs:
           plutil -lint "$app/Contents/Info.plist"
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
-          cp LICENSE README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
+          cp LICENSE THIRD-PARTY-LICENSES.txt README.md flexpad-desktop/CHANGELOG.md "dist/$name/"
           ln -s /Applications "dist/$name/Applications"
           hdiutil create -volname FlexPad -srcfolder "dist/$name" -ov -format UDZO "dist/$name.dmg"
           cd dist

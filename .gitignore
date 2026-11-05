@@ -1,5 +1,7 @@
 # Rust build output
 target/
+THIRD-PARTY-LICENSES.txt
+__pycache__/
 
 # Editors
 .vscode/

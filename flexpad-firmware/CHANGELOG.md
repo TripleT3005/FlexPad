@@ -6,6 +6,16 @@ Alle wichtigen Änderungen an der FlexPad-Firmware für den ESP32-S3, gegliedert
 
 ## [Unreleased]
 
+### English
+
+#### Added
+- Each firmware release includes a file with the licenses of all third-party components.
+
+### Deutsch
+
+#### Neu
+- Jedes Firmware-Release enthält eine Datei mit den Lizenzen aller Fremdkomponenten.
+
 ## [1.2.0] – 2026-11-01
 
 ### English
