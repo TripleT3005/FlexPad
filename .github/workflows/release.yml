@@ -33,6 +33,8 @@ jobs:
       firmware_release: ${{ steps.check.outputs.firmware_release }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Read versions
         id: version
@@ -95,6 +97,30 @@ jobs:
           fi
           echo "app_release=$app_release" >> "$GITHUB_OUTPUT"
           echo "firmware_release=$firmware_release" >> "$GITHUB_OUTPUT"
+
+      - name: Check dependency updates in changelogs
+        if: steps.check.outputs.app_release == 'true' || steps.check.outputs.firmware_release == 'true'
+        env:
+          APP_RELEASE: ${{ steps.check.outputs.app_release }}
+          FIRMWARE_RELEASE: ${{ steps.check.outputs.firmware_release }}
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          FIRMWARE_VERSION: ${{ steps.version.outputs.firmware_version }}
+        run: |
+          rustup toolchain install stable --profile minimal && rustup default stable
+          failed=false
+          if [ "$APP_RELEASE" = true ] && ! python3 .github/scripts/dependency_updates.py \
+            --manifest-path flexpad-desktop/Cargo.toml --changelog flexpad-desktop/CHANGELOG.md --check "$APP_VERSION" \
+            --platform x86_64-pc-windows-msvc --platform x86_64-unknown-linux-gnu --platform aarch64-apple-darwin; then
+            echo "::error::flexpad-desktop/CHANGELOG.md does not mention every Dependabot update since the last app release; add them to the section for $APP_VERSION"
+            failed=true
+          fi
+          if [ "$FIRMWARE_RELEASE" = true ] && ! python3 .github/scripts/dependency_updates.py \
+            --manifest-path flexpad-firmware/Cargo.toml --changelog flexpad-firmware/CHANGELOG.md \
+            --tag-pattern 'firmware-v*' --check "$FIRMWARE_VERSION"; then
+            echo "::error::flexpad-firmware/CHANGELOG.md does not mention every Dependabot update since the last firmware release; add them to the section for $FIRMWARE_VERSION"
+            failed=true
+          fi
+          [ "$failed" = false ]
 
   firmware:
     needs: version
