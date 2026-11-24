@@ -26,11 +26,11 @@ Diese Liste wird aus den Köpfen der Dateien in [`lang`](lang) erzeugt. Nach Än
 | `bg` | Bulgarian | Български | – |
 | `cs` | Czech | Čeština | – |
 | `da` | Danish | Dansk | – |
-| `de` | German | Deutsch | – |
+| `de` | German | Deutsch | [@TripleT3005](https://github.com/TripleT3005) |
 | `de-AT` | German (Austria) | Deutsch (Österreich) | – |
 | `de-CH` | German (Switzerland) | Deutsch (Schweiz) | – |
 | `el` | Greek | Ελληνικά | – |
-| `en` | English | English | – |
+| `en` | English | English | [@TripleT3005](https://github.com/TripleT3005) |
 | `es` | Spanish | Español | – |
 | `et` | Estonian | Eesti | – |
 | `fi` | Finnish | Suomi | – |
@@ -77,8 +77,8 @@ Diese Liste wird aus den Köpfen der Dateien in [`lang`](lang) erzeugt. Nach Än
 
 | Code | Language | Name in the app | Reviewed by |
 |---|---|---|---|
-| `de-x-amtsdt` | Officialese German (Amtsdeutsch) | Amtsdeutsch | – |
-| `en-x-flipped` | Upside-down English | ɥsılƃuǝ uʍop-ǝpısdn | – |
+| `de-x-amtsdt` | Officialese German (Amtsdeutsch) | Amtsdeutsch | [@TripleT3005](https://github.com/TripleT3005) |
+| `en-x-flipped` | Upside-down English | ɥsılƃuǝ uʍop-ǝpısdn | [@TripleT3005](https://github.com/TripleT3005) |
 | `en-x-lolcat` | LOLcat | LOLcat | – |
 | `en-x-piglatin` | Pig Latin | Igpay Atinlay | – |
 | `en-x-pirate` | Pirate English | Pirate English | – |
