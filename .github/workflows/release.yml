@@ -332,7 +332,12 @@ jobs:
           app="dist/$name/FlexPad.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           cp "flexpad-desktop/target/release/${{ matrix.binary }}" "$app/Contents/MacOS/FlexPad"
-          cp flexpad-desktop/target/release/FlexPad.icns "$app/Contents/Resources/FlexPad.icns"
+          icons=$(find flexpad-desktop/target/release/build -path '*/out/FlexPad.icns')
+          if [ "$(printf '%s\n' "$icons" | grep -c .)" != 1 ]; then
+            echo "::error::Expected exactly one FlexPad.icns in the build output, found: ${icons:-none}"
+            exit 1
+          fi
+          cp "$icons" "$app/Contents/Resources/FlexPad.icns"
           sed "s/APP_VERSION/$VERSION/g" installer/macos/Info.plist > "$app/Contents/Info.plist"
           plutil -lint "$app/Contents/Info.plist"
           codesign --force --deep --sign - "$app"

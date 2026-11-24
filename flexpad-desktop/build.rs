@@ -40,11 +40,8 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     embed_firmware_image(&out_dir);
     export_firmware_version();
-    if target_os == "macos"
-        && let Some(profile_dir) = out_dir.ancestors().nth(3)
-    {
-        fs::write(profile_dir.join("FlexPad.icns"), icns_file())
-            .expect("writing the icon file failed");
+    if target_os == "macos" {
+        fs::write(out_dir.join("FlexPad.icns"), icns_file()).expect("writing the icon file failed");
     }
     if target_os != "windows" || !is_msvc {
         return;
