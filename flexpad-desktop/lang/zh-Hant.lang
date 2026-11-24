@@ -29,6 +29,9 @@ profile.copy_suffix = 副本
 
 layout.us = 英文（美國）
 layout.de = 德文
+layout.de-CH = 德文（瑞士）
+layout.en-GB = 英文（英國）
+layout.fr = 法文
 
 firmware.newer_protocol = 這台 FlexPad 使用的通訊協定比本應用程式支援的更新。請更新應用程式。
 firmware.outdated = 韌體 {firmware} 比應用程式內建的韌體（{version}）舊。

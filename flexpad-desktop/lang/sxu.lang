@@ -30,6 +30,9 @@ profile.copy_suffix = Gobie
 
 layout.us = Englisch (US)
 layout.de = Deidsch
+layout.de-CH = Deidsch (Schweiz)
+layout.en-GB = Englisch (UK)
+layout.fr = Französisch
 
 firmware.newer_protocol = Das FlexPad babbelt ä neieres Brodogoll, als de Äbb vorschdehd. Mach ma bidde ä Ubdähd von dor Äbb.
 firmware.outdated = De Firmware {firmware} is äldor als die, die in dor Äbb drinne is ({version}).

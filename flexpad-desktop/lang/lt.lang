@@ -29,6 +29,9 @@ profile.copy_suffix = Kopija
 
 layout.us = Anglų (JAV)
 layout.de = Vokiečių
+layout.de-CH = Vokiečių (Šveicarija)
+layout.en-GB = Anglų (JK)
+layout.fr = Prancūzų
 
 firmware.newer_protocol = Šis FlexPad naudoja naujesnį protokolą, nei supranta ši programa. Atnaujinkite programą.
 firmware.outdated = Programinė įranga {firmware} yra senesnė už programoje esančią ({version}).

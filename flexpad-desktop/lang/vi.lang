@@ -29,6 +29,9 @@ profile.copy_suffix = Bản sao
 
 layout.us = Tiếng Anh (Mỹ)
 layout.de = Tiếng Đức
+layout.de-CH = Tiếng Đức (Thụy Sĩ)
+layout.en-GB = Tiếng Anh (Anh)
+layout.fr = Tiếng Pháp
 
 firmware.newer_protocol = FlexPad này dùng giao thức mới hơn mức ứng dụng này hiểu được. Vui lòng cập nhật ứng dụng.
 firmware.outdated = Firmware {firmware} cũ hơn firmware đi kèm ứng dụng ({version}).

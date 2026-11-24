@@ -29,6 +29,9 @@ profile.copy_suffix = Kopya
 
 layout.us = İngilizce (ABD)
 layout.de = Almanca
+layout.de-CH = Almanca (İsviçre)
+layout.en-GB = İngilizce (Birleşik Krallık)
+layout.fr = Fransızca
 
 firmware.newer_protocol = Bu FlexPad, bu uygulamanın anladığından daha yeni bir protokol kullanıyor. Lütfen uygulamayı güncelleyin.
 firmware.outdated = {firmware} donanım yazılımı, uygulamadaki donanım yazılımından ({version}) daha eski.

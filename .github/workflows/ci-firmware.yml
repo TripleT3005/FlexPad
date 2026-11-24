@@ -6,6 +6,7 @@ on:
       - .github/workflows/ci-firmware.yml
       - .github/scripts/*.py
       - flexpad-firmware/**
+      - layouts/**
   push:
     branches: [main]
 

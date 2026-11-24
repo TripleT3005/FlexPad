@@ -6,6 +6,24 @@ Alle wichtigen Änderungen an der FlexPad-Firmware für den ESP32-S3, gegliedert
 
 ## [Unreleased]
 
+## [1.3.0] – 2026-11-24
+
+### English
+
+#### Added
+- Text actions can be typed for the keyboard layouts English (UK) (`en-GB`), German (Switzerland) (`de-CH`) and French (`fr`), next to English (US) (`us`) and German (`de`).
+
+#### Changed
+- The keyboard layouts are built from the files in the folder `layouts`; English (US) and German type exactly as before.
+
+### Deutsch
+
+#### Neu
+- Textaktionen lassen sich für die Tastaturlayouts Englisch (UK) (`en-GB`), Deutsch (Schweiz) (`de-CH`) und Französisch (`fr`) tippen, neben Englisch (US) (`us`) und Deutsch (`de`).
+
+#### Geändert
+- Die Tastaturlayouts entstehen aus den Dateien im Ordner `layouts`; Englisch (US) und Deutsch tippen genau wie bisher.
+
 ## [1.2.1] – 2026-11-24
 
 ### English

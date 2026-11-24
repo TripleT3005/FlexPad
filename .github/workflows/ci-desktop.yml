@@ -7,6 +7,9 @@ on:
       - .github/scripts/*.py
       - assets/icons/**
       - flexpad-desktop/**
+      - flexpad-firmware/build/**
+      - LAYOUTS.md
+      - layouts/**
       - flexpad-firmware/Cargo.toml
       - flexpad-firmware/CHANGELOG.md
       - flexpad-firmware/src/keys.rs

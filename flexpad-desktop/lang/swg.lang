@@ -30,6 +30,9 @@ profile.copy_suffix = Kopie
 
 layout.us = Englisch (US)
 layout.de = Deitsch
+layout.de-CH = Deitsch (Schweiz)
+layout.en-GB = Englisch (UK)
+layout.fr = Französisch
 
 firmware.newer_protocol = Des FlexPad schwätzt a neiers Protokoll, als d’ App verstoht. Mach halt a Update von dr App.
 firmware.outdated = D’ Firmware {firmware} isch älter als dui, wo en dr App drin isch ({version}).

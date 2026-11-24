@@ -29,6 +29,9 @@ profile.copy_suffix = COPEE
 
 layout.us = ENGLISH (US)
 layout.de = GERMANZ
+layout.de-CH = GERMANZ (SWITZERLAND)
+layout.en-GB = ENGLISH (UK)
+layout.fr = FRENCHZ
 
 firmware.newer_protocol = DIS FLEXPAD SPEEKZ NEWR PROTOKOL THAN DIS APP CAN HAZ. PLZ UPDAET TEH APP.
 firmware.outdated = FIRMWAER {firmware} IZ OLDR THAN TEH FIRMWAER IN TEH APP ({version}).

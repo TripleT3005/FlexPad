@@ -492,7 +492,10 @@ mod tests {
 
         let profile = parse_profile(json).unwrap();
 
-        assert_eq!(profile.keyboard_layout, KeyboardLayout::De);
+        assert_eq!(
+            profile.keyboard_layout,
+            KeyboardLayout::from_name("de").unwrap()
+        );
         assert_eq!(
             profile.tiles[0].macro_for("press"),
             legacy("P:ControlLeft,P:KeyZ,R:KeyZ,R:ControlLeft")
@@ -509,7 +512,7 @@ mod tests {
     fn profiles_without_layout_use_us() {
         let profile = parse_profile(r#"{"format":2,"profile_name":"P","tiles":[]}"#).unwrap();
 
-        assert_eq!(profile.keyboard_layout, KeyboardLayout::Us);
+        assert_eq!(profile.keyboard_layout, KeyboardLayout::DEFAULT);
     }
 
     #[test]

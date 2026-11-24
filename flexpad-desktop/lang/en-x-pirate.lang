@@ -29,6 +29,9 @@ profile.copy_suffix = Copy
 
 layout.us = English (the Colonies)
 layout.de = German
+layout.de-CH = German (the Alps)
+layout.en-GB = English (the Crown)
+layout.fr = French
 
 firmware.newer_protocol = This FlexPad speaks a newer tongue than this here app can fathom. Fetch a newer app, matey!
 firmware.outdated = Firmware {firmware} be older than the firmware stowed in the app ({version}).

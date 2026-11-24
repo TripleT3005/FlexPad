@@ -1208,7 +1208,7 @@ mod tests {
             dragging_tile_id: None,
             selected_component: None,
             current_profile_name: "Test".to_string(),
-            keyboard_layout: KeyboardLayout::Us,
+            keyboard_layout: KeyboardLayout::DEFAULT,
             saved_profiles: Vec::new(),
             selected_profile: None,
             check_for_updates: true,

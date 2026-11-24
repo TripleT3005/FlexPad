@@ -29,6 +29,9 @@ profile.copy_suffix = Másolat
 
 layout.us = Angol (USA)
 layout.de = Német
+layout.de-CH = Német (Svájc)
+layout.en-GB = Angol (Egyesült Királyság)
+layout.fr = Francia
 
 firmware.newer_protocol = Ez a FlexPad újabb protokollt használ, mint amit ez az alkalmazás ismer. Frissítse az alkalmazást.
 firmware.outdated = A(z) {firmware} firmware régebbi, mint az alkalmazásba épített firmware ({version}).

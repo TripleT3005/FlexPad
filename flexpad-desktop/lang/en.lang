@@ -27,9 +27,6 @@ profile.new = New Profile
 profile.save = Save Profile
 profile.copy_suffix = Copy
 
-layout.us = English (US)
-layout.de = German
-
 firmware.newer_protocol = This FlexPad uses a newer protocol than this app understands. Please update the app.
 firmware.outdated = Firmware {firmware} is older than the firmware built into the app ({version}).
 firmware.update = Update firmware

@@ -29,6 +29,9 @@ profile.copy_suffix = Αντίγραφο
 
 layout.us = Αγγλική (ΗΠΑ)
 layout.de = Γερμανική
+layout.de-CH = Γερμανική (Ελβετία)
+layout.en-GB = Αγγλική (ΗΒ)
+layout.fr = Γαλλική
 
 firmware.newer_protocol = Αυτό το FlexPad χρησιμοποιεί νεότερο πρωτόκολλο από όσο καταλαβαίνει αυτή η εφαρμογή. Ενημερώστε την εφαρμογή.
 firmware.outdated = Το υλικολογισμικό {firmware} είναι παλαιότερο από αυτό που περιέχει η εφαρμογή ({version}).

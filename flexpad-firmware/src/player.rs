@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(
             play(
                 r#"{"actions":[{"press":"ControlLeft"},{"press":"KeyC"},{"delay":50},{"release":"KeyC"},{"release":"ControlLeft"},{"media":"mute"}]}"#,
-                KeyboardLayout::Us
+                KeyboardLayout::DEFAULT
             ),
             [
                 keys(0x01, 0),
@@ -190,10 +190,13 @@ mod tests {
     #[test]
     fn releases_held_keys_at_the_end() {
         assert_eq!(
-            play(r#"{"actions":[{"press":"ShiftLeft"}]}"#, KeyboardLayout::Us),
+            play(
+                r#"{"actions":[{"press":"ShiftLeft"}]}"#,
+                KeyboardLayout::DEFAULT
+            ),
             [keys(0x02, 0), keys(0, 0)]
         );
-        assert!(play(r#"{"actions":[]}"#, KeyboardLayout::Us).is_empty());
+        assert!(play(r#"{"actions":[]}"#, KeyboardLayout::DEFAULT).is_empty());
     }
 
     // Text
@@ -201,11 +204,14 @@ mod tests {
     #[test]
     fn types_text_for_the_layout() {
         assert_eq!(
-            play(r#"{"actions":[{"text":"Zy"}]}"#, KeyboardLayout::De),
+            play(
+                r#"{"actions":[{"text":"Zy"}]}"#,
+                KeyboardLayout::from_name("de").unwrap()
+            ),
             [keys(0x02, 0x1C), keys(0, 0), keys(0, 0x1D), keys(0, 0)]
         );
         assert_eq!(
-            play(r#"{"actions":[{"text":"Zy"}]}"#, KeyboardLayout::Us),
+            play(r#"{"actions":[{"text":"Zy"}]}"#, KeyboardLayout::DEFAULT),
             [keys(0x02, 0x1D), keys(0, 0), keys(0, 0x1C), keys(0, 0)]
         );
     }
@@ -213,7 +219,10 @@ mod tests {
     #[test]
     fn types_dead_keys_and_skips_unknown_characters() {
         assert_eq!(
-            play(r#"{"actions":[{"text":"é😀\n"}]}"#, KeyboardLayout::De),
+            play(
+                r#"{"actions":[{"text":"é😀\n"}]}"#,
+                KeyboardLayout::from_name("de").unwrap()
+            ),
             [
                 keys(0, 0x2E),
                 keys(0, 0),
@@ -223,7 +232,7 @@ mod tests {
                 keys(0, 0),
             ]
         );
-        assert!(play(r#"{"actions":[{"text":"ä"}]}"#, KeyboardLayout::Us).is_empty());
+        assert!(play(r#"{"actions":[{"text":"ä"}]}"#, KeyboardLayout::DEFAULT).is_empty());
     }
 
     #[test]
@@ -231,7 +240,7 @@ mod tests {
         assert_eq!(
             play(
                 r#"{"actions":[{"press":"ControlLeft"},{"text":"a"},{"release":"ControlLeft"}]}"#,
-                KeyboardLayout::Us
+                KeyboardLayout::DEFAULT
             ),
             [
                 keys(0x01, 0),

@@ -153,7 +153,7 @@ impl Bindings {
     pub const fn new() -> Self {
         Self {
             layout: Layout::new(),
-            keyboard_layout: KeyboardLayout::Us,
+            keyboard_layout: KeyboardLayout::DEFAULT,
             entries: [MacroEntry {
                 trigger: Trigger::Press(0),
                 start: 0,
@@ -167,7 +167,7 @@ impl Bindings {
 
     pub fn clear(&mut self) {
         self.layout = Layout::new();
-        self.keyboard_layout = KeyboardLayout::Us;
+        self.keyboard_layout = KeyboardLayout::DEFAULT;
         self.count = 0;
         self.used = 0;
     }
@@ -987,16 +987,23 @@ mod tests {
             parse(r#"{"format":2,"keyboard_layout":"de","tiles":[]}"#)
                 .unwrap()
                 .keyboard_layout(),
-            KeyboardLayout::De
+            KeyboardLayout::from_name("de").unwrap()
         );
         assert_eq!(
             parse(r#"{"format":2,"tiles":[]}"#)
                 .unwrap()
                 .keyboard_layout(),
-            KeyboardLayout::Us
+            KeyboardLayout::DEFAULT
         );
         assert_eq!(
-            parse(r#"{"keyboard_layout":"fr"}"#).err(),
+            parse(r#"{"format":2,"keyboard_layout":"de-CH","tiles":[]}"#)
+                .unwrap()
+                .keyboard_layout()
+                .code(),
+            "de-CH"
+        );
+        assert_eq!(
+            parse(r#"{"keyboard_layout":"xx"}"#).err(),
             Some(ConfigError::UnknownLayout)
         );
         assert_eq!(

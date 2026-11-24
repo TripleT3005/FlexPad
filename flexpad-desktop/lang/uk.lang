@@ -29,6 +29,9 @@ profile.copy_suffix = Копія
 
 layout.us = Англійська (США)
 layout.de = Німецька
+layout.de-CH = Німецька (Швейцарія)
+layout.en-GB = Англійська (Велика Британія)
+layout.fr = Французька
 
 firmware.newer_protocol = Цей FlexPad використовує новіший протокол, ніж розуміє цей застосунок. Оновіть застосунок.
 firmware.outdated = Прошивка {firmware} старіша за прошивку, вбудовану в застосунок ({version}).

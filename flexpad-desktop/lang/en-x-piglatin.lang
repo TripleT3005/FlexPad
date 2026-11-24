@@ -29,6 +29,9 @@ profile.copy_suffix = Opycay
 
 layout.us = Englishway (US)
 layout.de = Ermangay
+layout.de-CH = Ermangay (Itzerlandsway)
+layout.en-GB = Englishway (UK)
+layout.fr = Renchfay
 
 firmware.newer_protocol = Isthay FlexPad usesway away ewernay otocolpray anthay isthay appway understandsway. Easeplay updateway ethay appway.
 firmware.outdated = Irmwarefay {firmware} isway olderway anthay ethay irmwarefay uiltbay intoway ethay appway ({version}).
