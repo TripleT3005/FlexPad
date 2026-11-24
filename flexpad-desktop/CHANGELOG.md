@@ -6,15 +6,25 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.2.3] – 2026-11-24
+
 ### English
 
 #### Added
 - Release packages, the setup and the Linux packages include the licenses of all third-party components in `THIRD-PARTY-LICENSES.txt`.
 
+#### Changed
+- Includes firmware 1.2.1.
+- Updated third-party components: ureq 3.5.2.
+
 ### Deutsch
 
 #### Neu
 - Release-Pakete, Setup und Linux-Pakete enthalten die Lizenzen aller Fremdkomponenten in `THIRD-PARTY-LICENSES.txt`.
+
+#### Geändert
+- Enthält Firmware 1.2.1.
+- Fremdkomponenten aktualisiert: ureq 3.5.2.
 
 ## [1.2.2] – 2026-11-01
 
