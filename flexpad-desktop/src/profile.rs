@@ -6,6 +6,7 @@ use crate::components::{self, BUTTON, Component, EC11};
 use crate::constants::FIRMWARE_PINS;
 use crate::keys::KeyboardLayout;
 use crate::macros::{self, Macro, MacroAction};
+use crate::{i18n, texts};
 
 // Constants
 
@@ -135,7 +136,7 @@ pub fn parse_profile(json: &str) -> Result<Profile, String> {
     let mut value: serde_json::Value =
         serde_json::from_str(json).map_err(|error| error.to_string())?;
     if !value.is_object() {
-        return Err("The profile is not a JSON object.".to_string());
+        return Err(i18n::text(texts::ERROR_NOT_AN_OBJECT));
     }
     let mut profile: Profile = match value.get("format") {
         None => migrate_legacy(value)?,
@@ -143,7 +144,12 @@ pub fn parse_profile(json: &str) -> Result<Profile, String> {
             migrate_macro_strings(&mut value);
             serde_json::from_value(value).map_err(|error| error.to_string())?
         }
-        Some(format) => return Err(format!("Unsupported profile format: {format}")),
+        Some(format) => {
+            return Err(i18n::format_text(
+                texts::ERROR_UNSUPPORTED_FORMAT,
+                &[("format", &format.to_string())],
+            ));
+        }
     };
     for tile in &mut profile.tiles {
         for function in tile.functions.values_mut() {

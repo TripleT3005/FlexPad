@@ -1,4 +1,6 @@
+use crate::i18n;
 use crate::macros::Preset;
+use crate::texts;
 
 // Types
 
@@ -79,7 +81,7 @@ impl Component {
 
 impl std::fmt::Display for Component {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name)
+        f.write_str(&i18n::text(self.name))
     }
 }
 
@@ -87,7 +89,7 @@ impl std::fmt::Display for Component {
 
 const DEBOUNCE: Parameter = Parameter {
     id: "debounce_ms",
-    label: "Debounce (ms)",
+    label: texts::PARAMETER_DEBOUNCE,
     kind: ParameterKind::Number {
         min: 0,
         max: 200,
@@ -97,15 +99,15 @@ const DEBOUNCE: Parameter = Parameter {
 
 pub const BUTTON: Component = Component {
     id: "button",
-    name: "Button",
+    name: texts::COMPONENT_BUTTON,
     kind: "button",
     pins: &[PinRole {
         id: "switch",
-        label: "Pin",
+        label: texts::PIN_SWITCH,
     }],
     functions: &[Function {
         id: "press",
-        label: "Press",
+        label: texts::FUNCTION_PRESS,
         default_macro: Preset::Chord(&["ControlLeft", "KeyC"]),
     }],
     parameters: &[DEBOUNCE],
@@ -113,43 +115,43 @@ pub const BUTTON: Component = Component {
 
 pub const EC11: Component = Component {
     id: "ec11",
-    name: "EC11 Rotary Encoder",
+    name: texts::COMPONENT_EC11,
     kind: "encoder",
     pins: &[
         PinRole {
             id: "a",
-            label: "Pin A",
+            label: texts::PIN_A,
         },
         PinRole {
             id: "b",
-            label: "Pin B",
+            label: texts::PIN_B,
         },
         PinRole {
             id: "switch",
-            label: "Push button pin",
+            label: texts::PIN_PUSH_BUTTON,
         },
     ],
     functions: &[
         Function {
             id: "turn_right",
-            label: "Turn right",
+            label: texts::FUNCTION_TURN_RIGHT,
             default_macro: Preset::Media("vol_up"),
         },
         Function {
             id: "turn_left",
-            label: "Turn left",
+            label: texts::FUNCTION_TURN_LEFT,
             default_macro: Preset::Media("vol_down"),
         },
         Function {
             id: "press",
-            label: "Press",
+            label: texts::FUNCTION_PRESS,
             default_macro: Preset::Media("mute"),
         },
     ],
     parameters: &[
         Parameter {
             id: "steps_per_detent",
-            label: "Steps per detent",
+            label: texts::PARAMETER_STEPS_PER_DETENT,
             kind: ParameterKind::Choice {
                 options: &[1, 2, 4],
                 default: 4,
@@ -157,7 +159,7 @@ pub const EC11: Component = Component {
         },
         Parameter {
             id: "reverse",
-            label: "Reverse direction",
+            label: texts::PARAMETER_REVERSE,
             kind: ParameterKind::Flag { default: false },
         },
         DEBOUNCE,

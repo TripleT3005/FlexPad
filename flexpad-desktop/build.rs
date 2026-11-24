@@ -1,10 +1,14 @@
 use std::env;
+use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 // Constants
 const FIRMWARE_IMAGE_VARIABLE: &str = "FLEXPAD_FIRMWARE_IMAGE";
 const ICON_DIRECTORY: &str = "../assets/icons";
+const LANGUAGE_DIRECTORY: &str = "lang";
+const LANGUAGE_EXTENSION: &str = "lang";
+const ENGLISH_FILE: &str = "en.lang";
 const RT_ICON: u16 = 3;
 const RT_GROUP_ICON: u16 = 14;
 const RT_VERSION: u16 = 16;
@@ -39,6 +43,7 @@ fn main() {
     let is_msvc = env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|target_env| target_env == "msvc");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     embed_firmware_image(&out_dir);
+    embed_languages(&out_dir);
     export_firmware_version();
     if target_os == "macos" {
         fs::write(out_dir.join("FlexPad.icns"), icns_file()).expect("writing the icon file failed");
@@ -71,6 +76,69 @@ fn export_firmware_version() {
         })
         .expect("the firmware manifest has no package version");
     println!("cargo:rustc-env=FLEXPAD_FIRMWARE_VERSION={version}");
+}
+
+// Languages
+fn embed_languages(out_dir: &Path) {
+    println!("cargo:rerun-if-changed={LANGUAGE_DIRECTORY}");
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"));
+    let directory = manifest_dir.join(LANGUAGE_DIRECTORY);
+    let mut files: Vec<PathBuf> = fs::read_dir(&directory)
+        .expect("reading the language folder failed")
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == LANGUAGE_EXTENSION)
+        })
+        .collect();
+    files.sort();
+    let mut bundled = String::from(
+        "pub const BUNDLED: &[(&str, &str)] = &[
+",
+    );
+    for path in &files {
+        println!("cargo:rerun-if-changed={}", path.display());
+        let code = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .expect("a language file has no valid name");
+        let _ = writeln!(
+            bundled,
+            "    ({code:?}, include_str!({:?})),",
+            path.display().to_string()
+        );
+    }
+    bundled.push_str(
+        "];
+",
+    );
+    fs::write(out_dir.join("languages.rs"), bundled).expect("writing the language list failed");
+
+    let english = fs::read_to_string(directory.join(ENGLISH_FILE))
+        .expect("reading the English language file failed");
+    let mut keys = String::new();
+    for key in english
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#') && !line.starts_with(';'))
+        .filter_map(|line| line.split_once('='))
+        .map(|(key, _)| key.trim())
+    {
+        let name: String = key
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() {
+                    character.to_ascii_uppercase()
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let _ = writeln!(keys, "pub const {name}: &str = {key:?};");
+    }
+    fs::write(out_dir.join("text_keys.rs"), keys).expect("writing the text keys failed");
 }
 
 // Firmware image

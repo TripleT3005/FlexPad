@@ -6,6 +6,26 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.3.0] – 2026-11-24
+
+### English
+
+#### Added
+- The app is available in 51 languages, including German dialects and fun languages such as Pirate English. It follows the system language and falls back to English; the **Language** list in the status bar changes it.
+- Translations can be extended or corrected without rebuilding: language files in the folder `lang` next to the settings add languages or replace single texts. [LANGUAGES.md](LANGUAGES.md) lists all languages and whether they have been reviewed.
+
+#### Changed
+- The rows at the top of the window wrap instead of squeezing buttons when texts are long or the window is narrow.
+
+### Deutsch
+
+#### Neu
+- Die App gibt es in 51 Sprachen, darunter deutsche Dialekte und Spaßsprachen wie Piratenenglisch. Sie folgt der Systemsprache und fällt sonst auf Englisch zurück; die Liste **Sprache** in der Statusleiste stellt sie um.
+- Übersetzungen lassen sich ohne Neubau ergänzen oder korrigieren: Sprachdateien im Ordner `lang` neben den Einstellungen fügen Sprachen hinzu oder ersetzen einzelne Texte. [LANGUAGES.md](LANGUAGES.md) listet alle Sprachen und ob sie geprüft sind.
+
+#### Geändert
+- Die Zeilen oben im Fenster brechen um, statt Schaltflächen zusammenzudrücken, wenn Texte lang sind oder das Fenster schmal ist.
+
 ## [1.2.3] – 2026-11-24
 
 ### English

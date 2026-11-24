@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+use crate::i18n;
+use crate::texts;
+
 #[cfg(test)]
 #[allow(dead_code)]
 #[path = "../../flexpad-firmware/src/keys.rs"]
@@ -44,27 +47,44 @@ impl KeyboardLayout {
 
 impl std::fmt::Display for KeyboardLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            KeyboardLayout::Us => "English (US)",
-            KeyboardLayout::De => "German",
-        })
+        f.write_str(&i18n::text(match self {
+            KeyboardLayout::Us => texts::LAYOUT_US,
+            KeyboardLayout::De => texts::LAYOUT_DE,
+        }))
     }
 }
 
 // Keys
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Label {
+    Plain(&'static str),
+    Text(&'static str),
+    Numpad(&'static str),
+}
+
+impl Label {
+    fn text(self) -> String {
+        match self {
+            Label::Plain(label) => label.to_string(),
+            Label::Text(key) => i18n::text(key),
+            Label::Numpad(label) => i18n::format_text(texts::KEY_NUMPAD, &[("key", label)]),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Key {
     pub code: &'static str,
-    us: &'static str,
-    de: &'static str,
+    us: Label,
+    de: Label,
 }
 
 impl Key {
-    pub fn label(&self, layout: KeyboardLayout) -> &'static str {
+    pub fn label(&self, layout: KeyboardLayout) -> String {
         match layout {
-            KeyboardLayout::Us => self.us,
-            KeyboardLayout::De => self.de,
+            KeyboardLayout::Us => self.us.text(),
+            KeyboardLayout::De => self.de.text(),
         }
     }
 }
@@ -72,44 +92,72 @@ impl Key {
 const fn key(code: &'static str, label: &'static str) -> Key {
     Key {
         code,
-        us: label,
-        de: label,
+        us: Label::Plain(label),
+        de: Label::Plain(label),
+    }
+}
+
+const fn named_key(code: &'static str, text: &'static str) -> Key {
+    Key {
+        code,
+        us: Label::Text(text),
+        de: Label::Text(text),
     }
 }
 
 const fn layout_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
-    Key { code, us, de }
+    Key {
+        code,
+        us: Label::Plain(us),
+        de: Label::Plain(de),
+    }
+}
+
+const fn named_layout_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
+    Key {
+        code,
+        us: Label::Text(us),
+        de: Label::Plain(de),
+    }
+}
+
+const fn numpad_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
+    Key {
+        code,
+        us: Label::Numpad(us),
+        de: Label::Numpad(de),
+    }
 }
 
 pub const KEYS: &[Key] = &[
-    key("ControlLeft", "Ctrl (left)"),
-    key("ControlRight", "Ctrl (right)"),
-    key("ShiftLeft", "Shift (left)"),
-    key("ShiftRight", "Shift (right)"),
-    key("AltLeft", "Alt (left)"),
-    layout_key("AltRight", "Alt (right)", "AltGr"),
-    key("MetaLeft", "Win / Cmd (left)"),
-    key("MetaRight", "Win / Cmd (right)"),
-    key("Enter", "Enter"),
-    key("Escape", "Escape"),
-    key("Backspace", "Backspace"),
-    key("Tab", "Tab"),
-    key("Space", "Space"),
-    key("CapsLock", "Caps Lock"),
-    key("ArrowUp", "Arrow up"),
-    key("ArrowDown", "Arrow down"),
-    key("ArrowLeft", "Arrow left"),
-    key("ArrowRight", "Arrow right"),
-    key("Insert", "Insert"),
-    key("Delete", "Delete"),
-    key("Home", "Home"),
-    key("End", "End"),
-    key("PageUp", "Page up"),
-    key("PageDown", "Page down"),
-    key("PrintScreen", "Print Screen"),
-    key("ScrollLock", "Scroll Lock"),
-    key("Pause", "Pause"),
-    key("ContextMenu", "Menu"),
+    named_key("ControlLeft", texts::KEY_CONTROL_LEFT),
+    named_key("ControlRight", texts::KEY_CONTROL_RIGHT),
+    named_key("ShiftLeft", texts::KEY_SHIFT_LEFT),
+    named_key("ShiftRight", texts::KEY_SHIFT_RIGHT),
+    named_key("AltLeft", texts::KEY_ALT_LEFT),
+    named_layout_key("AltRight", texts::KEY_ALT_RIGHT, "AltGr"),
+    named_key("MetaLeft", texts::KEY_META_LEFT),
+    named_key("MetaRight", texts::KEY_META_RIGHT),
+    named_key("Enter", texts::KEY_ENTER),
+    named_key("Escape", texts::KEY_ESCAPE),
+    named_key("Backspace", texts::KEY_BACKSPACE),
+    named_key("Tab", texts::KEY_TAB),
+    named_key("Space", texts::KEY_SPACE),
+    named_key("CapsLock", texts::KEY_CAPS_LOCK),
+    named_key("ArrowUp", texts::KEY_ARROW_UP),
+    named_key("ArrowDown", texts::KEY_ARROW_DOWN),
+    named_key("ArrowLeft", texts::KEY_ARROW_LEFT),
+    named_key("ArrowRight", texts::KEY_ARROW_RIGHT),
+    named_key("Insert", texts::KEY_INSERT),
+    named_key("Delete", texts::KEY_DELETE),
+    named_key("Home", texts::KEY_HOME),
+    named_key("End", texts::KEY_END),
+    named_key("PageUp", texts::KEY_PAGE_UP),
+    named_key("PageDown", texts::KEY_PAGE_DOWN),
+    named_key("PrintScreen", texts::KEY_PRINT_SCREEN),
+    named_key("ScrollLock", texts::KEY_SCROLL_LOCK),
+    named_key("Pause", texts::KEY_PAUSE),
+    named_key("ContextMenu", texts::KEY_CONTEXT_MENU),
     key("Digit1", "1"),
     key("Digit2", "2"),
     key("Digit3", "3"),
@@ -157,24 +205,24 @@ pub const KEYS: &[Key] = &[
     key("Comma", ","),
     key("Period", "."),
     layout_key("Slash", "/", "-"),
-    layout_key("IntlBackslash", "Extra ISO key (\\ |)", "<"),
-    key("NumLock", "Num Lock"),
-    key("Numpad1", "Numpad 1"),
-    key("Numpad2", "Numpad 2"),
-    key("Numpad3", "Numpad 3"),
-    key("Numpad4", "Numpad 4"),
-    key("Numpad5", "Numpad 5"),
-    key("Numpad6", "Numpad 6"),
-    key("Numpad7", "Numpad 7"),
-    key("Numpad8", "Numpad 8"),
-    key("Numpad9", "Numpad 9"),
-    key("Numpad0", "Numpad 0"),
-    key("NumpadDivide", "Numpad /"),
-    key("NumpadMultiply", "Numpad *"),
-    key("NumpadSubtract", "Numpad -"),
-    key("NumpadAdd", "Numpad +"),
-    key("NumpadEnter", "Numpad Enter"),
-    layout_key("NumpadDecimal", "Numpad .", "Numpad ,"),
+    named_layout_key("IntlBackslash", texts::KEY_INTL_BACKSLASH, "<"),
+    named_key("NumLock", texts::KEY_NUM_LOCK),
+    numpad_key("Numpad1", "1", "1"),
+    numpad_key("Numpad2", "2", "2"),
+    numpad_key("Numpad3", "3", "3"),
+    numpad_key("Numpad4", "4", "4"),
+    numpad_key("Numpad5", "5", "5"),
+    numpad_key("Numpad6", "6", "6"),
+    numpad_key("Numpad7", "7", "7"),
+    numpad_key("Numpad8", "8", "8"),
+    numpad_key("Numpad9", "9", "9"),
+    numpad_key("Numpad0", "0", "0"),
+    numpad_key("NumpadDivide", "/", "/"),
+    numpad_key("NumpadMultiply", "*", "*"),
+    numpad_key("NumpadSubtract", "-", "-"),
+    numpad_key("NumpadAdd", "+", "+"),
+    numpad_key("NumpadEnter", "Enter", "Enter"),
+    numpad_key("NumpadDecimal", ".", ","),
     key("F1", "F1"),
     key("F2", "F2"),
     key("F3", "F3"),
@@ -268,7 +316,8 @@ pub fn code_for(name: &str) -> Option<&'static str> {
 
 pub fn picker_keys(layout: KeyboardLayout) -> Vec<&'static Key> {
     let is_letter = |key: &Key| {
-        let mut chars = key.label(layout).chars();
+        let label = key.label(layout);
+        let mut chars = label.chars();
         matches!((chars.next(), chars.next()), (Some(c), None) if c.is_alphabetic())
     };
     let letters_start = KEYS.iter().position(&is_letter).unwrap_or(KEYS.len());
@@ -344,7 +393,7 @@ mod tests {
 
     // Picker order
 
-    fn picker_labels(layout: KeyboardLayout) -> Vec<&'static str> {
+    fn picker_labels(layout: KeyboardLayout) -> Vec<String> {
         picker_keys(layout)
             .iter()
             .map(|k| k.label(layout))
@@ -375,7 +424,7 @@ mod tests {
     #[test]
     fn picker_sorts_german_letters_by_label() {
         let labels = picker_labels(KeyboardLayout::De);
-        let start = labels.iter().position(|&l| l == "A").unwrap();
+        let start = labels.iter().position(|l| l == "A").unwrap();
         let letters: Vec<_> = labels[start..start + 30].to_vec();
         let mut expected: Vec<_> = ('A'..='Z').map(|c| c.to_string()).collect();
         expected.extend(["Ä", "Ö", "Ü", "ß"].map(String::from));

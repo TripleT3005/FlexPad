@@ -1,7 +1,11 @@
 use crate::app::{DeviceTask, FlexPadApp, Message};
 use crate::device::PROTOCOL_VERSION;
 use crate::flasher::{self, FIRMWARE_VERSION, FlashStage};
+use crate::i18n::{format_text, text as tr};
 use crate::keys::KeyboardLayout;
+use crate::texts;
+use crate::ui::choice::Choice;
+use crate::ui::label_button;
 use crate::update::{self, APP_VERSION};
 use iced::widget::{
     Space, Text, button, checkbox, column, container, pick_list, progress_bar, row, text,
@@ -11,7 +15,10 @@ use iced::{Alignment, Element, Length};
 
 // Constants
 
-const LABEL_WIDTH: f32 = 60.0;
+const LABEL_WIDTH: f32 = 80.0;
+const LANGUAGE_PICKER_WIDTH: f32 = 190.0;
+const PICKER_WIDTH: f32 = 220.0;
+const NAME_WIDTH: f32 = 170.0;
 const GROUP_SPACING: f32 = 24.0;
 
 // Header
@@ -34,26 +41,27 @@ fn device_bar(app: &FlexPadApp) -> Element<'_, Message> {
         app.selected_device.clone(),
         Message::DeviceSelected,
     )
-    .placeholder("Select device...")
-    .width(260);
+    .placeholder(tr(texts::DEVICE_SELECT))
+    .width(PICKER_WIDTH);
     let is_connected = app.connected_device.is_some();
     let can_use_device = is_idle && is_connected;
-    let scan_btn =
-        button("Scan").on_press_maybe((is_idle && !is_connected).then_some(Message::ScanDevices));
+    let scan_btn = label_button(tr(texts::DEVICE_SCAN))
+        .on_press_maybe((is_idle && !is_connected).then_some(Message::ScanDevices));
     let conn_btn = if is_connected {
-        button("Disconnect").on_press_maybe(is_idle.then_some(Message::DisconnectDevice))
+        label_button(tr(texts::DEVICE_DISCONNECT))
+            .on_press_maybe(is_idle.then_some(Message::DisconnectDevice))
     } else {
-        button("Connect").on_press_maybe(
+        label_button(tr(texts::DEVICE_CONNECT)).on_press_maybe(
             (is_idle && app.selected_device.is_some()).then_some(Message::ConnectDevice),
         )
     };
-    let load_btn =
-        button("Load Config").on_press_maybe(can_use_device.then_some(Message::LoadConfig));
-    let save_btn =
-        button("Set Config").on_press_maybe(can_use_device.then_some(Message::SetConfig));
+    let load_btn = label_button(tr(texts::DEVICE_LOAD_CONFIG))
+        .on_press_maybe(can_use_device.then_some(Message::LoadConfig));
+    let save_btn = label_button(tr(texts::DEVICE_SET_CONFIG))
+        .on_press_maybe(can_use_device.then_some(Message::SetConfig));
 
     row![
-        label("Device"),
+        label(tr(texts::DEVICE_LABEL)),
         device_picker,
         scan_btn,
         conn_btn,
@@ -63,6 +71,8 @@ fn device_bar(app: &FlexPadApp) -> Element<'_, Message> {
     ]
     .spacing(8)
     .align_y(Alignment::Center)
+    .wrap()
+    .vertical_spacing(8)
     .into()
 }
 
@@ -72,26 +82,25 @@ fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
         app.selected_profile.clone(),
         Message::ProfileSelected,
     )
-    .placeholder("Select profile...")
-    .width(260);
-    let name_input = text_input("Profile name", &app.current_profile_name)
+    .placeholder(tr(texts::PROFILE_SELECT))
+    .width(PICKER_WIDTH);
+    let name_input = text_input(&tr(texts::PROFILE_NAME), &app.current_profile_name)
         .on_input(Message::ProfileNameChanged)
-        .width(200)
+        .width(NAME_WIDTH)
         .padding(5);
     let layout_picker = pick_list(
         KeyboardLayout::ALL,
         Some(app.keyboard_layout),
         Message::KeyboardLayoutSelected,
-    )
-    .width(150);
-    let new_btn = button("New Profile").on_press(Message::NewProfile);
-    let save_btn = button("Save Profile").on_press(Message::SaveCurrentProfile);
+    );
+    let new_btn = label_button(tr(texts::PROFILE_NEW)).on_press(Message::NewProfile);
+    let save_btn = label_button(tr(texts::PROFILE_SAVE)).on_press(Message::SaveCurrentProfile);
 
     row![
-        label("Profile"),
+        label(tr(texts::PROFILE_LABEL)),
         profile_picker,
         name_input,
-        text("Layout").size(13),
+        text(tr(texts::PROFILE_LAYOUT)).size(13),
         layout_picker,
         Space::new().width(GROUP_SPACING),
         new_btn,
@@ -99,10 +108,12 @@ fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
     ]
     .spacing(8)
     .align_y(Alignment::Center)
+    .wrap()
+    .vertical_spacing(8)
     .into()
 }
 
-fn label(content: &str) -> Element<'_, Message> {
+fn label<'a>(content: String) -> Element<'a, Message> {
     text(content).size(13).width(LABEL_WIDTH).into()
 }
 
@@ -112,22 +123,21 @@ fn firmware_notice(app: &FlexPadApp) -> Option<Element<'_, Message>> {
     let is_idle = !app.is_device_busy();
     if needs_newer_app(app) {
         return Some(banner(
-            text("This FlexPad uses a newer protocol than this app understands. Please update the app.")
-                .size(13)
-                .into(),
+            text(tr(texts::FIRMWARE_NEWER_PROTOCOL)).size(13).into(),
         ));
     }
     let (message, action) = if let Some(firmware) = outdated_firmware(app) {
         (
-            format!(
-                "Firmware {firmware} is older than the firmware built into the app ({FIRMWARE_VERSION})."
+            format_text(
+                texts::FIRMWARE_OUTDATED,
+                &[("firmware", firmware), ("version", FIRMWARE_VERSION)],
             ),
-            "Update firmware",
+            tr(texts::FIRMWARE_UPDATE),
         )
     } else if app.connected_device.is_none() && is_idle && app.download_port.is_some() {
         (
-            "Board in bootloader mode found.".to_string(),
-            "Install firmware",
+            tr(texts::FIRMWARE_BOOTLOADER_FOUND),
+            tr(texts::FIRMWARE_INSTALL),
         )
     } else {
         return None;
@@ -142,7 +152,7 @@ fn firmware_notice(app: &FlexPadApp) -> Option<Element<'_, Message>> {
                 .on_press_maybe(is_idle.then_some(Message::UpdateFirmware)),
         )
     } else {
-        content.push(text("This build of the app contains no firmware.").size(13))
+        content.push(text(tr(texts::FIRMWARE_NOT_INCLUDED)).size(13))
     };
     Some(banner(content.into()))
 }
@@ -152,24 +162,27 @@ fn flash_progress(app: &FlexPadApp) -> Option<Element<'_, Message>> {
         return None;
     }
     let (label, fraction) = match app.flash_stage {
-        None | Some(FlashStage::Rebooting) => {
-            ("Restarting the FlexPad into its bootloader...", 0.0)
+        None | Some(FlashStage::Rebooting) => (texts::FLASH_REBOOTING, 0.0),
+        Some(FlashStage::WaitingForBootloader) => (texts::FLASH_WAITING, 0.0),
+        Some(FlashStage::Connecting) => (texts::FLASH_CONNECTING, 0.0),
+        Some(FlashStage::Writing { written, total }) => {
+            (texts::FLASH_WRITING, written as f32 / total.max(1) as f32)
         }
-        Some(FlashStage::WaitingForBootloader) => ("Waiting for the bootloader...", 0.0),
-        Some(FlashStage::Connecting) => ("Connecting to the bootloader...", 0.0),
-        Some(FlashStage::Writing { written, total }) => (
-            "Writing the firmware...",
-            written as f32 / total.max(1) as f32,
-        ),
-        Some(FlashStage::Restarting) => ("Restarting the FlexPad...", 1.0),
+        Some(FlashStage::Restarting) => (texts::FLASH_RESTARTING, 1.0),
     };
     Some(banner(
         column![
-            text("⚠ Do not unplug the FlexPad or close the app until the update is finished.")
-                .size(13),
+            text(format!("⚠ {}", tr(texts::FLASH_WARNING))).size(13),
             row![
                 progress_bar(0.0..=1.0, fraction).length(300).girth(12),
-                text(format!("{label} {:.0} %", fraction * 100.0)).size(12),
+                text(format_text(
+                    texts::FLASH_PROGRESS,
+                    &[
+                        ("stage", &tr(label)),
+                        ("percent", &format!("{:.0}", fraction * 100.0)),
+                    ],
+                ))
+                .size(12),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -206,12 +219,12 @@ fn needs_newer_app(app: &FlexPadApp) -> bool {
 
 pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
     let (dot, label): (Text<'_>, &str) = if app.connected_device.is_some() {
-        (text("●").style(text::success), "Connected")
+        (text("●").style(text::success), texts::STATUS_CONNECTED)
     } else {
-        (text("●").style(text::danger), "Disconnected")
+        (text("●").style(text::danger), texts::STATUS_DISCONNECTED)
     };
     let mut bar = row![
-        row![dot.size(16), text(label).size(13)]
+        row![dot.size(16), text(tr(label)).size(13)]
             .spacing(6)
             .align_y(Alignment::Center),
         text(&app.status_message).size(13),
@@ -219,21 +232,54 @@ pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
     ]
     .spacing(15)
     .align_y(Alignment::Center);
+    bar = bar.push(language_picker(app));
     if let Some(release) = &app.available_update {
         bar = bar.push(
-            button(text(format!("Version {} available", release.version)).size(13))
-                .padding(0)
-                .style(button::text)
-                .on_press(Message::OpenReleasePage),
+            button(
+                text(format_text(
+                    texts::STATUS_UPDATE_AVAILABLE,
+                    &[("version", &release.version)],
+                ))
+                .size(13),
+            )
+            .padding(0)
+            .style(button::text)
+            .on_press(Message::OpenReleasePage),
         );
     }
     bar.push(
         checkbox(app.check_for_updates)
-            .label("Check for updates")
+            .label(tr(texts::STATUS_CHECK_UPDATES))
             .size(14)
             .text_size(13)
             .on_toggle(Message::UpdateCheckToggled),
     )
     .push(text(format!("v{APP_VERSION}")).size(13))
+    .into()
+}
+
+fn language_picker(app: &FlexPadApp) -> Element<'_, Message> {
+    let mut choices = vec![Choice::new(None, tr(texts::LANGUAGE_AUTOMATIC))];
+    choices.extend(
+        app.languages
+            .iter()
+            .map(|language| Choice::new(Some(language.code.clone()), language.name.clone())),
+    );
+    let selected = choices
+        .iter()
+        .find(|choice| choice.value == app.language)
+        .cloned()
+        .or_else(|| choices.first().cloned());
+    row![
+        text(tr(texts::LANGUAGE_LABEL)).size(13),
+        pick_list(choices, selected, |choice| Message::LanguageSelected(
+            choice.value
+        ))
+        .text_size(13)
+        .padding([2, 8])
+        .width(LANGUAGE_PICKER_WIDTH),
+    ]
+    .spacing(6)
+    .align_y(Alignment::Center)
     .into()
 }

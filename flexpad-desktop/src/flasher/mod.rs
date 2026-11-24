@@ -7,6 +7,7 @@ pub use image::{FIRMWARE_VERSION, embedded_image};
 use image::FirmwareImage;
 
 use crate::device::{Connection, Port, is_flexpad_port, reboot_to_bootloader};
+use crate::{i18n, texts};
 use rom::{FLASH_BLOCK_SIZE, Opcode, Request, Response};
 use std::io::{ErrorKind, Read, Write};
 use std::time::{Duration, Instant};
@@ -101,7 +102,10 @@ fn open_download_port(port_name: &str) -> Result<Port, String> {
         {
             Ok(port) => return Ok(port),
             Err(e) if Instant::now() >= deadline => {
-                return Err(format!("could not open {port_name}: {e}"));
+                return Err(i18n::format_text(
+                    texts::ERROR_PORT_OPEN,
+                    &[("port", port_name), ("error", &e.to_string())],
+                ));
             }
             Err(_) => std::thread::sleep(PORT_POLL_INTERVAL),
         }
@@ -126,17 +130,15 @@ pub fn update_firmware(
     source: FlashSource,
     progress: &mut impl FnMut(FlashStage),
 ) -> Result<FlashOutcome, String> {
-    let image = embedded_image().ok_or("this build of the app contains no firmware image")?;
+    let image = embedded_image().ok_or_else(|| i18n::text(texts::ERROR_NO_FIRMWARE))?;
     let port_name = match source {
         FlashSource::Device(connection) => {
             progress(FlashStage::Rebooting);
             reboot_to_bootloader(&connection);
             drop(connection);
             progress(FlashStage::WaitingForBootloader);
-            wait_for_port(DOWNLOAD_PORT_TIMEOUT, is_download_port).ok_or(
-                "the FlexPad did not start its bootloader; hold BOOT while plugging it in, \
-                 then scan again",
-            )?
+            wait_for_port(DOWNLOAD_PORT_TIMEOUT, is_download_port)
+                .ok_or_else(|| i18n::text(texts::ERROR_NO_BOOTLOADER))?
         }
         FlashSource::DownloadPort(port_name) => port_name,
     };
@@ -209,7 +211,7 @@ impl<'a, P: Read + Write> RomConnection<'a, P> {
         self.port
             .write_all(&slip::encode(&request.to_bytes()))
             .and_then(|()| self.port.flush())
-            .map_err(|e| format!("writing to the device failed: {e}"))
+            .map_err(|e| i18n::format_text(texts::ERROR_WRITE_FAILED, &[("error", &e.to_string())]))
     }
 
     fn receive(&mut self, opcode: Opcode, timeout: Duration) -> Result<Response, String> {
@@ -219,7 +221,12 @@ impl<'a, P: Read + Write> RomConnection<'a, P> {
             let count = match self.port.read(&mut buffer) {
                 Ok(count) => count,
                 Err(e) if matches!(e.kind(), ErrorKind::TimedOut | ErrorKind::Interrupted) => 0,
-                Err(e) => return Err(format!("reading from the device failed: {e}")),
+                Err(e) => {
+                    return Err(i18n::format_text(
+                        texts::ERROR_READ_FAILED,
+                        &[("error", &e.to_string())],
+                    ));
+                }
             };
             if count == 0 {
                 std::thread::sleep(Duration::from_millis(1));
@@ -235,14 +242,23 @@ impl<'a, P: Read + Write> RomConnection<'a, P> {
                 }
             }
         }
-        Err(format!("the device did not answer {opcode:?}"))
+        Err(i18n::format_text(
+            texts::ERROR_NO_ANSWER,
+            &[("command", &format!("{opcode:?}"))],
+        ))
     }
 
     fn command(&mut self, request: &Request, timeout: Duration) -> Result<Response, String> {
         self.send(request)?;
         let response = self.receive(request.opcode, timeout)?;
         match response.failure() {
-            Some(reason) => Err(format!("{:?} failed: {reason}", request.opcode)),
+            Some(reason) => Err(i18n::format_text(
+                texts::ERROR_COMMAND_FAILED,
+                &[
+                    ("command", &format!("{:?}", request.opcode)),
+                    ("reason", &reason),
+                ],
+            )),
             None => Ok(response),
         }
     }
@@ -254,7 +270,7 @@ impl<'a, P: Read + Write> RomConnection<'a, P> {
                 return Ok(());
             }
         }
-        Err("the bootloader did not respond".to_string())
+        Err(i18n::text(texts::ERROR_BOOTLOADER_SILENT))
     }
 
     fn read_reg(&mut self, address: u32) -> Result<u32, String> {

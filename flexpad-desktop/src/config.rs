@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::profile::{self, Profile};
+use crate::{i18n, texts};
 
 // Constants
 
@@ -168,6 +169,8 @@ pub struct UserSettings {
     pub advanced_mode: bool,
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 fn default_check_for_updates() -> bool {
@@ -180,6 +183,7 @@ impl Default for UserSettings {
             last_profile: None,
             advanced_mode: false,
             check_for_updates: default_check_for_updates(),
+            language: None,
         }
     }
 }
@@ -239,7 +243,7 @@ pub fn profile_path(profile_name: &str) -> PathBuf {
 pub fn save_profile_to_disk(config: &Profile) -> Result<PathBuf, String> {
     let file_path = profile_path(&config.profile_name);
     if file_path.parent() != Some(get_profiles_dir().as_path()) {
-        return Err("The profile name gives an invalid file name.".to_string());
+        return Err(i18n::text(texts::ERROR_INVALID_FILE_NAME));
     }
 
     let json_str = config.to_pretty_json()?;

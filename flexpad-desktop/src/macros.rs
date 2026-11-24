@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::constants;
+use crate::i18n::format_text;
 use crate::keys;
+use crate::texts;
 
 // Constants
 
@@ -20,13 +23,19 @@ pub enum MacroAction {
 
 impl std::fmt::Display for MacroAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MacroAction::Press(key) => write!(f, "Press: {key}"),
-            MacroAction::Release(key) => write!(f, "Release: {key}"),
-            MacroAction::Delay(ms) => write!(f, "Delay: {ms} ms"),
-            MacroAction::Media(name) => write!(f, "Media: {name}"),
-            MacroAction::Text(text) => write!(f, "Text: \"{}\"", text.replace('\n', "\\n")),
-        }
+        let label = match self {
+            MacroAction::Press(key) => format_text(texts::ACTION_PRESS, &[("key", key)]),
+            MacroAction::Release(key) => format_text(texts::ACTION_RELEASE, &[("key", key)]),
+            MacroAction::Delay(ms) => format_text(texts::ACTION_DELAY, &[("ms", &ms.to_string())]),
+            MacroAction::Media(name) => format_text(
+                texts::ACTION_MEDIA,
+                &[("name", &constants::media_label(name))],
+            ),
+            MacroAction::Text(text) => {
+                format_text(texts::ACTION_TEXT, &[("text", &text.replace('\n', "\\n"))])
+            }
+        };
+        f.write_str(&label)
     }
 }
 

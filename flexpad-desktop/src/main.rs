@@ -7,11 +7,15 @@ mod config;
 mod constants;
 mod device;
 mod flasher;
+mod i18n;
 mod icon;
 mod keys;
+#[cfg(test)]
+mod language_list;
 mod macros;
 mod profile;
 mod release;
+mod texts;
 mod theme;
 mod ui;
 mod update;

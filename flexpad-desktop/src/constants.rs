@@ -1,4 +1,6 @@
+use crate::i18n;
 use crate::macros::Preset;
+use crate::texts;
 
 // Pins
 
@@ -9,56 +11,66 @@ pub const FIRMWARE_PINS: &[u8] = &[
 // Media keys
 
 pub const MEDIA_ACTIONS: &[(&str, &str)] = &[
-    ("Volume Up", "vol_up"),
-    ("Volume Down", "vol_down"),
-    ("Mute", "mute"),
-    ("Next Track", "next"),
-    ("Previous Track", "prev"),
-    ("Play/Pause", "play"),
+    (texts::MEDIA_VOL_UP, "vol_up"),
+    (texts::MEDIA_VOL_DOWN, "vol_down"),
+    (texts::MEDIA_MUTE, "mute"),
+    (texts::MEDIA_NEXT, "next"),
+    (texts::MEDIA_PREV, "prev"),
+    (texts::MEDIA_PLAY, "play"),
 ];
+
+pub fn media_label(action: &str) -> String {
+    MEDIA_ACTIONS
+        .iter()
+        .find(|&&(_, known)| known == action)
+        .map_or_else(|| action.to_string(), |&(label, _)| i18n::text(label))
+}
 
 // Presets
 
 pub const PRESETS: &[(&str, Preset)] = &[
-    ("Copy [Universal]", Preset::Chord(&["ControlLeft", "KeyC"])),
-    ("Paste [Universal]", Preset::Chord(&["ControlLeft", "KeyV"])),
-    ("Cut [Universal]", Preset::Chord(&["ControlLeft", "KeyX"])),
-    ("Find [Universal]", Preset::Chord(&["ControlLeft", "KeyF"])),
+    (texts::PRESET_COPY, Preset::Chord(&["ControlLeft", "KeyC"])),
+    (texts::PRESET_PASTE, Preset::Chord(&["ControlLeft", "KeyV"])),
+    (texts::PRESET_CUT, Preset::Chord(&["ControlLeft", "KeyX"])),
+    (texts::PRESET_FIND, Preset::Chord(&["ControlLeft", "KeyF"])),
     (
-        "New Tab [Universal]",
+        texts::PRESET_NEW_TAB,
         Preset::Chord(&["ControlLeft", "KeyT"]),
     ),
     (
-        "Close Tab [Universal]",
+        texts::PRESET_CLOSE_TAB,
         Preset::Chord(&["ControlLeft", "KeyW"]),
     ),
     (
-        "Select All [Universal]",
+        texts::PRESET_SELECT_ALL,
         Preset::Chord(&["ControlLeft", "KeyA"]),
     ),
     (
-        "Task Manager [Windows]",
+        texts::PRESET_TASK_MANAGER,
         Preset::Chord(&["ControlLeft", "ShiftLeft", "Escape"]),
     ),
-    ("Lock PC [Windows]", Preset::Chord(&["MetaLeft", "KeyL"])),
     (
-        "Lock PC [Linux Gnome]",
+        texts::PRESET_LOCK_WINDOWS,
+        Preset::Chord(&["MetaLeft", "KeyL"]),
+    ),
+    (
+        texts::PRESET_LOCK_GNOME,
         Preset::Chord(&["ControlLeft", "AltLeft", "KeyL"]),
     ),
     (
-        "File Explorer [Windows]",
+        texts::PRESET_FILE_EXPLORER,
         Preset::Chord(&["MetaLeft", "KeyE"]),
     ),
     (
-        "Emoji Picker [Windows]",
+        texts::PRESET_EMOJI_PICKER,
         Preset::Chord(&["MetaLeft", "Period"]),
     ),
     (
-        "Close Window [Win/Linux]",
+        texts::PRESET_CLOSE_WINDOW,
         Preset::Chord(&["AltLeft", "F4"]),
     ),
     (
-        "Open Terminal [Linux]",
+        texts::PRESET_TERMINAL,
         Preset::Chord(&["ControlLeft", "AltLeft", "KeyT"]),
     ),
 ];
