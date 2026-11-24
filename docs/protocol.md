@@ -129,7 +129,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 - `pins`: role → GPIO number. A role without a pin is left out (or `null`, `""`).
 - `functions`: function → [function object](#functions). A missing function or an empty `actions` list means "nothing".
 - `parameters`: missing values use the defaults below; unknown parameters are ignored.
-- `component` names the component the tile was created from (`button`, `ec11`). The app uses it for the display; the firmware ignores it.
+- `component` names the component the tile was created from (`button`, `ec11` or the id of an own [component definition](components.md)). The app uses it for the display; the firmware ignores it.
 - `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware uses it to turn the characters of text actions into key presses (see [Text and keyboard layouts](#text-and-keyboard-layouts)). Other values are rejected.
 
 ### Kinds

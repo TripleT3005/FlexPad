@@ -6,6 +6,18 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.5.0] – 2026-11-25
+
+### English
+
+#### Added
+- Components are described in JSON files. Your own definitions in the folder `components` next to the settings appear in **Add Tile**, e.g. another encoder model with different defaults or an encoder without a push button; see `docs/components.md`.
+
+### Deutsch
+
+#### Neu
+- Bauteile sind in JSON-Dateien beschrieben. Eigene Definitionen im Ordner `components` neben den Einstellungen erscheinen unter **Add Tile**, z. B. ein anderes Encoder-Modell mit anderen Standardwerten oder ein Encoder ohne Drucktaster; siehe `docs/components.md`.
+
 ## [1.4.0] – 2026-11-24
 
 ### English

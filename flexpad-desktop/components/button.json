@@ -1,0 +1,14 @@
+{
+  "id": "button",
+  "name": "component.button",
+  "kind": "button",
+  "pins": [
+    { "id": "switch", "label": "pin.switch" }
+  ],
+  "functions": [
+    { "id": "press", "label": "function.press", "default_macro": { "chord": ["ControlLeft", "KeyC"] } }
+  ],
+  "parameters": [
+    { "id": "debounce_ms", "label": "parameter.debounce", "type": "number", "min": 0, "max": 200, "default": 10 }
+  ]
+}
