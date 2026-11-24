@@ -1,5 +1,6 @@
 use crate::profile::Tile;
 use crate::ui::inspector::pin_summary;
+use crate::{i18n, texts};
 use iced::widget::canvas::{self, Action, Canvas, Frame, Geometry, Path, Program, Stroke};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme, mouse};
 
@@ -156,7 +157,11 @@ impl Program<CanvasMessage> for GridProgram {
 
             let display_name = shorten(&tile.display_name);
 
-            let text_content = format!("{}\nPins: {}", display_name, pins_summary);
+            let text_content = format!(
+                "{}\n{}",
+                display_name,
+                i18n::format_text(texts::TILES_CANVAS_PINS, &[("pins", &pins_summary)])
+            );
             let text = canvas::Text {
                 content: text_content,
                 position: Point::new(rect_pos.x + 8.0, rect_pos.y + 10.0),

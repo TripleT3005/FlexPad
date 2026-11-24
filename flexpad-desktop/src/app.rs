@@ -19,9 +19,11 @@ use crate::flasher::{
     FlashEvent, FlashOutcome, FlashSource, FlashStage, embedded_image, find_download_port,
     update_firmware,
 };
+use crate::i18n::{self, Language, format_text, text as tr};
 use crate::keys::KeyboardLayout;
 use crate::macros::{Macro, MacroAction, Preset};
 use crate::profile::{self, Profile, Tile};
+use crate::texts;
 use crate::theme;
 use crate::ui::header::{view_header, view_status_bar};
 use crate::ui::workspace::view_workspace;
@@ -89,17 +91,15 @@ pub enum MacroTestState {
 impl std::fmt::Display for MacroTestState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MacroTestState::Sending => f.write_str("Sending..."),
-            MacroTestState::Done(MacroTestResult::Queued) => {
-                f.write_str("Macro queued on the device.")
-            }
-            MacroTestState::Done(MacroTestResult::Busy) => {
-                f.write_str("The device is busy (macro queue full). Try again.")
-            }
+            MacroTestState::Sending => f.write_str(&tr(texts::TEST_SENDING)),
+            MacroTestState::Done(MacroTestResult::Queued) => f.write_str(&tr(texts::TEST_QUEUED)),
+            MacroTestState::Done(MacroTestResult::Busy) => f.write_str(&tr(texts::TEST_BUSY)),
             MacroTestState::Done(MacroTestResult::Rejected(reason)) => {
-                write!(f, "Rejected by the device: {reason}")
+                f.write_str(&format_text(texts::TEST_REJECTED, &[("reason", reason)]))
             }
-            MacroTestState::Failed(error) => write!(f, "Test failed: {error}"),
+            MacroTestState::Failed(error) => {
+                f.write_str(&format_text(texts::TEST_FAILED, &[("error", error)]))
+            }
         }
     }
 }
@@ -140,15 +140,15 @@ pub enum DeviceTask {
 }
 
 impl DeviceTask {
-    fn status(self) -> &'static str {
-        match self {
-            DeviceTask::Scanning => "Scanning for FlexPad devices...",
-            DeviceTask::Connecting => "Connecting to the device...",
-            DeviceTask::Loading => "Loading the configuration from the device...",
-            DeviceTask::Saving => "Saving the configuration to the device...",
-            DeviceTask::Flashing => "Updating the firmware...",
-            DeviceTask::TestingMacro => "Sending the test macro to the device...",
-        }
+    fn status(self) -> String {
+        tr(match self {
+            DeviceTask::Scanning => texts::TASK_SCANNING,
+            DeviceTask::Connecting => texts::TASK_CONNECTING,
+            DeviceTask::Loading => texts::TASK_LOADING,
+            DeviceTask::Saving => texts::TASK_SAVING,
+            DeviceTask::Flashing => texts::TASK_FLASHING,
+            DeviceTask::TestingMacro => texts::TASK_TESTING_MACRO,
+        })
     }
 }
 
@@ -175,6 +175,9 @@ pub struct FlexPadApp {
 
     pub check_for_updates: bool,
     pub available_update: Option<ReleaseInfo>,
+
+    pub language: Option<String>,
+    pub languages: Vec<Language>,
 
     pub flash_stage: Option<FlashStage>,
     pub download_port: Option<String>,
@@ -204,6 +207,7 @@ pub enum Message {
     CheckForUpdate,
     UpdateChecked(Result<Option<ReleaseInfo>, String>),
     UpdateCheckToggled(bool),
+    LanguageSelected(Option<String>),
     CloseRequested(iced::window::Id),
     ThemeModeChanged(iced::theme::Mode),
     WindowRead(iced::window::Id, Option<WindowGeometry>),
@@ -246,15 +250,19 @@ impl FlexPadApp {
         let profiles = load_profile_items();
 
         let user_settings = load_user_settings();
+        i18n::select(user_settings.language.as_deref());
         let mut initial_profile = Profile::default();
         let mut initial_selected = None;
         let mut status_message = if moved_files > 0 {
-            format!(
-                "Moved {moved_files} file(s) from the old FlexPad folder to {}.",
-                app_dirs().data.display()
+            format_text(
+                texts::MESSAGE_MOVED_FILES,
+                &[
+                    ("count", &moved_files.to_string()),
+                    ("folder", &app_dirs().data.display().to_string()),
+                ],
             )
         } else {
-            "Ready. Click 'Scan' to search for devices.".to_string()
+            ready_message()
         };
 
         let target_profile = user_settings
@@ -271,7 +279,7 @@ impl FlexPadApp {
                     initial_profile = loaded;
                     initial_selected = Some(item);
                 }
-                Err(e) => status_message = format!("Could not load profile '{}': {}", item.name, e),
+                Err(e) => status_message = profile_load_failed(&item, &e),
             }
         }
 
@@ -299,6 +307,8 @@ impl FlexPadApp {
                 selected_profile: initial_selected,
                 check_for_updates: user_settings.check_for_updates,
                 available_update: None,
+                language: user_settings.language,
+                languages: i18n::available_languages(),
                 flash_stage: None,
                 download_port: None,
                 ui: ui_state,
@@ -394,7 +404,7 @@ impl FlexPadApp {
                     self.serial_port = None;
                     self.connected_device = None;
                     self.ui.highlighted_tiles.clear();
-                    self.status_message = "Disconnected.".to_string();
+                    self.status_message = tr(texts::MESSAGE_DISCONNECTED);
                 }
             }
             Message::LoadConfig => return self.handle_load_config(),
@@ -416,9 +426,9 @@ impl FlexPadApp {
                 if let Some(test) = &mut self.ui.macro_test
                     && test.state == MacroTestState::Sending
                 {
-                    test.state = MacroTestState::Failed("unexpected error".to_string());
+                    test.state = MacroTestState::Failed(tr(texts::ERROR_UNEXPECTED));
                 }
-                self.status_message = "The device access failed unexpectedly.".to_string();
+                self.status_message = tr(texts::MESSAGE_ACCESS_FAILED);
             }
             Message::UpdateFirmware => return self.handle_update_firmware(),
             Message::Flash(FlashEvent::Progress(stage)) => self.flash_stage = Some(stage),
@@ -434,6 +444,7 @@ impl FlexPadApp {
             Message::UpdateCheckToggled(enabled) => {
                 return self.handle_update_check_toggled(enabled);
             }
+            Message::LanguageSelected(language) => self.handle_language_selected(language),
             Message::CloseRequested(id) => return read_window(id),
             Message::ThemeModeChanged(mode) => self.theme_mode = mode,
             Message::WindowRead(id, geometry) => {
@@ -496,7 +507,7 @@ impl FlexPadApp {
                     self.tiles.retain(|t| t.id != id);
                     self.ui.expanded_functions.clear();
                     self.ui.raw_macro_input = None;
-                    self.status_message = "Tile removed from canvas.".to_string();
+                    self.status_message = tr(texts::MESSAGE_TILE_REMOVED);
                 }
             }
             Message::MacroKeySelected(key) => self.ui.selected_macro_key = key,
@@ -581,15 +592,18 @@ impl FlexPadApp {
         self.available_devices = devices;
         if self.available_devices.is_empty() {
             self.status_message = match &self.download_port {
-                Some(port) => format!(
-                    "No FlexPad found, but a board in bootloader mode is on {port}. \
-                     Click 'Install firmware' to set it up."
+                Some(port) => format_text(
+                    texts::MESSAGE_BOOTLOADER_FOUND,
+                    &[("port", port), ("button", &tr(texts::FIRMWARE_INSTALL))],
                 ),
-                None => "No FlexPad devices found.".to_string(),
+                None => tr(texts::MESSAGE_NO_DEVICES),
             };
             self.selected_device = None;
         } else {
-            self.status_message = format!("Found {} device(s).", self.available_devices.len());
+            self.status_message = format_text(
+                texts::MESSAGE_DEVICES_FOUND,
+                &[("count", &self.available_devices.len().to_string())],
+            );
             if self.selected_device.is_none() {
                 self.selected_device = self.available_devices.first().cloned();
             }
@@ -604,7 +618,7 @@ impl FlexPadApp {
             (Some(port), _) => FlashSource::Device(port),
             (None, Some(port_name)) => FlashSource::DownloadPort(port_name),
             (None, None) => {
-                self.status_message = "Not connected to any device.".to_string();
+                self.status_message = tr(texts::MESSAGE_NOT_CONNECTED);
                 return Task::none();
             }
         };
@@ -624,19 +638,19 @@ impl FlexPadApp {
         match result {
             Ok(FlashOutcome::Restarted) => {
                 let scan = self.handle_scan_devices();
-                self.status_message =
-                    "Firmware updated. The FlexPad restarted, scanning for it...".to_string();
+                self.status_message = tr(texts::MESSAGE_FIRMWARE_RESTARTED);
                 return scan;
             }
             Ok(FlashOutcome::NeedsManualReset) => {
-                self.status_message = "Firmware updated. Press RESET on the FlexPad (or unplug \
-                                       and replug it), then click 'Scan Devices'."
-                    .to_string();
+                self.status_message = format_text(
+                    texts::MESSAGE_FIRMWARE_MANUAL_RESET,
+                    &[("button", &tr(texts::DEVICE_SCAN))],
+                );
             }
             Err(e) => {
-                self.status_message = format!(
-                    "Firmware update failed: {e}. Click 'Scan Devices' and try again; \
-                     your configuration is kept."
+                self.status_message = format_text(
+                    texts::MESSAGE_FIRMWARE_FAILED,
+                    &[("error", &e), ("button", &tr(texts::DEVICE_SCAN))],
                 );
             }
         }
@@ -665,12 +679,16 @@ impl FlexPadApp {
         self.device_task = None;
         match result {
             Ok(port) => {
-                self.status_message = format!("Connected to {}", device.device_id);
+                self.status_message = format_text(
+                    texts::MESSAGE_CONNECTED_TO,
+                    &[("device", &device.device_id)],
+                );
                 self.serial_port = Some(port);
                 self.connected_device = Some(device);
             }
             Err(e) => {
-                self.status_message = format!("Connection failed: {}", e);
+                self.status_message =
+                    format_text(texts::MESSAGE_CONNECTION_FAILED, &[("error", &e)]);
             }
         }
     }
@@ -680,7 +698,7 @@ impl FlexPadApp {
             return Task::none();
         }
         let Some(port) = self.serial_port.clone() else {
-            self.status_message = "Not connected to any device.".to_string();
+            self.status_message = tr(texts::MESSAGE_NOT_CONNECTED);
             return Task::none();
         };
         if !self.start_device_task(DeviceTask::Loading) {
@@ -699,14 +717,15 @@ impl FlexPadApp {
             Err(e) => {
                 self.serial_port = None;
                 self.connected_device = None;
-                self.status_message = format!("Error: {}. Disconnected.", e);
+                self.status_message = format_text(texts::MESSAGE_LOAD_FAILED, &[("error", &e)]);
                 return;
             }
         };
         let loaded = match profile::parse_profile(&json_str) {
             Ok(loaded) => loaded,
             Err(e) => {
-                self.status_message = format!("Could not read the device configuration: {}", e);
+                self.status_message =
+                    format_text(texts::MESSAGE_CONFIG_UNREADABLE, &[("error", &e)]);
                 return;
             }
         };
@@ -733,7 +752,7 @@ impl FlexPadApp {
         }
 
         self.persist_settings(profile_name);
-        self.status_message = "Configuration loaded from device and saved locally.".to_string();
+        self.status_message = tr(texts::MESSAGE_CONFIG_LOADED);
     }
 
     fn handle_set_config(&mut self) -> Task<Message> {
@@ -743,12 +762,13 @@ impl FlexPadApp {
         let json_str = match self.current_profile().to_json() {
             Ok(json_str) => json_str,
             Err(e) => {
-                self.status_message = format!("Failed to save config: {}", e);
+                self.status_message =
+                    format_text(texts::MESSAGE_CONFIG_SAVE_FAILED, &[("error", &e)]);
                 return Task::none();
             }
         };
         let Some(port) = self.serial_port.clone() else {
-            self.status_message = "Not connected to any device.".to_string();
+            self.status_message = tr(texts::MESSAGE_NOT_CONNECTED);
             return Task::none();
         };
         if !self.start_device_task(DeviceTask::Saving) {
@@ -762,7 +782,7 @@ impl FlexPadApp {
 
     fn handle_test_macro(&mut self, function: String) -> Task<Message> {
         let Some(port) = self.serial_port.clone() else {
-            self.status_message = "Not connected to any device.".to_string();
+            self.status_message = tr(texts::MESSAGE_NOT_CONNECTED);
             return Task::none();
         };
         let Some(tile) = self.selected_tile() else {
@@ -774,7 +794,10 @@ impl FlexPadApp {
         }) {
             Ok(json) => json,
             Err(e) => {
-                self.status_message = format!("Could not prepare the test macro: {e}");
+                self.status_message = format_text(
+                    texts::MESSAGE_TEST_PREPARE_FAILED,
+                    &[("error", &e.to_string())],
+                );
                 return Task::none();
             }
         };
@@ -814,8 +837,8 @@ impl FlexPadApp {
     fn handle_config_set(&mut self, result: Result<(), String>) {
         self.device_task = None;
         self.status_message = match result {
-            Ok(()) => "Configuration saved to device.".to_string(),
-            Err(e) => format!("Failed to save config: {}", e),
+            Ok(()) => tr(texts::MESSAGE_CONFIG_SAVED),
+            Err(e) => format_text(texts::MESSAGE_CONFIG_SAVE_FAILED, &[("error", &e)]),
         };
     }
 
@@ -827,7 +850,7 @@ impl FlexPadApp {
                 if self.serial_port.take().is_some() {
                     self.connected_device = None;
                     self.ui.highlighted_tiles.clear();
-                    self.status_message = "Device was unplugged! Disconnected.".to_string();
+                    self.status_message = tr(texts::MESSAGE_UNPLUGGED);
                 }
             }
             DeviceEvent::Input(input) => self.handle_input_event(input, now),
@@ -854,7 +877,22 @@ impl FlexPadApp {
             last_profile: Some(last_profile),
             advanced_mode: self.ui.advanced_mode,
             check_for_updates: self.check_for_updates,
+            language: self.language.clone(),
         });
+    }
+
+    fn handle_language_selected(&mut self, language: Option<String>) {
+        i18n::select(language.as_deref());
+        self.language = language;
+        self.languages = i18n::available_languages();
+        self.persist_settings(self.current_profile_name.clone());
+        if !self.is_device_busy() {
+            self.status_message = if self.connected_device.is_some() {
+                String::new()
+            } else {
+                ready_message()
+            };
+        }
     }
 
     fn handle_check_for_update(&mut self) -> Task<Message> {
@@ -900,10 +938,10 @@ impl FlexPadApp {
                 self.ui.raw_macro_input = None;
 
                 self.persist_settings(loaded.profile_name);
-                self.status_message = "Loaded profile from disk.".to_string();
+                self.status_message = tr(texts::MESSAGE_PROFILE_LOADED);
             }
             Err(e) => {
-                self.status_message = format!("Could not load profile '{}': {}", item.name, e);
+                self.status_message = profile_load_failed(&item, &e);
             }
         }
     }
@@ -917,9 +955,12 @@ impl FlexPadApp {
 
         if name_collision && !self.ui.pending_overwrite {
             self.ui.pending_overwrite = true;
-            self.status_message = format!(
-                "Warning: Profile '{}' already exists. Click 'Save Profile' again to overwrite.",
-                self.current_profile_name
+            self.status_message = format_text(
+                texts::MESSAGE_PROFILE_EXISTS,
+                &[
+                    ("name", &self.current_profile_name),
+                    ("button", &tr(texts::PROFILE_SAVE)),
+                ],
             );
             return;
         }
@@ -940,16 +981,21 @@ impl FlexPadApp {
                     self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
                 self.persist_settings(self.current_profile_name.clone());
-                self.status_message = "Profile successfully saved/renamed to disk.".to_string();
+                self.status_message = tr(texts::MESSAGE_PROFILE_SAVED);
             }
             Err(e) => {
-                self.status_message = format!("Failed to save profile: {}", e);
+                self.status_message =
+                    format_text(texts::MESSAGE_PROFILE_SAVE_FAILED, &[("error", &e)]);
             }
         }
     }
 
     fn handle_new_profile(&mut self) {
-        let new_name = format!("{}_Copy", self.current_profile_name);
+        let new_name = format!(
+            "{}_{}",
+            self.current_profile_name,
+            tr(texts::PROFILE_COPY_SUFFIX)
+        );
         self.current_profile_name = new_name.clone();
         self.ui.pending_overwrite = false;
 
@@ -958,7 +1004,8 @@ impl FlexPadApp {
             self.selected_profile = self.saved_profiles.iter().find(|p| p.path == path).cloned();
 
             self.persist_settings(new_name.clone());
-            self.status_message = format!("Created profile template: {}", new_name);
+            self.status_message =
+                format_text(texts::MESSAGE_PROFILE_CREATED, &[("name", &new_name)]);
         }
     }
 
@@ -992,7 +1039,7 @@ impl FlexPadApp {
         let new_tile = Tile::new(
             &component,
             new_id.clone(),
-            format!("{} {}", component.name, self.tiles.len() + 1),
+            format!("{} {}", component, self.tiles.len() + 1),
             60.0,
             60.0,
         );
@@ -1001,7 +1048,7 @@ impl FlexPadApp {
         self.selected_tile_id = Some(new_id);
         self.ui.expanded_functions.clear();
         self.ui.raw_macro_input = None;
-        self.status_message = "Added new tile to canvas.".to_string();
+        self.status_message = tr(texts::MESSAGE_TILE_ADDED);
     }
 
     // View
@@ -1027,6 +1074,17 @@ impl FlexPadApp {
 
 // Helpers
 
+fn ready_message() -> String {
+    format_text(texts::MESSAGE_READY, &[("button", &tr(texts::DEVICE_SCAN))])
+}
+
+fn profile_load_failed(item: &ProfileItem, error: &str) -> String {
+    format_text(
+        texts::MESSAGE_PROFILE_LOAD_FAILED,
+        &[("name", &item.name), ("error", error)],
+    )
+}
+
 fn tile_for_input(tiles: &[Tile], event: InputEvent) -> Option<&Tile> {
     match event {
         InputEvent::Pin(pin, _) => tiles
@@ -1038,22 +1096,19 @@ fn tile_for_input(tiles: &[Tile], event: InputEvent) -> Option<&Tile> {
 
 fn input_status(event: InputEvent, tile: Option<&Tile>) -> Option<String> {
     let target = tile.map_or_else(
-        || "not assigned".to_string(),
+        || tr(texts::MESSAGE_NOT_ASSIGNED),
         |tile| tile.display_name.clone(),
     );
-    match event {
-        InputEvent::Pin(pin, PinEdge::Pressed) => Some(format!("GPIO {pin} pressed – {target}")),
-        InputEvent::Pin(_, PinEdge::Released) => None,
-        InputEvent::Encoder(pin_a, direction) => {
-            let direction = match direction {
-                TurnDirection::Right => "right",
-                TurnDirection::Left => "left",
-            };
-            Some(format!(
-                "Encoder on GPIO {pin_a} turned {direction} – {target}"
-            ))
-        }
-    }
+    let (key, pin) = match event {
+        InputEvent::Pin(pin, PinEdge::Pressed) => (texts::MESSAGE_PIN_PRESSED, pin),
+        InputEvent::Pin(_, PinEdge::Released) => return None,
+        InputEvent::Encoder(pin_a, TurnDirection::Right) => (texts::MESSAGE_ENCODER_RIGHT, pin_a),
+        InputEvent::Encoder(pin_a, TurnDirection::Left) => (texts::MESSAGE_ENCODER_LEFT, pin_a),
+    };
+    Some(format_text(
+        key,
+        &[("pin", &pin.to_string()), ("target", &target)],
+    ))
 }
 
 fn load_profile_items() -> Vec<ProfileItem> {
@@ -1093,8 +1148,9 @@ fn flash_events(source: FlashSource) -> impl iced::futures::Stream<Item = FlashE
         }
         if let Err(e) = worker.await {
             let _ = output
-                .send(FlashEvent::Finished(Err(format!(
-                    "the update stopped: {e}"
+                .send(FlashEvent::Finished(Err(format_text(
+                    texts::ERROR_UPDATE_STOPPED,
+                    &[("error", &e.to_string())],
                 ))))
                 .await;
         }
@@ -1157,6 +1213,8 @@ mod tests {
             selected_profile: None,
             check_for_updates: true,
             available_update: None,
+            language: None,
+            languages: Vec::new(),
             flash_stage: None,
             download_port: None,
             ui: UiState::default(),

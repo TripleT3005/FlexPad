@@ -9,6 +9,7 @@ use iced::futures::Stream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use super::serial::Port;
+use crate::{i18n, texts};
 
 // Constants
 
@@ -230,7 +231,7 @@ impl Connection {
         client
             .outgoing
             .send(line)
-            .map_err(|_| "The device was disconnected".to_string())?;
+            .map_err(|_| i18n::text(texts::ERROR_DISCONNECTED))?;
 
         let deadline = Instant::now() + timeout;
         loop {
@@ -238,17 +239,20 @@ impl Connection {
             match client.responses.recv_timeout(remaining) {
                 Ok(response) => {
                     if let Some(reason) = response.strip_prefix("ERROR:") {
-                        return Err(format!("The device reported an error ({reason})"));
+                        return Err(i18n::format_text(
+                            texts::ERROR_DEVICE_ERROR,
+                            &[("reason", reason)],
+                        ));
                     }
                     if let Some(result) = accept(&response) {
                         return result;
                     }
                 }
                 Err(RecvTimeoutError::Timeout) => {
-                    return Err("The device did not answer in time".to_string());
+                    return Err(i18n::text(texts::ERROR_TIMEOUT));
                 }
                 Err(RecvTimeoutError::Disconnected) => {
-                    return Err("The device was disconnected".to_string());
+                    return Err(i18n::text(texts::ERROR_DISCONNECTED));
                 }
             }
         }

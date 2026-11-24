@@ -2,6 +2,7 @@ use std::io::{Read, Write};
 use std::time::Duration;
 
 use super::connection::{Connection, READ_TIMEOUT};
+use crate::{i18n, texts};
 
 // Constants
 
@@ -144,9 +145,12 @@ pub fn set_config_to_device(connection: &Connection, json_config: &str) -> Resul
         if response == "CONFIG_SAVED" {
             return Some(Ok(()));
         }
-        response
-            .strip_prefix("CONFIG_ERROR:")
-            .map(|reason| Err(format!("The device rejected the configuration ({reason})")))
+        response.strip_prefix("CONFIG_ERROR:").map(|reason| {
+            Err(i18n::format_text(
+                texts::ERROR_CONFIG_REJECTED,
+                &[("reason", reason)],
+            ))
+        })
     })
 }
 
