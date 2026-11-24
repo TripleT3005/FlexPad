@@ -29,6 +29,9 @@ profile.copy_suffix = Koopia
 
 layout.us = Inglise (USA)
 layout.de = Saksa
+layout.de-CH = Saksa (Šveits)
+layout.en-GB = Inglise (Ühendkuningriik)
+layout.fr = Prantsuse
 
 firmware.newer_protocol = See FlexPad kasutab uuemat protokolli, kui see rakendus mõistab. Uuenda rakendust.
 firmware.outdated = Püsivara {firmware} on vanem kui rakendusega kaasas olev püsivara ({version}).

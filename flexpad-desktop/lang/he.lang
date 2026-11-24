@@ -30,6 +30,9 @@ profile.copy_suffix = עותק
 
 layout.us = אנגלית (ארה״ב)
 layout.de = גרמנית
+layout.de-CH = גרמנית (שווייץ)
+layout.en-GB = אנגלית (בריטניה)
+layout.fr = צרפתית
 
 firmware.newer_protocol = FlexPad זה משתמש בפרוטוקול חדש יותר ממה שהיישום הזה מבין. נא לעדכן את היישום.
 firmware.outdated = הקושחה {firmware} ישנה מהקושחה שמובנית ביישום ({version}).

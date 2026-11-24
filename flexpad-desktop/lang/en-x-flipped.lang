@@ -29,6 +29,9 @@ profile.copy_suffix = ʎdoɔ
 
 layout.us = (sn) ɥsılƃuǝ
 layout.de = uɐɯɹǝƃ
+layout.de-CH = (puɐlɹǝzʇıʍs) uɐɯɹǝƃ
+layout.en-GB = (ʞn) ɥsılƃuǝ
+layout.fr = ɥɔuǝɹɟ
 
 firmware.newer_protocol = ˙ddɐ ǝɥʇ ǝʇɐpdn ǝsɐǝld ˙spuɐʇsɹǝpun ddɐ sıɥʇ uɐɥʇ loɔoʇoɹd ɹǝʍǝu ɐ sǝsn pɐdxǝlɟ sıɥʇ
 firmware.outdated = ˙({version}) ddɐ ǝɥʇ oʇuı ʇlınq ǝɹɐʍɯɹıɟ ǝɥʇ uɐɥʇ ɹǝplo sı {firmware} ǝɹɐʍɯɹıɟ

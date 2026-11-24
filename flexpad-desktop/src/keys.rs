@@ -1,41 +1,40 @@
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::i18n;
 use crate::texts;
 
 #[cfg(test)]
-#[allow(dead_code)]
-#[path = "../../flexpad-firmware/src/keys.rs"]
-pub(crate) mod firmware_keys;
+pub(crate) use crate::layout_list::firmware_keys;
 
 #[allow(dead_code)]
 #[path = "../../flexpad-firmware/src/layouts.rs"]
 mod firmware_layouts;
 
+#[cfg(test)]
+pub(crate) use firmware_layouts::keystrokes as firmware_keystrokes;
+
 // Layouts
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum KeyboardLayout {
-    #[default]
-    Us,
-    De,
-}
+pub use firmware_layouts::KeyboardLayout;
+
+const LAYOUT_TEXT_PREFIX: &str = "layout.";
 
 impl KeyboardLayout {
-    pub const ALL: &[KeyboardLayout] = &[KeyboardLayout::Us, KeyboardLayout::De];
+    pub fn by_name() -> Vec<KeyboardLayout> {
+        let mut layouts = KeyboardLayout::ALL.to_vec();
+        layouts.sort_by_cached_key(|layout| layout.to_string().to_lowercase());
+        layouts
+    }
 
-    fn firmware(self) -> firmware_layouts::KeyboardLayout {
-        match self {
-            KeyboardLayout::Us => firmware_layouts::KeyboardLayout::Us,
-            KeyboardLayout::De => firmware_layouts::KeyboardLayout::De,
-        }
+    pub fn text_key(self) -> String {
+        format!("{LAYOUT_TEXT_PREFIX}{}", self.code())
     }
 
     pub fn untypeable_characters(self, text: &str) -> String {
         let mut missing = String::new();
         for character in text.chars() {
-            if firmware_layouts::keystrokes(self.firmware(), character).is_none()
+            if firmware_layouts::keystrokes(self, character).is_none()
                 && !missing.contains(character)
             {
                 missing.push(character);
@@ -47,10 +46,24 @@ impl KeyboardLayout {
 
 impl std::fmt::Display for KeyboardLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&i18n::text(match self {
-            KeyboardLayout::Us => texts::LAYOUT_US,
-            KeyboardLayout::De => texts::LAYOUT_DE,
-        }))
+        match i18n::optional_text(&self.text_key()) {
+            Some(name) => f.write_str(&name),
+            None => f.write_str(self.name()),
+        }
+    }
+}
+
+impl Serialize for KeyboardLayout {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.code())
+    }
+}
+
+impl<'de> Deserialize<'de> for KeyboardLayout {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let code = String::deserialize(deserializer)?;
+        KeyboardLayout::from_name(&code)
+            .ok_or_else(|| D::Error::custom(format!("unknown keyboard layout {code:?}")))
     }
 }
 
@@ -61,30 +74,26 @@ enum Label {
     Plain(&'static str),
     Text(&'static str),
     Numpad(&'static str),
-}
-
-impl Label {
-    fn text(self) -> String {
-        match self {
-            Label::Plain(label) => label.to_string(),
-            Label::Text(key) => i18n::text(key),
-            Label::Numpad(label) => i18n::format_text(texts::KEY_NUMPAD, &[("key", label)]),
-        }
-    }
+    Layout,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Key {
     pub code: &'static str,
-    us: Label,
-    de: Label,
+    label: Label,
 }
 
 impl Key {
     pub fn label(&self, layout: KeyboardLayout) -> String {
-        match layout {
-            KeyboardLayout::Us => self.us.text(),
-            KeyboardLayout::De => self.de.text(),
+        let label = layout.label(self.code);
+        match (self.label, label) {
+            (Label::Numpad(default), label) => {
+                i18n::format_text(texts::KEY_NUMPAD, &[("key", label.unwrap_or(default))])
+            }
+            (_, Some(label)) => label.to_string(),
+            (Label::Plain(label), None) => label.to_string(),
+            (Label::Text(key), None) => i18n::text(key),
+            (Label::Layout, None) => self.code.to_string(),
         }
     }
 }
@@ -92,40 +101,28 @@ impl Key {
 const fn key(code: &'static str, label: &'static str) -> Key {
     Key {
         code,
-        us: Label::Plain(label),
-        de: Label::Plain(label),
+        label: Label::Plain(label),
     }
 }
 
 const fn named_key(code: &'static str, text: &'static str) -> Key {
     Key {
         code,
-        us: Label::Text(text),
-        de: Label::Text(text),
+        label: Label::Text(text),
     }
 }
 
-const fn layout_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
+const fn layout_key(code: &'static str) -> Key {
     Key {
         code,
-        us: Label::Plain(us),
-        de: Label::Plain(de),
+        label: Label::Layout,
     }
 }
 
-const fn named_layout_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
+const fn numpad_key(code: &'static str, label: &'static str) -> Key {
     Key {
         code,
-        us: Label::Text(us),
-        de: Label::Plain(de),
-    }
-}
-
-const fn numpad_key(code: &'static str, us: &'static str, de: &'static str) -> Key {
-    Key {
-        code,
-        us: Label::Numpad(us),
-        de: Label::Numpad(de),
+        label: Label::Numpad(label),
     }
 }
 
@@ -135,7 +132,7 @@ pub const KEYS: &[Key] = &[
     named_key("ShiftLeft", texts::KEY_SHIFT_LEFT),
     named_key("ShiftRight", texts::KEY_SHIFT_RIGHT),
     named_key("AltLeft", texts::KEY_ALT_LEFT),
-    named_layout_key("AltRight", texts::KEY_ALT_RIGHT, "AltGr"),
+    named_key("AltRight", texts::KEY_ALT_RIGHT),
     named_key("MetaLeft", texts::KEY_META_LEFT),
     named_key("MetaRight", texts::KEY_META_RIGHT),
     named_key("Enter", texts::KEY_ENTER),
@@ -192,37 +189,37 @@ pub const KEYS: &[Key] = &[
     key("KeyV", "V"),
     key("KeyW", "W"),
     key("KeyX", "X"),
-    layout_key("KeyY", "Y", "Z"),
-    layout_key("KeyZ", "Z", "Y"),
-    layout_key("Minus", "-", "ß"),
-    layout_key("Equal", "=", "´"),
-    layout_key("BracketLeft", "[", "Ü"),
-    layout_key("BracketRight", "]", "+"),
-    layout_key("Backslash", "\\", "#"),
-    layout_key("Semicolon", ";", "Ö"),
-    layout_key("Quote", "'", "Ä"),
-    layout_key("Backquote", "`", "^"),
-    key("Comma", ","),
-    key("Period", "."),
-    layout_key("Slash", "/", "-"),
-    named_layout_key("IntlBackslash", texts::KEY_INTL_BACKSLASH, "<"),
+    key("KeyY", "Y"),
+    key("KeyZ", "Z"),
+    layout_key("Minus"),
+    layout_key("Equal"),
+    layout_key("BracketLeft"),
+    layout_key("BracketRight"),
+    layout_key("Backslash"),
+    layout_key("Semicolon"),
+    layout_key("Quote"),
+    layout_key("Backquote"),
+    layout_key("Comma"),
+    layout_key("Period"),
+    layout_key("Slash"),
+    named_key("IntlBackslash", texts::KEY_INTL_BACKSLASH),
     named_key("NumLock", texts::KEY_NUM_LOCK),
-    numpad_key("Numpad1", "1", "1"),
-    numpad_key("Numpad2", "2", "2"),
-    numpad_key("Numpad3", "3", "3"),
-    numpad_key("Numpad4", "4", "4"),
-    numpad_key("Numpad5", "5", "5"),
-    numpad_key("Numpad6", "6", "6"),
-    numpad_key("Numpad7", "7", "7"),
-    numpad_key("Numpad8", "8", "8"),
-    numpad_key("Numpad9", "9", "9"),
-    numpad_key("Numpad0", "0", "0"),
-    numpad_key("NumpadDivide", "/", "/"),
-    numpad_key("NumpadMultiply", "*", "*"),
-    numpad_key("NumpadSubtract", "-", "-"),
-    numpad_key("NumpadAdd", "+", "+"),
-    numpad_key("NumpadEnter", "Enter", "Enter"),
-    numpad_key("NumpadDecimal", ".", ","),
+    numpad_key("Numpad1", "1"),
+    numpad_key("Numpad2", "2"),
+    numpad_key("Numpad3", "3"),
+    numpad_key("Numpad4", "4"),
+    numpad_key("Numpad5", "5"),
+    numpad_key("Numpad6", "6"),
+    numpad_key("Numpad7", "7"),
+    numpad_key("Numpad8", "8"),
+    numpad_key("Numpad9", "9"),
+    numpad_key("Numpad0", "0"),
+    numpad_key("NumpadDivide", "/"),
+    numpad_key("NumpadMultiply", "*"),
+    numpad_key("NumpadSubtract", "-"),
+    numpad_key("NumpadAdd", "+"),
+    numpad_key("NumpadEnter", "Enter"),
+    numpad_key("NumpadDecimal", "."),
     key("F1", "F1"),
     key("F2", "F2"),
     key("F3", "F3"),
@@ -342,6 +339,10 @@ pub fn label_for(name: &str, layout: KeyboardLayout) -> String {
 mod tests {
     use super::*;
 
+    fn layout(code: &str) -> KeyboardLayout {
+        KeyboardLayout::from_name(code).unwrap()
+    }
+
     // Table
 
     #[test]
@@ -371,6 +372,58 @@ mod tests {
     }
 
     #[test]
+    fn every_layout_labels_its_keys() {
+        for &layout in KeyboardLayout::ALL {
+            for key in KEYS.iter().filter(|key| key.label == Label::Layout) {
+                assert!(
+                    layout.label(key.code).is_some(),
+                    "{layout:?} has no label for {}",
+                    key.code
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn layout_labels_belong_to_known_keys() {
+        for path in crate::layout_list::layout_files() {
+            let file = crate::layout_list::read(&path);
+            for code in file.labels.keys() {
+                assert!(
+                    find(code).is_some_and(|key| key.code == code),
+                    "{}: unknown key {code}",
+                    file.code
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn layouts_serialize_as_their_code() {
+        let json = serde_json::to_string(&layout("de-CH")).unwrap();
+        assert_eq!(json, r#""de-CH""#);
+        assert_eq!(
+            serde_json::from_str::<KeyboardLayout>(r#""DE""#).unwrap(),
+            layout("de")
+        );
+        assert!(serde_json::from_str::<KeyboardLayout>(r#""xx""#).is_err());
+    }
+
+    #[test]
+    fn layout_names_come_from_the_files() {
+        assert_eq!(layout("us").name(), "English (US)");
+        assert_eq!(layout("en-GB").name(), "English (UK)");
+        let names: Vec<String> = KeyboardLayout::by_name()
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        let mut sorted = names.clone();
+        sorted.sort_by_key(|name| name.to_lowercase());
+        assert_eq!(names, sorted);
+        assert_eq!(names.len(), KeyboardLayout::ALL.len());
+    }
+
+    #[test]
     fn every_code_is_known_to_the_firmware() {
         for key in KEYS {
             assert!(
@@ -383,12 +436,12 @@ mod tests {
 
     #[test]
     fn german_labels_follow_the_printed_keys() {
-        assert_eq!(label_for("KeyY", KeyboardLayout::De), "Z");
-        assert_eq!(label_for("KeyZ", KeyboardLayout::De), "Y");
-        assert_eq!(label_for("Semicolon", KeyboardLayout::De), "Ö");
-        assert_eq!(label_for("IntlBackslash", KeyboardLayout::De), "<");
-        assert_eq!(label_for("KeyY", KeyboardLayout::Us), "Y");
-        assert_eq!(label_for("Semicolon", KeyboardLayout::Us), ";");
+        assert_eq!(label_for("KeyY", layout("de")), "Z");
+        assert_eq!(label_for("KeyZ", layout("de")), "Y");
+        assert_eq!(label_for("Semicolon", layout("de")), "Ö");
+        assert_eq!(label_for("IntlBackslash", layout("de")), "<");
+        assert_eq!(label_for("KeyY", layout("us")), "Y");
+        assert_eq!(label_for("Semicolon", layout("us")), ";");
     }
 
     // Picker order
@@ -413,17 +466,14 @@ mod tests {
 
     #[test]
     fn picker_keeps_the_us_order() {
-        let codes: Vec<_> = picker_keys(KeyboardLayout::Us)
-            .iter()
-            .map(|k| k.code)
-            .collect();
+        let codes: Vec<_> = picker_keys(layout("us")).iter().map(|k| k.code).collect();
         let expected: Vec<_> = KEYS.iter().map(|k| k.code).collect();
         assert_eq!(codes, expected);
     }
 
     #[test]
     fn picker_sorts_german_letters_by_label() {
-        let labels = picker_labels(KeyboardLayout::De);
+        let labels = picker_labels(layout("de"));
         let start = labels.iter().position(|l| l == "A").unwrap();
         let letters: Vec<_> = labels[start..start + 30].to_vec();
         let mut expected: Vec<_> = ('A'..='Z').map(|c| c.to_string()).collect();
@@ -470,13 +520,13 @@ mod tests {
 
     #[test]
     fn lists_characters_the_layout_cannot_type() {
-        assert_eq!(KeyboardLayout::Us.untypeable_characters("Größe ä"), "ößä");
-        assert_eq!(KeyboardLayout::De.untypeable_characters("Größe ä"), "");
-        assert_eq!(KeyboardLayout::De.untypeable_characters("😀 ok 😀"), "😀");
+        assert_eq!(layout("us").untypeable_characters("Größe ä"), "ößä");
+        assert_eq!(layout("de").untypeable_characters("Größe ä"), "");
+        assert_eq!(layout("de").untypeable_characters("😀 ok 😀"), "😀");
     }
 
     #[test]
     fn unknown_names_are_shown_as_they_are() {
-        assert_eq!(label_for("hyper", KeyboardLayout::De), "hyper");
+        assert_eq!(label_for("hyper", layout("de")), "hyper");
     }
 }

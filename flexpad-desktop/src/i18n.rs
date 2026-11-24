@@ -62,6 +62,10 @@ pub fn text(key: &str) -> String {
     current().text(key)
 }
 
+pub fn optional_text(key: &str) -> Option<String> {
+    current().texts.get(key).cloned()
+}
+
 pub fn format_text(key: &str, values: &[(&str, &str)]) -> String {
     current().format(key, values)
 }
@@ -471,6 +475,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+    use crate::keys::KeyboardLayout;
 
     const LANGUAGE_DIRECTION: &str = "language.direction";
     const OPTIONAL_KEYS: [&str; 2] = [LANGUAGE_FALLBACK, LANGUAGE_DIRECTION];
@@ -494,6 +499,12 @@ mod tests {
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory).unwrap();
         directory
+    }
+
+    fn is_layout_name(key: &str) -> bool {
+        KeyboardLayout::ALL
+            .iter()
+            .any(|layout| layout.text_key() == key)
     }
 
     fn english() -> HashMap<String, String> {
@@ -676,7 +687,7 @@ mod tests {
             assert!(is_valid_code(code), "{code} has an invalid name");
             let texts = parse(content);
             for (key, text) in &texts {
-                if OPTIONAL_KEYS.contains(&key.as_str()) {
+                if OPTIONAL_KEYS.contains(&key.as_str()) || is_layout_name(key) {
                     continue;
                 }
                 let Some(original) = english.get(key) else {

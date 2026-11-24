@@ -359,7 +359,7 @@ impl MacroBuffer {
         Self {
             code: [0; MAX_MACRO_SIZE],
             length: 0,
-            keyboard_layout: KeyboardLayout::Us,
+            keyboard_layout: KeyboardLayout::DEFAULT,
         }
     }
 

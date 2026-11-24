@@ -12,6 +12,8 @@ mod icon;
 mod keys;
 #[cfg(test)]
 mod language_list;
+#[cfg(test)]
+mod layout_list;
 mod macros;
 mod profile;
 mod release;

@@ -29,6 +29,9 @@ profile.copy_suffix = 사본
 
 layout.us = 영어 (미국)
 layout.de = 독일어
+layout.de-CH = 독일어 (스위스)
+layout.en-GB = 영어 (영국)
+layout.fr = 프랑스어
 
 firmware.newer_protocol = 이 FlexPad는 이 앱이 이해하는 것보다 새로운 프로토콜을 사용합니다. 앱을 업데이트하세요.
 firmware.outdated = 펌웨어 {firmware}은(는) 앱에 포함된 펌웨어({version})보다 오래되었습니다.

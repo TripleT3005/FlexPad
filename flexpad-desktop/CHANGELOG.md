@@ -6,6 +6,26 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.4.0] – 2026-11-24
+
+### English
+
+#### Added
+- New keyboard layouts for text actions: English (UK), German (Switzerland) and French, next to English (US) and German. The **Layout** list shows them by name, and the macro editor labels the keys accordingly.
+- Each keyboard layout is a file in the folder `layouts`, so new layouts need no programming. [LAYOUTS.md](../LAYOUTS.md) describes the format and lists all layouts and whether they have been reviewed.
+
+#### Changed
+- Includes firmware 1.3.0, which is needed for the new layouts.
+
+### Deutsch
+
+#### Neu
+- Neue Tastaturlayouts für Textaktionen: Englisch (UK), Deutsch (Schweiz) und Französisch, neben Englisch (US) und Deutsch. Die Liste **Layout** zeigt sie mit Namen, und der Makro-Editor beschriftet die Tasten passend.
+- Jedes Tastaturlayout ist eine Datei im Ordner `layouts`, neue Layouts brauchen also kein Programmieren. [LAYOUTS.md](../LAYOUTS.md) beschreibt das Format und listet alle Layouts und ob sie geprüft sind.
+
+#### Geändert
+- Enthält Firmware 1.3.0, die für die neuen Layouts nötig ist.
+
 ## [1.3.0] – 2026-11-24
 
 ### English

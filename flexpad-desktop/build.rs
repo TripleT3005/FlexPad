@@ -3,6 +3,9 @@ use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "../flexpad-firmware/build/layouts.rs"]
+mod layouts;
+
 // Constants
 const FIRMWARE_IMAGE_VARIABLE: &str = "FLEXPAD_FIRMWARE_IMAGE";
 const ICON_DIRECTORY: &str = "../assets/icons";
@@ -44,6 +47,7 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     embed_firmware_image(&out_dir);
     embed_languages(&out_dir);
+    embed_layouts(&out_dir);
     export_firmware_version();
     if target_os == "macos" {
         fs::write(out_dir.join("FlexPad.icns"), icns_file()).expect("writing the icon file failed");
@@ -54,6 +58,15 @@ fn main() {
     let path = out_dir.join("flexpad.res");
     fs::write(&path, resources()).expect("writing the resource file failed");
     println!("cargo:rustc-link-arg-bins={}", path.display());
+}
+
+// Keyboard layouts
+fn embed_layouts(out_dir: &Path) {
+    println!("cargo:rerun-if-changed=../flexpad-firmware/build/layouts.rs");
+    println!("cargo:rerun-if-changed=../flexpad-firmware/src/keys.rs");
+    let manifest_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"));
+    layouts::generate(&manifest_dir, out_dir);
 }
 
 // Firmware version

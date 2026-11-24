@@ -29,6 +29,9 @@ profile.copy_suffix = Salinan
 
 layout.us = Inggris (AS)
 layout.de = Jerman
+layout.de-CH = Jerman (Swiss)
+layout.en-GB = Inggris (UK)
+layout.fr = Prancis
 
 firmware.newer_protocol = FlexPad ini memakai protokol yang lebih baru daripada yang dipahami aplikasi ini. Perbarui aplikasinya.
 firmware.outdated = Firmware {firmware} lebih lama daripada firmware yang disertakan dalam aplikasi ({version}).

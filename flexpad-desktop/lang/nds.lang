@@ -30,6 +30,9 @@ profile.copy_suffix = Kopie
 
 layout.us = Engelsch (US)
 layout.de = Düütsch
+layout.de-CH = Düütsch (Swiez)
+layout.en-GB = Engelsch (UK)
+layout.fr = Franzöösch
 
 firmware.newer_protocol = Dit FlexPad snackt en nieger Protokoll, as disse App versteiht. Maak man en Update vun de App.
 firmware.outdated = De Firmware {firmware} is öller as de, de in de App binnen is ({version}).

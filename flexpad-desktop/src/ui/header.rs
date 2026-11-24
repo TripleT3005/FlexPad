@@ -89,7 +89,7 @@ fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
         .width(NAME_WIDTH)
         .padding(5);
     let layout_picker = pick_list(
-        KeyboardLayout::ALL,
+        KeyboardLayout::by_name(),
         Some(app.keyboard_layout),
         Message::KeyboardLayoutSelected,
     );
