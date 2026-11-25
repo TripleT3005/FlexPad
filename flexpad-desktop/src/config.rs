@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -16,6 +17,7 @@ const PROFILES_FOLDER: &str = "profiles";
 const LINUX_APP_FOLDER: &str = "flexpad";
 const MAX_FILE_STEM_LENGTH: usize = 64;
 const FALLBACK_FILE_STEM: &str = "profile";
+const MAX_IMPORT_BYTES: u64 = 1024 * 1024;
 const RESERVED_FILE_STEMS: &[&str] = &[
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
     "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
@@ -255,6 +257,40 @@ pub fn save_profile_to_disk(config: &Profile) -> Result<PathBuf, String> {
 pub fn load_profile_from_disk(file_path: &PathBuf) -> Result<Profile, String> {
     let json_str = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
     profile::parse_profile(&json_str)
+}
+
+pub fn unique_profile_name(name: &str, is_taken: impl Fn(&str) -> bool) -> String {
+    let name = name.trim();
+    if !is_taken(name) {
+        return name.to_string();
+    }
+    (2u32..)
+        .map(|number| {
+            let suffix = format!("_{number}");
+            let base: String = name
+                .chars()
+                .take(MAX_FILE_STEM_LENGTH.saturating_sub(suffix.len()))
+                .collect();
+            format!("{base}{suffix}")
+        })
+        .find(|candidate| !is_taken(candidate))
+        .unwrap_or_else(|| name.to_string())
+}
+
+pub fn read_profile_file(path: &Path) -> Result<Profile, String> {
+    let mut json = String::new();
+    fs::File::open(path)
+        .and_then(|file| file.take(MAX_IMPORT_BYTES + 1).read_to_string(&mut json))
+        .map_err(|error| error.to_string())?;
+    if json.len() as u64 > MAX_IMPORT_BYTES {
+        return Err(i18n::text(texts::ERROR_FILE_TOO_LARGE));
+    }
+    profile::parse_profile(json.trim_start_matches('\u{feff}'))
+}
+
+pub fn export_profile(config: &Profile, path: &Path) -> Result<(), String> {
+    let json = config.to_pretty_json()?;
+    fs::write(path, json).map_err(|error| error.to_string())
 }
 
 pub fn list_saved_profiles() -> Vec<(String, PathBuf)> {
@@ -507,6 +543,74 @@ mod tests {
             profile_file_stem(&"ä".repeat(100)).chars().count(),
             MAX_FILE_STEM_LENGTH
         );
+    }
+
+    // Import and export
+
+    #[test]
+    fn unique_names_keep_free_names_and_count_up() {
+        let taken = |name: &str| ["Desk", "Desk_2"].contains(&name);
+
+        assert_eq!(unique_profile_name(" Studio ", taken), "Studio");
+        assert_eq!(unique_profile_name("Desk", taken), "Desk_3");
+    }
+
+    #[test]
+    fn unique_names_stay_distinct_after_shortening() {
+        let long = "a".repeat(80);
+        let stem = profile_file_stem(&long);
+        let taken = |name: &str| profile_file_stem(name) == stem;
+
+        let unique = unique_profile_name(&long, taken);
+
+        assert_ne!(profile_file_stem(&unique), stem);
+        assert!(unique.ends_with("_2"));
+        assert!(unique.chars().count() <= MAX_FILE_STEM_LENGTH);
+    }
+
+    #[test]
+    fn exported_profiles_can_be_imported_again() {
+        let root = temp_dir("export");
+        let path = root.join("Desk.json");
+        let config = Profile {
+            profile_name: "Desk".to_string(),
+            ..Profile::default()
+        };
+
+        export_profile(&config, &path).unwrap();
+
+        assert_eq!(read_profile_file(&path).unwrap(), config);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn imports_legacy_files_with_a_byte_order_mark() {
+        let root = temp_dir("bom");
+        let path = root.join("old.json");
+        write(&path, "\u{feff}{\"pins\":{\"15\":\"MEDIA:mute\"}}");
+
+        let imported = read_profile_file(&path).unwrap();
+
+        assert_eq!(imported.format, profile::FORMAT);
+        assert_eq!(imported.tiles[0].pin("switch"), Some(15));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_missing_invalid_and_oversized_files() {
+        let root = temp_dir("reject");
+        let invalid = root.join("invalid.json");
+        let large = root.join("large.json");
+        write(&invalid, "not json");
+        write(&large, &" ".repeat(MAX_IMPORT_BYTES as usize + 1));
+
+        assert!(read_profile_file(&root.join("missing.json")).is_err());
+        assert!(read_profile_file(&invalid).is_err());
+        assert_eq!(
+            read_profile_file(&large),
+            Err(i18n::text(texts::ERROR_FILE_TOO_LARGE))
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

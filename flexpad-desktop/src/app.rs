@@ -1,13 +1,14 @@
 use iced::widget::{column, container};
 use iced::{Element, Length, Subscription, Task};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::canvas;
 use crate::components::{self, Component};
 use crate::config::{
-    UserSettings, app_dirs, list_saved_profiles, load_profile_from_disk, load_user_settings,
-    migrate_legacy_files, profile_path, save_profile_to_disk, save_user_settings,
+    UserSettings, app_dirs, export_profile, get_profiles_dir, list_saved_profiles,
+    load_profile_from_disk, load_user_settings, migrate_legacy_files, profile_file_stem,
+    profile_path, read_profile_file, save_profile_to_disk, save_user_settings, unique_profile_name,
 };
 use crate::constants::PRESETS;
 use crate::device::{
@@ -15,6 +16,7 @@ use crate::device::{
     TurnDirection, connect_to_port, device_events, fetch_config_from_device, run_macro_on_device,
     scan_flexpad_devices, set_config_to_device,
 };
+use crate::file_dialog::{self, DialogError, DialogKind, DialogRequest, DialogResult};
 use crate::flasher::{
     FlashEvent, FlashOutcome, FlashSource, FlashStage, embedded_image, find_download_port,
     update_firmware,
@@ -54,6 +56,7 @@ pub struct UiState {
     pub expanded_functions: Vec<String>,
     pub raw_macro_input: Option<(String, String)>,
     pub pending_overwrite: bool,
+    pub file_dialog_open: bool,
     pub highlighted_tiles: Vec<(String, Instant)>,
     pub macro_test: Option<MacroTest>,
 }
@@ -116,6 +119,7 @@ impl Default for UiState {
             expanded_functions: Vec::new(),
             raw_macro_input: None,
             pending_overwrite: false,
+            file_dialog_open: false,
             highlighted_tiles: Vec::new(),
             macro_test: None,
         }
@@ -216,6 +220,11 @@ pub enum Message {
     SaveCurrentProfile,
     NewProfile,
     ProfileNameChanged(String),
+    ImportProfile,
+    ExportProfile,
+    OpenProfilesFolder,
+    ImportFileChosen(DialogResult),
+    ExportFileChosen(DialogResult),
     CanvasEvent(canvas::CanvasMessage),
     ComponentSelected(&'static Component),
     KeyboardLayoutSelected(KeyboardLayout),
@@ -465,6 +474,16 @@ impl FlexPadApp {
                 self.current_profile_name = name;
                 self.ui.pending_overwrite = false;
             }
+            Message::ImportProfile => return self.handle_import_profile(),
+            Message::ExportProfile => return self.handle_export_profile(),
+            Message::OpenProfilesFolder => {
+                if let Err(e) = file_dialog::open_folder(&get_profiles_dir()) {
+                    self.status_message =
+                        format_text(texts::MESSAGE_FOLDER_OPEN_FAILED, &[("error", &e)]);
+                }
+            }
+            Message::ImportFileChosen(result) => self.handle_import_file_chosen(result),
+            Message::ExportFileChosen(result) => self.handle_export_file_chosen(result),
             Message::CanvasEvent(event) => self.handle_canvas_event(event),
             Message::ComponentSelected(component) => self.selected_component = Some(component),
             Message::KeyboardLayoutSelected(layout) => self.keyboard_layout = layout,
@@ -1009,6 +1028,147 @@ impl FlexPadApp {
         }
     }
 
+    // Import and export
+
+    fn handle_import_profile(&mut self) -> Task<Message> {
+        self.open_file_dialog(
+            DialogKind::Open,
+            texts::DIALOG_IMPORT_TITLE,
+            String::new(),
+            Message::ImportFileChosen,
+        )
+    }
+
+    fn handle_export_profile(&mut self) -> Task<Message> {
+        let file_name = format!("{}.json", profile_file_stem(&self.current_profile_name));
+        self.open_file_dialog(
+            DialogKind::Save,
+            texts::DIALOG_EXPORT_TITLE,
+            file_name,
+            Message::ExportFileChosen,
+        )
+    }
+
+    fn open_file_dialog(
+        &mut self,
+        kind: DialogKind,
+        title: &str,
+        file_name: String,
+        done: fn(DialogResult) -> Message,
+    ) -> Task<Message> {
+        if self.ui.file_dialog_open {
+            return Task::none();
+        }
+        self.ui.file_dialog_open = true;
+        let request = DialogRequest {
+            kind,
+            title: tr(title),
+            filter_name: tr(texts::DIALOG_FILTER),
+            file_name,
+        };
+        pick_file(request, done)
+    }
+
+    fn chosen_path(&mut self, result: DialogResult) -> Option<PathBuf> {
+        self.ui.file_dialog_open = false;
+        match result {
+            Ok(path) => path,
+            Err(DialogError::Unavailable) => {
+                self.status_message = tr(texts::MESSAGE_DIALOG_UNAVAILABLE);
+                None
+            }
+            Err(DialogError::Failed(e)) => {
+                self.status_message = format_text(texts::MESSAGE_DIALOG_FAILED, &[("error", &e)]);
+                None
+            }
+        }
+    }
+
+    fn handle_export_file_chosen(&mut self, result: DialogResult) {
+        let Some(path) = self.chosen_path(result) else {
+            return;
+        };
+        let path = file_dialog::with_json_extension(path);
+        self.status_message = match export_profile(&self.current_profile(), &path) {
+            Ok(()) => format_text(
+                texts::MESSAGE_PROFILE_EXPORTED,
+                &[("path", &path.display().to_string())],
+            ),
+            Err(e) => format_text(texts::MESSAGE_PROFILE_EXPORT_FAILED, &[("error", &e)]),
+        };
+    }
+
+    fn handle_import_file_chosen(&mut self, result: DialogResult) {
+        let Some(path) = self.chosen_path(result) else {
+            return;
+        };
+        self.import_profile(&path);
+    }
+
+    fn import_profile(&mut self, path: &Path) {
+        let file_name = path
+            .file_name()
+            .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+        let import_failed = |error: &str| {
+            format_text(
+                texts::MESSAGE_PROFILE_IMPORT_FAILED,
+                &[("file", &file_name), ("error", error)],
+            )
+        };
+        let mut imported = match read_profile_file(path) {
+            Ok(imported) => imported,
+            Err(e) => {
+                self.status_message = import_failed(&e);
+                return;
+            }
+        };
+        let requested_name = if imported.profile_name.trim().is_empty() {
+            path.file_stem()
+                .map_or_else(String::new, |stem| stem.to_string_lossy().into_owned())
+        } else {
+            imported.profile_name.trim().to_string()
+        };
+        imported.profile_name =
+            unique_profile_name(&requested_name, |name| profile_path(name).exists());
+
+        let saved_path = match save_profile_to_disk(&imported) {
+            Ok(saved_path) => saved_path,
+            Err(e) => {
+                self.status_message = import_failed(&e);
+                return;
+            }
+        };
+        self.keyboard_layout = imported.keyboard_layout;
+        self.tiles = imported.tiles;
+        self.current_profile_name = imported.profile_name.clone();
+        self.saved_profiles = load_profile_items();
+        self.selected_profile = self
+            .saved_profiles
+            .iter()
+            .find(|p| p.path == saved_path)
+            .cloned();
+        self.ui.pending_overwrite = false;
+        self.selected_tile_id = None;
+        self.ui.expanded_functions.clear();
+        self.ui.raw_macro_input = None;
+        self.persist_settings(imported.profile_name.clone());
+
+        self.status_message = if imported.profile_name == requested_name {
+            format_text(
+                texts::MESSAGE_PROFILE_IMPORTED,
+                &[("name", &imported.profile_name)],
+            )
+        } else {
+            format_text(
+                texts::MESSAGE_PROFILE_IMPORTED_RENAMED,
+                &[
+                    ("existing", &requested_name),
+                    ("name", &imported.profile_name),
+                ],
+            )
+        };
+    }
+
     // Canvas
 
     fn handle_canvas_event(&mut self, event: canvas::CanvasMessage) {
@@ -1180,6 +1340,25 @@ fn read_window(id: iced::window::Id) -> Task<Message> {
             })
         })
     })
+}
+
+fn pick_file(request: DialogRequest, done: fn(DialogResult) -> Message) -> Task<Message> {
+    iced::window::latest()
+        .then(|id| match id {
+            Some(id) => iced::window::raw_id::<Message>(id).map(Some),
+            None => Task::done(None),
+        })
+        .then(move |owner| {
+            let request = request.clone();
+            Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || file_dialog::pick(&request, owner)).await
+                },
+                move |result| {
+                    done(result.unwrap_or_else(|e| Err(DialogError::Failed(e.to_string()))))
+                },
+            )
+        })
 }
 
 fn in_background<T: Send + 'static>(

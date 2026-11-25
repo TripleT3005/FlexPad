@@ -93,7 +93,8 @@ A profile already stored on the device is kept: the image ends before the profil
    - **Functions** (e.g. press, turn right, turn left): open one to edit its macro,
    - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the macro as raw JSON for editing.
    - **Test** next to a function runs its macro once on the connected device without saving anything; the answer (queued, busy or the reason for an error) is shown at the function. The macro types into the window that has the focus; text uses the keyboard layout of the profile stored on the device.
-6. **Save Profile** stores the profile on your computer, **Set Config** sends it to the device.
+6. The **Profile** menu at the end of the profile row holds the profile actions: **Save Profile** stores the profile on your computer, **New Profile** saves a copy under a new name. **Set Config** sends the profile to the device.
+7. To pass a profile on or keep a backup, **Export...** in the same menu saves the current profile as a JSON file wherever you choose. **Import...** reads such a file (older formats are converted), adds it to the profile list and opens it; if a profile with that name already exists, the import gets a new name such as `Desk_2` instead of replacing it. **Open profile folder** opens the profile folder in your file manager. On Linux the file dialogs need `zenity` or `kdialog`.
 
 Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status bar names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
 
@@ -137,6 +138,7 @@ Key names describe the physical key position on a US keyboard, using the names o
 - Profiles and settings are stored per user: on Windows in `%APPDATA%\FlexPad`, on macOS in `~/Library/Application Support/FlexPad`, on Linux settings in `~/.config/flexpad` and profiles in `~/.local/share/flexpad` (or the folders set in `XDG_CONFIG_HOME` and `XDG_DATA_HOME`). Files from the folder `FlexPad` in the home directory used by earlier versions are moved there once on start. Position and size of the window belong to the computer and are kept in `window.json`: on Windows in `%LOCALAPPDATA%\FlexPad`, on macOS next to the settings, on Linux in `~/.local/state/flexpad` (or `XDG_STATE_HOME`). The device stores the complete profile you send to it, so **Load Config** shows the same profile on any computer. Older profiles are converted to the current format when loaded.
 - The language files are built into the app or read from the local `lang` folder next to the settings; choosing a language makes no network request.
 - Component definitions are built into the app or read from the local `components` folder next to the settings; they cause no network requests.
+- **Export...** and **Import...** only write or read the file you choose in the file dialog, and **Open profile folder** only opens the local profile folder; none of them makes a network request. The dialogs are those of the system (on macOS via `osascript`, on Linux via `zenity` or `kdialog`).
 - The device identifies itself with a serial number derived from the chip's MAC address.
 
 <!-- web:skip -->
@@ -283,7 +285,8 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
    - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen): aufklappen, um das Makro zu bearbeiten,
    - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt das Makro als rohes JSON zum Bearbeiten.
    - **Test** neben einer Funktion führt ihr Makro einmal auf dem verbundenen Gerät aus, ohne etwas zu speichern; die Antwort (in der Warteschlange, ausgelastet oder der Grund eines Fehlers) erscheint an der Funktion. Das Makro tippt in das Fenster, das den Fokus hat; Text verwendet das Tastaturlayout des auf dem Gerät gespeicherten Profils.
-6. **Save Profile** speichert das Profil auf dem Rechner, **Set Config** überträgt es auf das Gerät.
+6. Das Menü **Profile** am Ende der Profilzeile enthält die Profil-Aktionen: **Save Profile** speichert das Profil auf dem Rechner, **New Profile** speichert eine Kopie unter neuem Namen. **Set Config** überträgt das Profil auf das Gerät.
+7. Zum Weitergeben oder Sichern speichert **Export...** im selben Menü das aktuelle Profil als JSON-Datei an einem frei wählbaren Ort. **Import...** liest eine solche Datei (ältere Formate werden umgewandelt), nimmt sie in die Profilliste auf und öffnet sie; gibt es schon ein Profil mit diesem Namen, bekommt der Import einen neuen Namen wie `Desk_2`, statt es zu ersetzen. **Open profile folder** öffnet den Profilordner im Dateimanager. Unter Linux brauchen die Dateidialoge `zenity` oder `kdialog`.
 
 Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statusleiste nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
 
@@ -327,6 +330,7 @@ Tastennamen beschreiben die physische Tastenposition auf einer US-Tastatur, mit 
 - Profile und Einstellungen liegen pro Benutzer unter Windows in `%APPDATA%\FlexPad`, unter macOS in `~/Library/Application Support/FlexPad`, unter Linux die Einstellungen in `~/.config/flexpad` und die Profile in `~/.local/share/flexpad` (bzw. in den Ordnern aus `XDG_CONFIG_HOME` und `XDG_DATA_HOME`). Dateien aus dem Ordner `FlexPad` im Benutzerverzeichnis, den frühere Versionen nutzten, werden beim Start einmalig dorthin verschoben. Position und Größe des Fensters gehören zum Rechner und liegen in `window.json`: unter Windows in `%LOCALAPPDATA%\FlexPad`, unter macOS neben den Einstellungen, unter Linux in `~/.local/state/flexpad` (bzw. `XDG_STATE_HOME`). Das Gerät speichert das komplette Profil, das man ihm schickt; **Load Config** zeigt daher an jedem Rechner dasselbe Profil. Ältere Profile werden beim Laden ins aktuelle Format übernommen.
 - Die Sprachdateien sind in die App eingebaut oder werden aus dem lokalen Ordner `lang` neben den Einstellungen gelesen; die Sprachwahl löst keine Netzwerkanfrage aus.
 - Bauteil-Definitionen sind in die App eingebaut oder werden aus dem lokalen Ordner `components` neben den Einstellungen gelesen; sie lösen keine Netzwerkanfragen aus.
+- **Export...** und **Import...** schreiben bzw. lesen nur die Datei, die man im Dateidialog wählt, und **Open profile folder** öffnet nur den lokalen Profilordner; keine davon löst eine Netzwerkanfrage aus. Die Dialoge sind die des Systems (unter macOS über `osascript`, unter Linux über `zenity` oder `kdialog`).
 - Das Gerät meldet sich mit einer Seriennummer, die aus der MAC-Adresse des Chips gebildet wird.
 
 <!-- web:skip -->
