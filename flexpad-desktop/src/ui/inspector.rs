@@ -77,7 +77,7 @@ fn view_tile<'a>(app: &'a FlexPadApp, tile: &'a Tile) -> Element<'a, Message> {
                 .spacing(4),
             );
         }
-        for function in component.functions {
+        for function in &component.functions {
             inspector_col = inspector_col.push(view_function(app, tile, function));
         }
     }
@@ -92,10 +92,10 @@ fn view_tile<'a>(app: &'a FlexPadApp, tile: &'a Tile) -> Element<'a, Message> {
 fn view_pins<'a>(
     app: &'a FlexPadApp,
     tile: &'a Tile,
-    component: &Component,
+    component: &'static Component,
 ) -> Element<'a, Message> {
     let mut section = column![text(tr(texts::INSPECTOR_PINS)).size(14)].spacing(6);
-    for role in component.pins {
+    for role in &component.pins {
         section = section.push(view_pin_role(app, tile, role));
     }
     section.into()
@@ -106,7 +106,7 @@ fn view_pin_role<'a>(
     tile: &'a Tile,
     role: &'static PinRole,
 ) -> Element<'a, Message> {
-    let current = tile.pin(role.id);
+    let current = tile.pin(&role.id);
     let used_elsewhere: Vec<u8> = app
         .tiles
         .iter()
@@ -140,7 +140,7 @@ fn view_pin_role<'a>(
     });
 
     row![
-        text(tr(role.label)).size(12).width(Length::Fixed(130.0)),
+        text(tr(&role.label)).size(12).width(Length::Fixed(130.0)),
         picker
     ]
     .spacing(8)
@@ -150,12 +150,12 @@ fn view_pin_role<'a>(
 
 // Parameters
 
-fn view_parameters<'a>(tile: &'a Tile, component: &Component) -> Element<'a, Message> {
+fn view_parameters<'a>(tile: &'a Tile, component: &'static Component) -> Element<'a, Message> {
     if component.parameters.is_empty() {
         return column![].into();
     }
     let mut section = column![text(tr(texts::INSPECTOR_PARAMETERS)).size(14)].spacing(6);
-    for parameter in component.parameters {
+    for parameter in &component.parameters {
         section = section.push(view_parameter(tile, parameter));
     }
     section.into()
@@ -163,13 +163,13 @@ fn view_parameters<'a>(tile: &'a Tile, component: &Component) -> Element<'a, Mes
 
 fn view_parameter<'a>(tile: &'a Tile, parameter: &'static Parameter) -> Element<'a, Message> {
     let value = tile
-        .parameter(parameter.id)
+        .parameter(&parameter.id)
         .unwrap_or_else(|| parameter.default_value());
-    let label = text(tr(parameter.label))
+    let label = text(tr(&parameter.label))
         .size(12)
         .width(Length::Fixed(130.0));
 
-    let control: Element<'a, Message> = match parameter.kind {
+    let control: Element<'a, Message> = match &parameter.kind {
         ParameterKind::Flag { .. } => checkbox(value.as_bool().unwrap_or(false))
             .on_toggle(move |checked| {
                 Message::UpdateParameter(parameter.id.to_string(), checked.into())
@@ -180,7 +180,7 @@ fn view_parameter<'a>(tile: &'a Tile, parameter: &'static Parameter) -> Element<
             let mut options: Vec<u32> = DEBOUNCE_CHOICES
                 .iter()
                 .copied()
-                .filter(|choice| (min..=max).contains(choice))
+                .filter(|choice| (*min..=*max).contains(choice))
                 .collect();
             if let Some(current) = current
                 && !options.contains(&current)
@@ -220,8 +220,8 @@ fn view_function<'a>(
     tile: &'a Tile,
     function: &'static Function,
 ) -> Element<'a, Message> {
-    let actions = tile.macro_for(function.id);
-    let is_expanded = app.ui.expanded_functions.iter().any(|id| id == function.id);
+    let actions = tile.macro_for(&function.id);
+    let is_expanded = app.ui.expanded_functions.contains(&function.id);
     let toggle_arrow = if is_expanded { "▾" } else { "▸" };
     let summary = if actions.is_empty() {
         tr(texts::INSPECTOR_NO_MACRO)
@@ -236,7 +236,7 @@ fn view_function<'a>(
         text(format!(
             "{} {} {}",
             toggle_arrow,
-            tr(function.label),
+            tr(&function.label),
             summary
         ))
         .size(12),
@@ -253,11 +253,11 @@ fn view_function<'a>(
             .align_y(iced::Alignment::Center)
     ]
     .spacing(6);
-    if let Some(state) = app.ui.macro_test_for(&tile.id, function.id) {
+    if let Some(state) = app.ui.macro_test_for(&tile.id, &function.id) {
         section = section.push(text(state.to_string()).size(11));
     }
     if is_expanded {
-        section = section.push(container(view_macro_editor(app, function.id, actions)).padding(8));
+        section = section.push(container(view_macro_editor(app, &function.id, actions)).padding(8));
     }
     section.into()
 }
@@ -436,7 +436,7 @@ fn view_macro_editor<'a>(
 
 fn view_tile_list(app: &FlexPadApp) -> Element<'_, Message> {
     let component_picker = pick_list(
-        components::ALL.to_vec(),
+        components::all().iter().collect::<Vec<_>>(),
         app.selected_component,
         Message::ComponentSelected,
     )
@@ -470,11 +470,13 @@ fn view_tile_list(app: &FlexPadApp) -> Element<'_, Message> {
 }
 
 pub fn pin_summary(tile: &Tile) -> String {
-    let roles = tile.component().map_or(&[][..], |component| component.pins);
+    let roles = tile
+        .component()
+        .map_or(&[][..], |component| component.pins.as_slice());
     let pins: Vec<String> = roles
         .iter()
         .map(|role| {
-            tile.pin(role.id)
+            tile.pin(&role.id)
                 .map_or_else(|| UNASSIGNED.to_string(), |pin| pin.to_string())
         })
         .collect();

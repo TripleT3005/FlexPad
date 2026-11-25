@@ -62,25 +62,33 @@ impl Macro {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
     Chord(&'static [&'static str]),
-    Media(&'static str),
 }
 
 impl Preset {
     pub fn to_macro(self) -> Macro {
-        let actions = match self {
-            Preset::Chord(keys) => keys
-                .iter()
-                .map(|key| MacroAction::Press(key.to_string()))
-                .chain([MacroAction::Delay(CHORD_DELAY_MS)])
-                .chain(
-                    keys.iter()
-                        .rev()
-                        .map(|key| MacroAction::Release(key.to_string())),
-                )
-                .collect(),
-            Preset::Media(name) => vec![MacroAction::Media(name.to_string())],
-        };
-        Macro { actions }
+        match self {
+            Preset::Chord(keys) => chord(keys),
+        }
+    }
+}
+
+pub fn chord<K: AsRef<str>>(keys: &[K]) -> Macro {
+    let actions = keys
+        .iter()
+        .map(|key| MacroAction::Press(key.as_ref().to_string()))
+        .chain([MacroAction::Delay(CHORD_DELAY_MS)])
+        .chain(
+            keys.iter()
+                .rev()
+                .map(|key| MacroAction::Release(key.as_ref().to_string())),
+        )
+        .collect();
+    Macro { actions }
+}
+
+pub fn media(name: &str) -> Macro {
+    Macro {
+        actions: vec![MacroAction::Media(name.to_string())],
     }
 }
 
@@ -201,7 +209,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            Preset::Media("mute").to_macro().actions,
+            media("mute").actions,
             vec![MacroAction::Media("mute".to_string())]
         );
     }

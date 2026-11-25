@@ -12,6 +12,9 @@ const ICON_DIRECTORY: &str = "../assets/icons";
 const LANGUAGE_DIRECTORY: &str = "lang";
 const LANGUAGE_EXTENSION: &str = "lang";
 const ENGLISH_FILE: &str = "en.lang";
+const COMPONENT_DIRECTORY: &str = "components";
+const COMPONENT_EXTENSION: &str = "json";
+const COMPONENT_TEXT_PREFIXES: [&str; 4] = ["component.", "pin.", "function.", "parameter."];
 const RT_ICON: u16 = 3;
 const RT_GROUP_ICON: u16 = 14;
 const RT_VERSION: u16 = 16;
@@ -47,6 +50,7 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     embed_firmware_image(&out_dir);
     embed_languages(&out_dir);
+    embed_components(&out_dir);
     embed_layouts(&out_dir);
     export_firmware_version();
     if target_os == "macos" {
@@ -91,43 +95,56 @@ fn export_firmware_version() {
     println!("cargo:rustc-env=FLEXPAD_FIRMWARE_VERSION={version}");
 }
 
-// Languages
-fn embed_languages(out_dir: &Path) {
-    println!("cargo:rerun-if-changed={LANGUAGE_DIRECTORY}");
+// Bundled files
+fn embed_directory(out_dir: &Path, directory: &str, extension: &str, output: &str) -> PathBuf {
+    println!("cargo:rerun-if-changed={directory}");
     let manifest_dir =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by Cargo"));
-    let directory = manifest_dir.join(LANGUAGE_DIRECTORY);
+    let directory = manifest_dir.join(directory);
     let mut files: Vec<PathBuf> = fs::read_dir(&directory)
-        .expect("reading the language folder failed")
+        .unwrap_or_else(|error| panic!("reading {} failed: {error}", directory.display()))
         .flatten()
         .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == LANGUAGE_EXTENSION)
-        })
+        .filter(|path| path.extension().is_some_and(|found| found == extension))
         .collect();
     files.sort();
-    let mut bundled = String::from(
-        "pub const BUNDLED: &[(&str, &str)] = &[
-",
-    );
+    let mut bundled = String::from("pub const BUNDLED: &[(&str, &str)] = &[\n");
     for path in &files {
         println!("cargo:rerun-if-changed={}", path.display());
-        let code = path
+        let name = path
             .file_stem()
             .and_then(|stem| stem.to_str())
-            .expect("a language file has no valid name");
+            .unwrap_or_else(|| panic!("{} has no valid name", path.display()));
         let _ = writeln!(
             bundled,
-            "    ({code:?}, include_str!({:?})),",
+            "    ({name:?}, include_str!({:?})),",
             path.display().to_string()
         );
     }
-    bundled.push_str(
-        "];
-",
+    bundled.push_str("];\n");
+    fs::write(out_dir.join(output), bundled)
+        .unwrap_or_else(|error| panic!("writing {output} failed: {error}"));
+    directory
+}
+
+// Components
+fn embed_components(out_dir: &Path) {
+    embed_directory(
+        out_dir,
+        COMPONENT_DIRECTORY,
+        COMPONENT_EXTENSION,
+        "components.rs",
     );
-    fs::write(out_dir.join("languages.rs"), bundled).expect("writing the language list failed");
+}
+
+// Languages
+fn embed_languages(out_dir: &Path) {
+    let directory = embed_directory(
+        out_dir,
+        LANGUAGE_DIRECTORY,
+        LANGUAGE_EXTENSION,
+        "languages.rs",
+    );
 
     let english = fs::read_to_string(directory.join(ENGLISH_FILE))
         .expect("reading the English language file failed");
@@ -138,6 +155,11 @@ fn embed_languages(out_dir: &Path) {
         .filter(|line| !line.is_empty() && !line.starts_with('#') && !line.starts_with(';'))
         .filter_map(|line| line.split_once('='))
         .map(|(key, _)| key.trim())
+        .filter(|key| {
+            !COMPONENT_TEXT_PREFIXES
+                .iter()
+                .any(|prefix| key.starts_with(prefix))
+        })
     {
         let name: String = key
             .chars()

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::components::{self, BUTTON, Component, EC11};
+use crate::components::{self, Component};
 use crate::constants::FIRMWARE_PINS;
 use crate::keys::KeyboardLayout;
 use crate::macros::{self, Macro, MacroAction};
@@ -38,18 +38,18 @@ impl Tile {
         Self {
             id,
             display_name,
-            component: component.id.to_string(),
-            kind: component.kind.to_string(),
+            component: component.id.clone(),
+            kind: component.kind.clone(),
             pins: BTreeMap::new(),
             parameters: component
                 .parameters
                 .iter()
-                .map(|parameter| (parameter.id.to_string(), parameter.default_value()))
+                .map(|parameter| (parameter.id.clone(), parameter.default_value()))
                 .collect(),
             functions: component
                 .functions
                 .iter()
-                .map(|function| (function.id.to_string(), function.default_macro.to_macro()))
+                .map(|function| (function.id.clone(), function.default_macro()))
                 .collect(),
             x,
             y,
@@ -120,7 +120,7 @@ impl Default for Profile {
         Self::new(
             DEFAULT_PROFILE_NAME.to_string(),
             vec![Tile::new(
-                &BUTTON,
+                components::default_component(),
                 "tile_1".to_string(),
                 "Button 1".to_string(),
                 60.0,
@@ -202,7 +202,7 @@ struct LegacyTile {
     y: f32,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 enum LegacyTileType {
     Button,
     EC11,
@@ -221,6 +221,14 @@ const EC11_SLOTS: &[(&str, &str, &str)] = &[
     ("push", "switch", "press"),
 ];
 
+fn legacy_component(tile_type: LegacyTileType) -> &'static Component {
+    let id = match tile_type {
+        LegacyTileType::Button => "button",
+        LegacyTileType::EC11 => "ec11",
+    };
+    components::find(id).unwrap_or_else(components::default_component)
+}
+
 fn usable_pin(text: &str) -> Option<u8> {
     text.trim()
         .parse()
@@ -237,7 +245,7 @@ fn migrate_legacy(value: serde_json::Value) -> Result<Profile, String> {
         .filter(|(_, macro_text)| !macro_text.trim().is_empty());
     for (index, (pin, macro_text)) in assigned_pins.enumerate() {
         let mut tile = Tile::new(
-            &BUTTON,
+            legacy_component(LegacyTileType::Button),
             format!("tile_gpio_{pin}"),
             format!("GPIO {pin}"),
             60.0 + (index % LEGACY_TILES_PER_ROW) as f32 * LEGACY_PIN_SPACING,
@@ -257,10 +265,11 @@ fn migrate_legacy(value: serde_json::Value) -> Result<Profile, String> {
 }
 
 fn migrate_tile(legacy: LegacyTile) -> Tile {
-    let (component, slots) = match legacy.tile_type {
-        LegacyTileType::Button => (&BUTTON, BUTTON_SLOTS),
-        LegacyTileType::EC11 => (&EC11, EC11_SLOTS),
+    let slots = match legacy.tile_type {
+        LegacyTileType::Button => BUTTON_SLOTS,
+        LegacyTileType::EC11 => EC11_SLOTS,
     };
+    let component = legacy_component(legacy.tile_type);
     let mut tile = Tile::new(
         component,
         legacy.id,
@@ -300,7 +309,13 @@ mod tests {
 
     #[test]
     fn new_tiles_use_component_defaults() {
-        let tile = Tile::new(&EC11, "t".to_string(), "Volume".to_string(), 0.0, 0.0);
+        let tile = Tile::new(
+            components::find("ec11").unwrap(),
+            "t".to_string(),
+            "Volume".to_string(),
+            0.0,
+            0.0,
+        );
 
         assert_eq!(tile.kind, "encoder");
         assert!(tile.pins.is_empty());
@@ -333,7 +348,7 @@ mod tests {
         let profile = parse_profile(json).unwrap();
 
         assert_eq!(profile.tiles[0].pin("b"), Some(16));
-        assert_eq!(profile.tiles[0].component(), Some(&EC11));
+        assert_eq!(profile.tiles[0].component(), components::find("ec11"));
         assert_eq!(profile.tiles[0].macro_for("press"), legacy("MEDIA:mute"));
         assert_eq!(parse_profile(&profile.to_json().unwrap()).unwrap(), profile);
     }
@@ -367,7 +382,13 @@ mod tests {
 
     #[test]
     fn set_pin_none_removes_the_role() {
-        let mut tile = Tile::new(&BUTTON, "t".to_string(), "B".to_string(), 0.0, 0.0);
+        let mut tile = Tile::new(
+            components::find("button").unwrap(),
+            "t".to_string(),
+            "B".to_string(),
+            0.0,
+            0.0,
+        );
         tile.set_pin("switch", Some(4));
         tile.set_pin("switch", None);
 

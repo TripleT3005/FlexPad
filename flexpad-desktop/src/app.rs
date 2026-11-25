@@ -166,7 +166,7 @@ pub struct FlexPadApp {
     pub tiles: Vec<Tile>,
     pub selected_tile_id: Option<String>,
     pub dragging_tile_id: Option<String>,
-    pub selected_component: Option<Component>,
+    pub selected_component: Option<&'static Component>,
 
     pub current_profile_name: String,
     pub keyboard_layout: KeyboardLayout,
@@ -217,7 +217,7 @@ pub enum Message {
     NewProfile,
     ProfileNameChanged(String),
     CanvasEvent(canvas::CanvasMessage),
-    ComponentSelected(Component),
+    ComponentSelected(&'static Component),
     KeyboardLayoutSelected(KeyboardLayout),
     AddTile,
     SelectTile(String),
@@ -300,7 +300,7 @@ impl FlexPadApp {
                 tiles: initial_profile.tiles,
                 selected_tile_id: None,
                 dragging_tile_id: None,
-                selected_component: Some(components::BUTTON),
+                selected_component: Some(components::default_component()),
                 current_profile_name: initial_profile.profile_name,
                 keyboard_layout: initial_profile.keyboard_layout,
                 saved_profiles: profiles,
@@ -1034,10 +1034,12 @@ impl FlexPadApp {
     }
 
     fn handle_add_tile(&mut self) {
-        let component = self.selected_component.unwrap_or(components::BUTTON);
+        let component = self
+            .selected_component
+            .unwrap_or_else(components::default_component);
         let new_id = format!("tile_{}", uuid_short());
         let new_tile = Tile::new(
-            &component,
+            component,
             new_id.clone(),
             format!("{} {}", component, self.tiles.len() + 1),
             60.0,
@@ -1420,7 +1422,7 @@ mod tests {
 
     fn wired_app() -> FlexPadApp {
         let mut button = Tile::new(
-            &components::BUTTON,
+            components::find("button").unwrap(),
             "copy".to_string(),
             "Copy".to_string(),
             0.0,
@@ -1428,7 +1430,7 @@ mod tests {
         );
         button.set_pin("switch", Some(4));
         let mut encoder = Tile::new(
-            &components::EC11,
+            components::find("ec11").unwrap(),
             "volume".to_string(),
             "Volume".to_string(),
             0.0,
