@@ -1,0 +1,15 @@
+{
+  "id": "toggle-switch",
+  "name": "component.toggle_switch",
+  "kind": "switch",
+  "pins": [
+    { "id": "switch", "label": "pin.switch" }
+  ],
+  "functions": [
+    { "id": "on", "label": "function.on" },
+    { "id": "off", "label": "function.off" }
+  ],
+  "parameters": [
+    { "id": "debounce_ms", "label": "parameter.debounce", "type": "number", "min": 0, "max": 200, "default": 10 }
+  ]
+}

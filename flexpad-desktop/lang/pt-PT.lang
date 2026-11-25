@@ -105,6 +105,8 @@ message.tile_removed = Mosaico removido.
 message.pin_pressed = GPIO {pin} premido – {target}
 message.encoder_right = Codificador no GPIO {pin} rodado para a direita – {target}
 message.encoder_left = Codificador no GPIO {pin} rodado para a esquerda – {target}
+message.switch_on = Interruptor no GPIO {pin} ligado – {target}
+message.switch_off = Interruptor no GPIO {pin} desligado – {target}
 message.not_assigned = não atribuído
 
 test.sending = A enviar…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinos: {pins}
 
 component.button = Botão
 component.ec11 = Codificador rotativo EC11
+component.toggle_switch = Interruptor basculante
 pin.switch = Pino
 pin.a = Pino A
 pin.b = Pino B
@@ -186,6 +189,8 @@ pin.push_button = Pino do botão de pressão
 function.press = Premir
 function.turn_right = Rodar para a direita
 function.turn_left = Rodar para a esquerda
+function.on = Ligar
+function.off = Desligar
 parameter.debounce = Antirressalto (ms)
 parameter.steps_per_detent = Passos por clique
 parameter.reverse = Inverter sentido

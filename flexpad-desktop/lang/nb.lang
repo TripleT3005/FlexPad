@@ -105,6 +105,8 @@ message.tile_removed = Flis fjernet.
 message.pin_pressed = GPIO {pin} trykket – {target}
 message.encoder_right = Dreieenkoder på GPIO {pin} vridd mot høyre – {target}
 message.encoder_left = Dreieenkoder på GPIO {pin} vridd mot venstre – {target}
+message.switch_on = Bryter på GPIO {pin} slått på – {target}
+message.switch_off = Bryter på GPIO {pin} slått av – {target}
 message.not_assigned = ikke tilordnet
 
 test.sending = Sender…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinner: {pins}
 
 component.button = Knapp
 component.ec11 = EC11-dreieenkoder
+component.toggle_switch = Vippebryter
 pin.switch = Pinne
 pin.a = Pinne A
 pin.b = Pinne B
@@ -186,6 +189,8 @@ pin.push_button = Trykknappens pinne
 function.press = Trykk
 function.turn_right = Vri mot høyre
 function.turn_left = Vri mot venstre
+function.on = Slå på
+function.off = Slå av
 parameter.debounce = Avprelling (ms)
 parameter.steps_per_detent = Steg per hakk
 parameter.reverse = Snu retning

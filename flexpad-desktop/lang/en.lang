@@ -99,6 +99,8 @@ message.tile_removed = Tile removed from canvas.
 message.pin_pressed = GPIO {pin} pressed – {target}
 message.encoder_right = Encoder on GPIO {pin} turned right – {target}
 message.encoder_left = Encoder on GPIO {pin} turned left – {target}
+message.switch_on = Switch on GPIO {pin} turned on – {target}
+message.switch_off = Switch on GPIO {pin} turned off – {target}
 message.not_assigned = not assigned
 
 test.sending = Sending...
@@ -173,6 +175,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Button
 component.ec11 = EC11 Rotary Encoder
+component.toggle_switch = Toggle switch
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -180,6 +183,8 @@ pin.push_button = Push button pin
 function.press = Press
 function.turn_right = Turn right
 function.turn_left = Turn left
+function.on = Turn on
+function.off = Turn off
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Steps per detent
 parameter.reverse = Reverse direction

@@ -105,6 +105,8 @@ message.tile_removed = 已移除磚塊。
 message.pin_pressed = GPIO {pin} 已按下 – {target}
 message.encoder_right = GPIO {pin} 上的編碼器向右旋轉 – {target}
 message.encoder_left = GPIO {pin} 上的編碼器向左旋轉 – {target}
+message.switch_on = GPIO {pin} 上的開關已開啟 – {target}
+message.switch_off = GPIO {pin} 上的開關已關閉 – {target}
 message.not_assigned = 未指派
 
 test.sending = 正在傳送…
@@ -179,6 +181,7 @@ tiles.canvas_pins = 腳位：{pins}
 
 component.button = 按鍵
 component.ec11 = EC11 旋轉編碼器
+component.toggle_switch = 撥動開關
 pin.switch = 腳位
 pin.a = 腳位 A
 pin.b = 腳位 B
@@ -186,6 +189,8 @@ pin.push_button = 按壓開關腳位
 function.press = 按下
 function.turn_right = 向右旋轉
 function.turn_left = 向左旋轉
+function.on = 開啟
+function.off = 關閉
 parameter.debounce = 去彈跳（毫秒）
 parameter.steps_per_detent = 每段步數
 parameter.reverse = 反轉方向

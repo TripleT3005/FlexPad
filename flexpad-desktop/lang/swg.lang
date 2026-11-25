@@ -106,6 +106,8 @@ message.tile_removed = Kächele isch weg.
 message.pin_pressed = GPIO {pin} druckt – {target}
 message.encoder_right = Drehgeber an GPIO {pin} nach rechts draht – {target}
 message.encoder_left = Drehgeber an GPIO {pin} nach links draht – {target}
+message.switch_on = Schalter an GPIO {pin} eigschaltet – {target}
+message.switch_off = Schalter an GPIO {pin} ausgschaltet – {target}
 message.not_assigned = net zuagordnet
 
 test.sending = Wird gschickt …
@@ -180,6 +182,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Knopf
 component.ec11 = EC11-Drehgeber
+component.toggle_switch = Kippschalter
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -187,6 +190,8 @@ pin.push_button = Pin vom Drückknopf
 function.press = Drücka
 function.turn_right = Nach rechts drehe
 function.turn_left = Nach links drehe
+function.on = Eischalta
+function.off = Ausschalta
 parameter.debounce = Entprella (ms)
 parameter.steps_per_detent = Schritt pro Rast
 parameter.reverse = Drehrichtong omdrehe

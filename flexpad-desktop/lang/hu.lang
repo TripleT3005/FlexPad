@@ -105,6 +105,8 @@ message.tile_removed = Csempe eltávolítva.
 message.pin_pressed = GPIO {pin} lenyomva – {target}
 message.encoder_right = A GPIO {pin} enkóder jobbra forgatva – {target}
 message.encoder_left = A GPIO {pin} enkóder balra forgatva – {target}
+message.switch_on = A GPIO {pin} kapcsoló bekapcsolva – {target}
+message.switch_off = A GPIO {pin} kapcsoló kikapcsolva – {target}
 message.not_assigned = nincs hozzárendelve
 
 test.sending = Küldés…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Tűk: {pins}
 
 component.button = Gomb
 component.ec11 = EC11 forgó enkóder
+component.toggle_switch = Billenőkapcsoló
 pin.switch = Tű
 pin.a = A tű
 pin.b = B tű
@@ -186,6 +189,8 @@ pin.push_button = Nyomógomb tűje
 function.press = Lenyomás
 function.turn_right = Jobbra forgatás
 function.turn_left = Balra forgatás
+function.on = Bekapcsolás
+function.off = Kikapcsolás
 parameter.debounce = Pergésmentesítés (ms)
 parameter.steps_per_detent = Lépés kattanásonként
 parameter.reverse = Irány megfordítása

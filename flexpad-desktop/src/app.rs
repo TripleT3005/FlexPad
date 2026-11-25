@@ -1261,7 +1261,10 @@ fn input_status(event: InputEvent, tile: Option<&Tile>) -> Option<String> {
         || tr(texts::MESSAGE_NOT_ASSIGNED),
         |tile| tile.display_name.clone(),
     );
+    let is_switch = tile.is_some_and(|tile| tile.kind == components::SWITCH_KIND);
     let (key, pin) = match event {
+        InputEvent::Pin(pin, PinEdge::Pressed) if is_switch => (texts::MESSAGE_SWITCH_ON, pin),
+        InputEvent::Pin(pin, PinEdge::Released) if is_switch => (texts::MESSAGE_SWITCH_OFF, pin),
         InputEvent::Pin(pin, PinEdge::Pressed) => (texts::MESSAGE_PIN_PRESSED, pin),
         InputEvent::Pin(_, PinEdge::Released) => return None,
         InputEvent::Encoder(pin_a, TurnDirection::Right) => (texts::MESSAGE_ENCODER_RIGHT, pin_a),
@@ -1643,6 +1646,29 @@ mod tests {
         input(&mut app, InputEvent::Pin(4, PinEdge::Released), now);
         assert_eq!(app.ui.highlighted_tile_ids(), ["volume", "copy"]);
         assert_eq!(app.status_message, "GPIO 17 pressed – Volume");
+    }
+
+    #[test]
+    fn switch_events_show_on_and_off() {
+        let mut app = wired_app();
+        let mut switch = Tile::new(
+            components::find("toggle-switch").unwrap(),
+            "light".to_string(),
+            "Light".to_string(),
+            0.0,
+            0.0,
+        );
+        switch.set_pin("switch", Some(5));
+        app.tiles.push(switch);
+        let now = Instant::now();
+
+        input(&mut app, InputEvent::Pin(5, PinEdge::Pressed), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["light"]);
+        assert_eq!(app.status_message, "Switch on GPIO 5 turned on – Light");
+
+        input(&mut app, InputEvent::Pin(5, PinEdge::Released), now);
+        assert_eq!(app.ui.highlighted_tile_ids(), ["light"]);
+        assert_eq!(app.status_message, "Switch on GPIO 5 turned off – Light");
     }
 
     #[test]

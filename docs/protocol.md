@@ -28,7 +28,7 @@ The protocol version (currently `1`) increases when commands, responses, events,
 
 | Event | Meaning |
 |---|---|
-| `EVENT:PIN:<pin>:PRESSED` / `RELEASED` | A debounced change of a button pin, including unassigned pins |
+| `EVENT:PIN:<pin>:PRESSED` / `RELEASED` | A debounced change of a button or switch pin, including unassigned pins; for a switch, `PRESSED` means on and `RELEASED` off |
 | `EVENT:ENCODER:<pin a>:RIGHT` / `LEFT` | One detent of the encoder whose pin A is `<pin a>` |
 
 Events that occur while no serial connection is open are dropped.
@@ -129,7 +129,7 @@ The profile is written by the app, stored on the device unchanged and read back 
 - `pins`: role → GPIO number. A role without a pin is left out (or `null`, `""`).
 - `functions`: function → [function object](#functions). A missing function or an empty `actions` list means "nothing".
 - `parameters`: missing values use the defaults below; unknown parameters are ignored.
-- `component` names the component the tile was created from (`button`, `ec11` or the id of an own [component definition](components.md)). The app uses it for the display; the firmware ignores it.
+- `component` names the component the tile was created from (`button`, `ec11`, `toggle-switch` or the id of an own [component definition](components.md)). The app uses it for the display; the firmware ignores it.
 - `keyboard_layout` (`us` or `de`, default `us`) is the layout of the computer the pad is used with. The app uses it to label the keys; the firmware uses it to turn the characters of text actions into key presses (see [Text and keyboard layouts](#text-and-keyboard-layouts)). Other values are rejected.
 
 ### Kinds
@@ -138,8 +138,10 @@ The profile is written by the app, stored on the device unchanged and read back 
 |---|---|---|---|
 | `button` | `switch` | `press` | `debounce_ms` 0–200 (10) |
 | `encoder` | `a`, `b`, `switch` (optional) | `turn_right`, `turn_left`, `press` | `steps_per_detent` 1, 2 or 4 (4); `reverse` (false); `debounce_ms` for the switch (10) |
+| `switch` | `switch` | `on`, `off` | `debounce_ms` 0–200 (10) |
 
 - Buttons are wired between the pin and GND; internal pull-ups are used.
+- A `switch` (toggle switch) is wired like a button: closed (pin at GND) is on, open is off. `on` runs once when it is switched on, `off` once when it is switched off, both debounced like a button. At start and after a new profile, the firmware only takes note of the current position and runs no macro. The kind needs firmware 1.4.0 or newer; older firmware answers `unknown_kind`.
 - An encoder needs both `a` and `b` for turning. `steps_per_detent` is 4 for encoders that go through a full A/B cycle per detent (like the common EC11), 2 or 1 for others. `reverse` swaps the directions.
 
 ### Usable pins

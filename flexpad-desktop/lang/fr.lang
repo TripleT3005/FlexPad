@@ -105,6 +105,8 @@ message.tile_removed = Tuile supprimée.
 message.pin_pressed = GPIO {pin} appuyé – {target}
 message.encoder_right = Encodeur sur GPIO {pin} tourné à droite – {target}
 message.encoder_left = Encodeur sur GPIO {pin} tourné à gauche – {target}
+message.switch_on = Interrupteur sur GPIO {pin} allumé – {target}
+message.switch_off = Interrupteur sur GPIO {pin} éteint – {target}
 message.not_assigned = non attribué
 
 test.sending = Envoi…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Broches : {pins}
 
 component.button = Bouton
 component.ec11 = Encodeur rotatif EC11
+component.toggle_switch = Interrupteur à bascule
 pin.switch = Broche
 pin.a = Broche A
 pin.b = Broche B
@@ -186,6 +189,8 @@ pin.push_button = Broche du bouton-poussoir
 function.press = Appui
 function.turn_right = Rotation à droite
 function.turn_left = Rotation à gauche
+function.on = Allumer
+function.off = Éteindre
 parameter.debounce = Anti-rebond (ms)
 parameter.steps_per_detent = Pas par cran
 parameter.reverse = Inverser le sens

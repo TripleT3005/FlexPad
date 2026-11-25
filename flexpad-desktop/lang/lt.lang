@@ -105,6 +105,8 @@ message.tile_removed = Plytelė pašalinta.
 message.pin_pressed = GPIO {pin} paspaustas – {target}
 message.encoder_right = Koduotuvas ant GPIO {pin} pasuktas į dešinę – {target}
 message.encoder_left = Koduotuvas ant GPIO {pin} pasuktas į kairę – {target}
+message.switch_on = Jungiklis ant GPIO {pin} įjungtas – {target}
+message.switch_off = Jungiklis ant GPIO {pin} išjungtas – {target}
 message.not_assigned = nepriskirta
 
 test.sending = Siunčiama…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Kontaktai: {pins}
 
 component.button = Mygtukas
 component.ec11 = EC11 sukamasis koduotuvas
+component.toggle_switch = Perjungiamasis jungiklis
 pin.switch = Kontaktas
 pin.a = Kontaktas A
 pin.b = Kontaktas B
@@ -186,6 +189,8 @@ pin.push_button = Spaudžiamo mygtuko kontaktas
 function.press = Paspaudimas
 function.turn_right = Pasukimas į dešinę
 function.turn_left = Pasukimas į kairę
+function.on = Įjungimas
+function.off = Išjungimas
 parameter.debounce = Virpesių slopinimas (ms)
 parameter.steps_per_detent = Žingsniai per spragtelėjimą
 parameter.reverse = Apversti kryptį

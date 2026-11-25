@@ -105,6 +105,8 @@ message.tile_removed = Плитку видалено.
 message.pin_pressed = GPIO {pin} натиснуто – {target}
 message.encoder_right = Енкодер на GPIO {pin} повернуто вправо – {target}
 message.encoder_left = Енкодер на GPIO {pin} повернуто вліво – {target}
+message.switch_on = Тумблер на GPIO {pin} увімкнено – {target}
+message.switch_off = Тумблер на GPIO {pin} вимкнено – {target}
 message.not_assigned = не призначено
 
 test.sending = Надсилання…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Виводи: {pins}
 
 component.button = Кнопка
 component.ec11 = Поворотний енкодер EC11
+component.toggle_switch = Тумблер
 pin.switch = Вивід
 pin.a = Вивід A
 pin.b = Вивід B
@@ -186,6 +189,8 @@ pin.push_button = Вивід кнопки
 function.press = Натискання
 function.turn_right = Поворот праворуч
 function.turn_left = Поворот ліворуч
+function.on = Увімкнення
+function.off = Вимкнення
 parameter.debounce = Усунення брязкоту (мс)
 parameter.steps_per_detent = Кроків на клацання
 parameter.reverse = Зворотний напрямок

@@ -105,6 +105,8 @@ message.tile_removed = Tegel verwijderd.
 message.pin_pressed = GPIO {pin} ingedrukt – {target}
 message.encoder_right = Encoder op GPIO {pin} naar rechts gedraaid – {target}
 message.encoder_left = Encoder op GPIO {pin} naar links gedraaid – {target}
+message.switch_on = Schakelaar op GPIO {pin} ingeschakeld – {target}
+message.switch_off = Schakelaar op GPIO {pin} uitgeschakeld – {target}
 message.not_assigned = niet toegewezen
 
 test.sending = Verzenden…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinnen: {pins}
 
 component.button = Knop
 component.ec11 = EC11-draaiencoder
+component.toggle_switch = Tuimelschakelaar
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin van de drukknop
 function.press = Indrukken
 function.turn_right = Naar rechts draaien
 function.turn_left = Naar links draaien
+function.on = Inschakelen
+function.off = Uitschakelen
 parameter.debounce = Ontdendering (ms)
 parameter.steps_per_detent = Stappen per klik
 parameter.reverse = Draairichting omkeren

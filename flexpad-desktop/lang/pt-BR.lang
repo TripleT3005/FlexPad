@@ -105,6 +105,8 @@ message.tile_removed = Bloco removido.
 message.pin_pressed = GPIO {pin} pressionado – {target}
 message.encoder_right = Encoder no GPIO {pin} girado para a direita – {target}
 message.encoder_left = Encoder no GPIO {pin} girado para a esquerda – {target}
+message.switch_on = Chave no GPIO {pin} ligada – {target}
+message.switch_off = Chave no GPIO {pin} desligada – {target}
 message.not_assigned = não atribuído
 
 test.sending = Enviando…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinos: {pins}
 
 component.button = Botão
 component.ec11 = Encoder rotativo EC11
+component.toggle_switch = Chave alavanca
 pin.switch = Pino
 pin.a = Pino A
 pin.b = Pino B
@@ -186,6 +189,8 @@ pin.push_button = Pino do botão
 function.press = Pressionar
 function.turn_right = Girar para a direita
 function.turn_left = Girar para a esquerda
+function.on = Ligar
+function.off = Desligar
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Passos por clique
 parameter.reverse = Inverter sentido

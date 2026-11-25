@@ -105,6 +105,8 @@ message.tile_removed = Kachel entfernt.
 message.pin_pressed = GPIO {pin} gedrückt – {target}
 message.encoder_right = Drehgeber an GPIO {pin} nach rechts gedreht – {target}
 message.encoder_left = Drehgeber an GPIO {pin} nach links gedreht – {target}
+message.switch_on = Schalter an GPIO {pin} eingeschaltet – {target}
+message.switch_off = Schalter an GPIO {pin} ausgeschaltet – {target}
 message.not_assigned = nicht zugeordnet
 
 test.sending = Wird gesendet …
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Taster
 component.ec11 = EC11-Drehgeber
+component.toggle_switch = Kippschalter
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin des Tasters
 function.press = Drücken
 function.turn_right = Nach rechts drehen
 function.turn_left = Nach links drehen
+function.on = Einschalten
+function.off = Ausschalten
 parameter.debounce = Entprellen (ms)
 parameter.steps_per_detent = Schritte pro Raste
 parameter.reverse = Drehrichtung umkehren

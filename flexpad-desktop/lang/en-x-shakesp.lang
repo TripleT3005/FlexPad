@@ -105,6 +105,8 @@ message.tile_removed = The tile is banished from the canvas.
 message.pin_pressed = GPIO {pin} is pressed – {target}
 message.encoder_right = The encoder upon GPIO {pin} turneth rightward – {target}
 message.encoder_left = The encoder upon GPIO {pin} turneth leftward – {target}
+message.switch_on = The switch upon GPIO {pin} is turned on – {target}
+message.switch_off = The switch upon GPIO {pin} is turned off – {target}
 message.not_assigned = unappointed
 
 test.sending = Dispatching...
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Button
 component.ec11 = EC11 Turning Wheel
+component.toggle_switch = Toggle switch
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin of the push button
 function.press = Press
 function.turn_right = Turn rightward
 function.turn_left = Turn leftward
+function.on = Turn on
+function.off = Turn off
 parameter.debounce = Stillness of the contact (ms)
 parameter.steps_per_detent = Steps per notch
 parameter.reverse = Turn the course about

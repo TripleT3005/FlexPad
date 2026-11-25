@@ -4,7 +4,7 @@
 
 ## English
 
-The components a tile can be made of (e.g. a button or an EC11 rotary encoder) are described in JSON files. The built-in ones are in [`flexpad-desktop/components`](../flexpad-desktop/components) and are compiled into the app. Your own definitions go into the folder `components` next to the settings: on Windows `%APPDATA%\FlexPad\components`, on macOS `~/Library/Application Support/FlexPad/components`, on Linux `~/.config/flexpad/components`. The app reads them at start; after adding or changing a file, restart it.
+The components a tile can be made of (e.g. a button, a toggle switch or an EC11 rotary encoder) are described in JSON files. The built-in ones are in [`flexpad-desktop/components`](../flexpad-desktop/components) and are compiled into the app. Your own definitions go into the folder `components` next to the settings: on Windows `%APPDATA%\FlexPad\components`, on macOS `~/Library/Application Support/FlexPad/components`, on Linux `~/.config/flexpad/components`. The app reads them at start; after adding or changing a file, restart it.
 
 A definition only chooses names, pins, functions, default macros and parameters. How an input is read is up to the firmware, so each definition picks one of the kinds the firmware knows. A new component therefore needs no new firmware, as long as it works like one of these kinds.
 
@@ -14,6 +14,9 @@ A definition only chooses names, pins, functions, default macros and parameters.
 |---|---|---|---|
 | `button` | `switch` (required) | `press` (required) | `debounce_ms`: number, 0 to 200 |
 | `encoder` | `a`, `b` (required), `switch` | `turn_right`, `turn_left` (required), `press` (needs the pin `switch`) | `steps_per_detent`: choice of 1, 2, 4; `reverse`: flag; `debounce_ms`: number, 0 to 200 |
+| `switch` | `switch` (required) | `on`, `off` (required) | `debounce_ms`: number, 0 to 200 |
+
+A `switch` is a toggle switch: `on` runs when it is switched on (closed), `off` when it is switched off (open). It needs firmware 1.4.0 or newer.
 
 ### File format
 
@@ -49,7 +52,7 @@ Files that do not follow these rules, or whose id is already used by a built-in 
 
 ## Deutsch
 
-Die Bauteile, aus denen eine Kachel bestehen kann (z. B. ein Taster oder ein EC11-Drehencoder), sind in JSON-Dateien beschrieben. Die eingebauten liegen in [`flexpad-desktop/components`](../flexpad-desktop/components) und werden in die App eingebunden. Eigene Definitionen kommen in den Ordner `components` neben den Einstellungen: unter Windows `%APPDATA%\FlexPad\components`, unter macOS `~/Library/Application Support/FlexPad/components`, unter Linux `~/.config/flexpad/components`. Die App liest sie beim Start; nach dem Hinzufügen oder Ändern einer Datei die App neu starten.
+Die Bauteile, aus denen eine Kachel bestehen kann (z. B. ein Taster, ein Kippschalter oder ein EC11-Drehencoder), sind in JSON-Dateien beschrieben. Die eingebauten liegen in [`flexpad-desktop/components`](../flexpad-desktop/components) und werden in die App eingebunden. Eigene Definitionen kommen in den Ordner `components` neben den Einstellungen: unter Windows `%APPDATA%\FlexPad\components`, unter macOS `~/Library/Application Support/FlexPad/components`, unter Linux `~/.config/flexpad/components`. Die App liest sie beim Start; nach dem Hinzufügen oder Ändern einer Datei die App neu starten.
 
 Eine Definition legt nur Namen, Pins, Funktionen, Standard-Makros und Parameter fest. Wie ein Eingang gelesen wird, bestimmt die Firmware; jede Definition wählt daher eine der Arten, die die Firmware kennt. Ein neues Bauteil braucht so keine neue Firmware, solange es wie eine dieser Arten funktioniert.
 
@@ -59,6 +62,9 @@ Eine Definition legt nur Namen, Pins, Funktionen, Standard-Makros und Parameter 
 |---|---|---|---|
 | `button` | `switch` (Pflicht) | `press` (Pflicht) | `debounce_ms`: Zahl von 0 bis 200 |
 | `encoder` | `a`, `b` (Pflicht), `switch` | `turn_right`, `turn_left` (Pflicht), `press` (braucht den Pin `switch`) | `steps_per_detent`: Auswahl aus 1, 2, 4; `reverse`: Schalter; `debounce_ms`: Zahl von 0 bis 200 |
+| `switch` | `switch` (Pflicht) | `on`, `off` (Pflicht) | `debounce_ms`: Zahl von 0 bis 200 |
+
+Ein `switch` ist ein Kippschalter: `on` läuft beim Einschalten (geschlossen), `off` beim Ausschalten (offen). Die Art braucht Firmware 1.4.0 oder neuer.
 
 ### Dateiformat
 

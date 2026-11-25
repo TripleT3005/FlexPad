@@ -6,6 +6,16 @@ Alle wichtigen Änderungen an der FlexPad-Firmware für den ESP32-S3, gegliedert
 
 ## [Unreleased]
 
+### English
+
+#### Added
+- Toggle switches (kind `switch`): one macro when the switch is turned on and one when it is turned off, debounced like a button. At start, the firmware only takes note of the position and runs no macro.
+
+### Deutsch
+
+#### Neu
+- Kippschalter (Art `switch`): ein Makro beim Einschalten und eines beim Ausschalten, entprellt wie ein Taster. Beim Start merkt sich die Firmware nur die Stellung und führt kein Makro aus.
+
 ## [1.3.0] – 2026-11-24
 
 ### English

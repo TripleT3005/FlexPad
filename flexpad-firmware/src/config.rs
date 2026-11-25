@@ -1,6 +1,6 @@
 use core::fmt::{self, Display};
 
-use crate::buttons::{DEFAULT_DEBOUNCE_MS, MAX_DEBOUNCE_MS};
+use crate::buttons::{DEFAULT_DEBOUNCE_MS, Edge, MAX_DEBOUNCE_MS};
 use crate::encoder::{DEFAULT_STEPS_PER_DETENT, Direction};
 use crate::json::{JsonError, JsonStr, Parser, remember};
 use crate::layouts::KeyboardLayout;
@@ -15,7 +15,7 @@ pub const MAX_CONFIG_SIZE: usize = 16 * 1024;
 pub const MACRO_STORAGE_SIZE: usize = 8 * 1024;
 pub const MAX_ENCODERS: usize = INPUT_PINS.len() / 2;
 pub const SUPPORTED_FORMAT: u8 = 2;
-const MAX_MACROS: usize = INPUT_PINS.len() + MAX_ENCODERS * 2;
+const MAX_MACROS: usize = INPUT_PINS.len() * 2;
 const MAX_TILE_ENTRIES: usize = 4;
 
 // Errors
@@ -73,6 +73,7 @@ impl From<JsonError> for ConfigError {
 pub enum PinRole {
     Unused,
     Button { debounce_ms: u8 },
+    Switch { debounce_ms: u8 },
     EncoderA(u8),
     EncoderB(u8),
 }
@@ -121,6 +122,25 @@ impl Default for Layout {
     }
 }
 
+impl PinRole {
+    pub fn debounce_ms(self) -> Option<u8> {
+        match self {
+            PinRole::Unused => Some(DEFAULT_DEBOUNCE_MS),
+            PinRole::Button { debounce_ms } | PinRole::Switch { debounce_ms } => Some(debounce_ms),
+            PinRole::EncoderA(_) | PinRole::EncoderB(_) => None,
+        }
+    }
+
+    pub fn trigger(self, pin: u8, edge: Edge) -> Option<Trigger> {
+        match (self, edge) {
+            (PinRole::Button { .. }, Edge::Pressed) => Some(Trigger::Press(pin)),
+            (PinRole::Switch { .. }, Edge::Pressed) => Some(Trigger::SwitchOn(pin)),
+            (PinRole::Switch { .. }, Edge::Released) => Some(Trigger::SwitchOff(pin)),
+            _ => None,
+        }
+    }
+}
+
 pub fn pin_index(pin: u8) -> Option<usize> {
     INPUT_PINS.iter().position(|&candidate| candidate == pin)
 }
@@ -130,6 +150,8 @@ pub fn pin_index(pin: u8) -> Option<usize> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     Press(u8),
+    SwitchOn(u8),
+    SwitchOff(u8),
     Turn(u8, Direction),
 }
 
@@ -356,6 +378,7 @@ impl<'a> Tile<'a> {
             None => self.apply_legacy(bindings),
             Some(kind) if kind.eq_str("button") => self.apply_button(bindings),
             Some(kind) if kind.eq_str("encoder") => self.apply_encoder(bindings),
+            Some(kind) if kind.eq_str("switch") => self.apply_switch(bindings),
             Some(_) => Err(ConfigError::UnknownKind),
         }
     }
@@ -396,6 +419,28 @@ impl<'a> Tile<'a> {
         }
         for (_, value) in self.functions.iter() {
             bindings.add_macro(pin.map(Trigger::Press), value, pin.unwrap_or(0))?;
+        }
+        Ok(())
+    }
+
+    fn apply_switch(&self, bindings: &mut Bindings) -> Result<(), ConfigError> {
+        self.check_names(&["switch"], &["on", "off"])?;
+        let pin = self.pin("switch");
+        if let Some(pin) = pin {
+            bindings.claim_pin(
+                pin,
+                PinRole::Switch {
+                    debounce_ms: self.debounce_ms,
+                },
+            )?;
+        }
+        for (name, value) in self.functions.iter() {
+            let trigger = if name.eq_str("on") {
+                pin.map(Trigger::SwitchOn)
+            } else {
+                pin.map(Trigger::SwitchOff)
+            };
+            bindings.add_macro(trigger, value, pin.unwrap_or(0))?;
         }
         Ok(())
     }
@@ -713,6 +758,7 @@ fn parse_legacy_pins(parser: &mut Parser<'_>, bindings: &mut Bindings) -> Result
 mod tests {
     use super::*;
 
+    use crate::buttons::Debouncer;
     use crate::keys::Key;
     use crate::macros::Action;
 
@@ -817,6 +863,99 @@ mod tests {
             Some(vec![MUTE])
         );
         assert_eq!(bindings.macro_for(Trigger::Press(15)), None);
+    }
+
+    const SWITCH_PROFILE: &str = r#"{"format":2,"tiles":[{"kind":"switch","pins":{"switch":5},"parameters":{"debounce_ms":30},"functions":{"on":{"actions":[{"media":"mute"}]},"off":{"actions":[{"media":"vol_up"}]}}}]}"#;
+
+    #[test]
+    fn reads_switches() {
+        let bindings = parse(SWITCH_PROFILE).unwrap();
+
+        assert_eq!(
+            bindings.layout().role(5),
+            PinRole::Switch { debounce_ms: 30 }
+        );
+        assert_eq!(bindings.len(), 2);
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::SwitchOn(5))),
+            Some(vec![MUTE])
+        );
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::SwitchOff(5))),
+            Some(vec![VOLUME_UP])
+        );
+        assert_eq!(bindings.macro_for(Trigger::Press(5)), None);
+    }
+
+    #[test]
+    fn switches_use_defaults_and_may_have_one_function() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[{"kind":"switch","pins":{"switch":6},"functions":{"off":"MEDIA:mute"}}]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            bindings.layout().role(6),
+            PinRole::Switch {
+                debounce_ms: DEFAULT_DEBOUNCE_MS
+            }
+        );
+        assert_eq!(bindings.macro_for(Trigger::SwitchOn(6)), None);
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::SwitchOff(6))),
+            Some(vec![MUTE])
+        );
+    }
+
+    #[test]
+    fn edges_become_triggers_by_role() {
+        let button = PinRole::Button { debounce_ms: 10 };
+        let switch = PinRole::Switch { debounce_ms: 10 };
+
+        assert_eq!(button.trigger(4, Edge::Pressed), Some(Trigger::Press(4)));
+        assert_eq!(button.trigger(4, Edge::Released), None);
+        assert_eq!(switch.trigger(5, Edge::Pressed), Some(Trigger::SwitchOn(5)));
+        assert_eq!(
+            switch.trigger(5, Edge::Released),
+            Some(Trigger::SwitchOff(5))
+        );
+        assert_eq!(PinRole::Unused.trigger(6, Edge::Pressed), None);
+        assert_eq!(PinRole::EncoderA(0).trigger(15, Edge::Pressed), None);
+    }
+
+    #[test]
+    fn roles_choose_their_debounce_time() {
+        assert_eq!(PinRole::Switch { debounce_ms: 30 }.debounce_ms(), Some(30));
+        assert_eq!(PinRole::Button { debounce_ms: 5 }.debounce_ms(), Some(5));
+        assert_eq!(PinRole::Unused.debounce_ms(), Some(DEFAULT_DEBOUNCE_MS));
+        assert_eq!(PinRole::EncoderB(0).debounce_ms(), None);
+    }
+
+    #[test]
+    fn switch_state_at_start_runs_no_macro() {
+        let role = parse(SWITCH_PROFILE).unwrap().layout().role(5);
+        let mut debouncer = Debouncer::new(true, role.debounce_ms().unwrap());
+
+        let triggers: Vec<Trigger> = [true; 50]
+            .into_iter()
+            .chain([false; 50])
+            .chain([true; 50])
+            .filter_map(|raw| debouncer.update(raw))
+            .filter_map(|edge| role.trigger(5, edge))
+            .collect();
+
+        assert_eq!(triggers, [Trigger::SwitchOff(5), Trigger::SwitchOn(5)]);
+    }
+
+    #[test]
+    fn supports_two_macros_on_every_pin() {
+        let tiles: Vec<String> = INPUT_PINS
+            .iter()
+            .map(|pin| format!(r#"{{"kind":"switch","pins":{{"switch":{pin}}},"functions":{{"on":"P:a","off":"P:b"}}}}"#))
+            .collect();
+        let json = format!(r#"{{"format":2,"tiles":[{}]}}"#, tiles.join(","));
+
+        assert_eq!(parse(&json).unwrap().len(), INPUT_PINS.len() * 2);
     }
 
     #[test]
@@ -955,6 +1094,26 @@ mod tests {
             (
                 r#"{"tiles":[{"kind":"button","pins":{"switch":4},"functions":{"press":{"actions":[{"press":"hyper"}]}}}]}"#,
                 ConfigError::InvalidMacro(4),
+            ),
+            (
+                r#"{"tiles":[{"kind":"switch","functions":{"press":"P:a"}}]}"#,
+                ConfigError::UnknownFunction,
+            ),
+            (
+                r#"{"tiles":[{"kind":"switch","pins":{"a":4}}]}"#,
+                ConfigError::UnknownRole,
+            ),
+            (
+                r#"{"tiles":[{"kind":"switch","pins":{"switch":4},"parameters":{"debounce_ms":201}}]}"#,
+                ConfigError::InvalidParameter("debounce_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"switch","pins":{"switch":4},"functions":{"off":"P:hyper"}}]}"#,
+                ConfigError::InvalidMacro(4),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","pins":{"switch":4}},{"kind":"switch","pins":{"switch":4}}]}"#,
+                ConfigError::DuplicatePin(4),
             ),
             (
                 r#"{"tiles":[{"kind":"button","functions":{"press":5}}]}"#,

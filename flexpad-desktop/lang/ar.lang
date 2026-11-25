@@ -106,6 +106,8 @@ message.tile_removed = تمت إزالة المربع.
 message.pin_pressed = تم الضغط على GPIO {pin} – {target}
 message.encoder_right = تم تدوير المُرمِّز على GPIO {pin} إلى اليمين – {target}
 message.encoder_left = تم تدوير المُرمِّز على GPIO {pin} إلى اليسار – {target}
+message.switch_on = تم تشغيل المفتاح على GPIO {pin} – {target}
+message.switch_off = تم إيقاف المفتاح على GPIO {pin} – {target}
 message.not_assigned = غير معيَّن
 
 test.sending = جارٍ الإرسال…
@@ -180,6 +182,7 @@ tiles.canvas_pins = الأطراف: {pins}
 
 component.button = زر
 component.ec11 = مُرمِّز دوّار EC11
+component.toggle_switch = مفتاح تبديل
 pin.switch = طرف
 pin.a = الطرف A
 pin.b = الطرف B
@@ -187,6 +190,8 @@ pin.push_button = طرف زر الضغط
 function.press = ضغط
 function.turn_right = تدوير إلى اليمين
 function.turn_left = تدوير إلى اليسار
+function.on = تشغيل
+function.off = إيقاف
 parameter.debounce = إزالة الارتداد (مللي ثانية)
 parameter.steps_per_detent = خطوات لكل نقرة
 parameter.reverse = عكس الاتجاه

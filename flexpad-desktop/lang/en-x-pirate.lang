@@ -105,6 +105,8 @@ message.tile_removed = Plank thrown overboard.
 message.pin_pressed = GPIO {pin} pressed – {target}
 message.encoder_right = Wheel on GPIO {pin} turned to starboard – {target}
 message.encoder_left = Wheel on GPIO {pin} turned to port – {target}
+message.switch_on = Lever on GPIO {pin} heaved on – {target}
+message.switch_off = Lever on GPIO {pin} heaved off – {target}
 message.not_assigned = no crew assigned
 
 test.sending = Firin'...
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Button
 component.ec11 = EC11 Ship's Wheel
+component.toggle_switch = Toggle lever
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Push button pin
 function.press = Press
 function.turn_right = Hard to starboard
 function.turn_left = Hard to port
+function.on = Heave on
+function.off = Heave off
 parameter.debounce = Steady the shakes (ms)
 parameter.steps_per_detent = Steps per notch
 parameter.reverse = Turn about

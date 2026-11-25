@@ -105,6 +105,8 @@ message.tile_removed = Riquadro rimosso.
 message.pin_pressed = GPIO {pin} premuto – {target}
 message.encoder_right = Encoder su GPIO {pin} ruotato a destra – {target}
 message.encoder_left = Encoder su GPIO {pin} ruotato a sinistra – {target}
+message.switch_on = Interruttore su GPIO {pin} acceso – {target}
+message.switch_off = Interruttore su GPIO {pin} spento – {target}
 message.not_assigned = non assegnato
 
 test.sending = Invio…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pin: {pins}
 
 component.button = Pulsante
 component.ec11 = Encoder rotativo EC11
+component.toggle_switch = Interruttore a levetta
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin del pulsante
 function.press = Pressione
 function.turn_right = Rotazione a destra
 function.turn_left = Rotazione a sinistra
+function.on = Accensione
+function.off = Spegnimento
 parameter.debounce = Antirimbalzo (ms)
 parameter.steps_per_detent = Passi per scatto
 parameter.reverse = Inverti direzione

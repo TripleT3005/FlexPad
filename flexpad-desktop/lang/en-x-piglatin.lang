@@ -105,6 +105,8 @@ message.tile_removed = Iletay emovedray omfray anvascay.
 message.pin_pressed = GPIO {pin} essedpray – {target}
 message.encoder_right = Encoderway onway GPIO {pin} urnedtay ightray – {target}
 message.encoder_left = Encoderway onway GPIO {pin} urnedtay eftlay – {target}
+message.switch_on = Itchsway onway GPIO {pin} urnedtay onway – {target}
+message.switch_off = Itchsway onway GPIO {pin} urnedtay offway – {target}
 message.not_assigned = otnay assignedway
 
 test.sending = Endingsay...
@@ -179,6 +181,7 @@ tiles.canvas_pins = Inspay: {pins}
 
 component.button = Uttonbay
 component.ec11 = EC11 Otaryray Encoderway
+component.toggle_switch = Oggletay itchsway
 pin.switch = Inpay
 pin.a = Inpay Away
 pin.b = Inpay B
@@ -186,6 +189,8 @@ pin.push_button = Ushpay uttonbay inpay
 function.press = Esspray
 function.turn_right = Urntay ightray
 function.turn_left = Urntay eftlay
+function.on = Urntay onway
+function.off = Urntay offway
 parameter.debounce = Ebounceday (ms)
 parameter.steps_per_detent = Epsstay erpay etentday
 parameter.reverse = Everseray irectionday

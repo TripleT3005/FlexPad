@@ -105,6 +105,8 @@ message.tile_removed = 타일을 제거했습니다.
 message.pin_pressed = GPIO {pin} 눌림 – {target}
 message.encoder_right = GPIO {pin}의 인코더가 오른쪽으로 돌아감 – {target}
 message.encoder_left = GPIO {pin}의 인코더가 왼쪽으로 돌아감 – {target}
+message.switch_on = GPIO {pin}의 스위치 켜짐 – {target}
+message.switch_off = GPIO {pin}의 스위치 꺼짐 – {target}
 message.not_assigned = 할당 안 됨
 
 test.sending = 보내는 중…
@@ -179,6 +181,7 @@ tiles.canvas_pins = 핀: {pins}
 
 component.button = 버튼
 component.ec11 = EC11 로터리 인코더
+component.toggle_switch = 토글 스위치
 pin.switch = 핀
 pin.a = 핀 A
 pin.b = 핀 B
@@ -186,6 +189,8 @@ pin.push_button = 푸시 버튼 핀
 function.press = 누르기
 function.turn_right = 오른쪽으로 돌리기
 function.turn_left = 왼쪽으로 돌리기
+function.on = 켜기
+function.off = 끄기
 parameter.debounce = 디바운스 (ms)
 parameter.steps_per_detent = 딸깍당 단계 수
 parameter.reverse = 방향 반전

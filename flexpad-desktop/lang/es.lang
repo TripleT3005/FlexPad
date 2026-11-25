@@ -105,6 +105,8 @@ message.tile_removed = Mosaico eliminado.
 message.pin_pressed = GPIO {pin} pulsado – {target}
 message.encoder_right = Codificador en GPIO {pin} girado a la derecha – {target}
 message.encoder_left = Codificador en GPIO {pin} girado a la izquierda – {target}
+message.switch_on = Interruptor en GPIO {pin} encendido – {target}
+message.switch_off = Interruptor en GPIO {pin} apagado – {target}
 message.not_assigned = sin asignar
 
 test.sending = Enviando…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pines: {pins}
 
 component.button = Botón
 component.ec11 = Codificador rotatorio EC11
+component.toggle_switch = Interruptor de palanca
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin del pulsador
 function.press = Pulsar
 function.turn_right = Girar a la derecha
 function.turn_left = Girar a la izquierda
+function.on = Encender
+function.off = Apagar
 parameter.debounce = Antirrebote (ms)
 parameter.steps_per_detent = Pasos por muesca
 parameter.reverse = Invertir sentido

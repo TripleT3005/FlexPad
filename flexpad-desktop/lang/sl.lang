@@ -105,6 +105,8 @@ message.tile_removed = Ploščica odstranjena.
 message.pin_pressed = GPIO {pin} pritisnjen – {target}
 message.encoder_right = Kodirnik na GPIO {pin} zavrten v desno – {target}
 message.encoder_left = Kodirnik na GPIO {pin} zavrten v levo – {target}
+message.switch_on = Stikalo na GPIO {pin} vklopljeno – {target}
+message.switch_off = Stikalo na GPIO {pin} izklopljeno – {target}
 message.not_assigned = ni dodeljeno
 
 test.sending = Pošiljanje …
@@ -179,6 +181,7 @@ tiles.canvas_pins = Priključki: {pins}
 
 component.button = Tipka
 component.ec11 = Vrtljivi kodirnik EC11
+component.toggle_switch = Preklopno stikalo
 pin.switch = Priključek
 pin.a = Priključek A
 pin.b = Priključek B
@@ -186,6 +189,8 @@ pin.push_button = Priključek tipke
 function.press = Pritisk
 function.turn_right = Vrtenje v desno
 function.turn_left = Vrtenje v levo
+function.on = Vklop
+function.off = Izklop
 parameter.debounce = Odpravljanje odbojev (ms)
 parameter.steps_per_detent = Koraki na zaskok
 parameter.reverse = Obrni smer

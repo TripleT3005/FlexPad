@@ -105,6 +105,8 @@ message.tile_removed = Плочката е премахната.
 message.pin_pressed = GPIO {pin} е натиснат – {target}
 message.encoder_right = Енкодерът на GPIO {pin} е завъртян надясно – {target}
 message.encoder_left = Енкодерът на GPIO {pin} е завъртян наляво – {target}
+message.switch_on = Превключвателят на GPIO {pin} е включен – {target}
+message.switch_off = Превключвателят на GPIO {pin} е изключен – {target}
 message.not_assigned = неприсвоено
 
 test.sending = Изпращане…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Изводи: {pins}
 
 component.button = Бутон
 component.ec11 = Ротационен енкодер EC11
+component.toggle_switch = Превключвател
 pin.switch = Извод
 pin.a = Извод A
 pin.b = Извод B
@@ -186,6 +189,8 @@ pin.push_button = Извод на бутона
 function.press = Натискане
 function.turn_right = Завъртане надясно
 function.turn_left = Завъртане наляво
+function.on = Включване
+function.off = Изключване
 parameter.debounce = Потискане на трептенето (мс)
 parameter.steps_per_detent = Стъпки на щракване
 parameter.reverse = Обратна посока

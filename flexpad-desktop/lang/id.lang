@@ -105,6 +105,8 @@ message.tile_removed = Petak dihapus.
 message.pin_pressed = GPIO {pin} ditekan – {target}
 message.encoder_right = Enkoder di GPIO {pin} diputar ke kanan – {target}
 message.encoder_left = Enkoder di GPIO {pin} diputar ke kiri – {target}
+message.switch_on = Sakelar di GPIO {pin} dinyalakan – {target}
+message.switch_off = Sakelar di GPIO {pin} dimatikan – {target}
 message.not_assigned = belum ditetapkan
 
 test.sending = Mengirim…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pin: {pins}
 
 component.button = Tombol
 component.ec11 = Enkoder putar EC11
+component.toggle_switch = Sakelar togel
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin tombol tekan
 function.press = Tekan
 function.turn_right = Putar ke kanan
 function.turn_left = Putar ke kiri
+function.on = Nyalakan
+function.off = Matikan
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Langkah per klik
 parameter.reverse = Balik arah

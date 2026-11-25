@@ -39,8 +39,7 @@ use esp_storage::{FlashStorage, FlashStorageError};
 use flexpad_firmware::{
     buttons::{DEFAULT_DEBOUNCE_MS, Debouncer, Edge, POLL_INTERVAL_MS},
     config::{
-        self, Bindings, ConfigError, INPUT_PINS, Layout, MAX_CONFIG_SIZE, MAX_ENCODERS, PinRole,
-        Trigger,
+        self, Bindings, ConfigError, INPUT_PINS, Layout, MAX_CONFIG_SIZE, MAX_ENCODERS, Trigger,
     },
     encoder::{DEFAULT_STEPS_PER_DETENT, Decoder, Direction},
     hid::{MAX_REPORT_SIZE, REPORT_DESCRIPTOR},
@@ -466,10 +465,9 @@ struct InputState {
 impl InputState {
     fn new(layout: Layout, inputs: &Inputs) -> Self {
         let debouncers = core::array::from_fn(|index| {
-            let debounce_ms = match layout.roles[index] {
-                PinRole::Button { debounce_ms } => debounce_ms,
-                _ => DEFAULT_DEBOUNCE_MS,
-            };
+            let debounce_ms = layout.roles[index]
+                .debounce_ms()
+                .unwrap_or(DEFAULT_DEBOUNCE_MS);
             Debouncer::new(inputs[index].is_low(), debounce_ms)
         });
         let decoders = core::array::from_fn(|index| {
@@ -509,18 +507,16 @@ async fn read_inputs(inputs: Inputs, config: &SharedConfig) -> ! {
         }
 
         for (index, &pin) in INPUT_PINS.iter().enumerate() {
-            if matches!(
-                state.layout.roles[index],
-                PinRole::EncoderA(_) | PinRole::EncoderB(_)
-            ) {
+            let role = state.layout.roles[index];
+            if role.debounce_ms().is_none() {
                 continue;
             }
             let Some(edge) = state.debouncers[index].update(inputs[index].is_low()) else {
                 continue;
             };
             let _ = EVENT_QUEUE.try_send(InputEvent::Pin(pin, edge));
-            if edge == Edge::Pressed {
-                run_trigger(config, Trigger::Press(pin)).await;
+            if let Some(trigger) = role.trigger(pin, edge) {
+                run_trigger(config, trigger).await;
             }
         }
 

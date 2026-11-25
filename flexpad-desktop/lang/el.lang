@@ -105,6 +105,8 @@ message.tile_removed = Το πλακίδιο αφαιρέθηκε.
 message.pin_pressed = Πατήθηκε το GPIO {pin} – {target}
 message.encoder_right = Ο κωδικοποιητής στο GPIO {pin} γύρισε δεξιά – {target}
 message.encoder_left = Ο κωδικοποιητής στο GPIO {pin} γύρισε αριστερά – {target}
+message.switch_on = Ο διακόπτης στο GPIO {pin} ενεργοποιήθηκε – {target}
+message.switch_off = Ο διακόπτης στο GPIO {pin} απενεργοποιήθηκε – {target}
 message.not_assigned = μη αντιστοιχισμένο
 
 test.sending = Αποστολή…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Ακροδέκτες: {pins}
 
 component.button = Κουμπί
 component.ec11 = Περιστροφικός κωδικοποιητής EC11
+component.toggle_switch = Διακόπτης εναλλαγής
 pin.switch = Ακροδέκτης
 pin.a = Ακροδέκτης A
 pin.b = Ακροδέκτης B
@@ -186,6 +189,8 @@ pin.push_button = Ακροδέκτης κουμπιού
 function.press = Πάτημα
 function.turn_right = Περιστροφή δεξιά
 function.turn_left = Περιστροφή αριστερά
+function.on = Ενεργοποίηση
+function.off = Απενεργοποίηση
 parameter.debounce = Αντιαναπήδηση (ms)
 parameter.steps_per_detent = Βήματα ανά εγκοπή
 parameter.reverse = Αντιστροφή κατεύθυνσης
