@@ -106,6 +106,8 @@ message.tile_removed = האריח הוסר.
 message.pin_pressed = GPIO {pin} נלחץ – {target}
 message.encoder_right = המקודד ב־GPIO {pin} סובב ימינה – {target}
 message.encoder_left = המקודד ב־GPIO {pin} סובב שמאלה – {target}
+message.switch_on = המתג ב־GPIO {pin} הודלק – {target}
+message.switch_off = המתג ב־GPIO {pin} כובה – {target}
 message.not_assigned = לא משויך
 
 test.sending = שולח…
@@ -180,6 +182,7 @@ tiles.canvas_pins = פינים: {pins}
 
 component.button = כפתור
 component.ec11 = מקודד סיבובי EC11
+component.toggle_switch = מתג דו־מצבי
 pin.switch = פין
 pin.a = פין A
 pin.b = פין B
@@ -187,6 +190,8 @@ pin.push_button = פין לחצן הלחיצה
 function.press = לחיצה
 function.turn_right = סיבוב ימינה
 function.turn_left = סיבוב שמאלה
+function.on = הדלקה
+function.off = כיבוי
 parameter.debounce = סינון ריטוט (אלפיות שנייה)
 parameter.steps_per_detent = צעדים לכל נקישה
 parameter.reverse = היפוך כיוון

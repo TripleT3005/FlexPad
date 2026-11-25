@@ -105,6 +105,8 @@ message.tile_removed = Flīze noņemta.
 message.pin_pressed = GPIO {pin} nospiests – {target}
 message.encoder_right = Enkoders uz GPIO {pin} pagriezts pa labi – {target}
 message.encoder_left = Enkoders uz GPIO {pin} pagriezts pa kreisi – {target}
+message.switch_on = Slēdzis uz GPIO {pin} ieslēgts – {target}
+message.switch_off = Slēdzis uz GPIO {pin} izslēgts – {target}
 message.not_assigned = nav piešķirts
 
 test.sending = Sūta…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Kontakti: {pins}
 
 component.button = Poga
 component.ec11 = EC11 rotācijas enkoders
+component.toggle_switch = Pārslēgšanas slēdzis
 pin.switch = Kontakts
 pin.a = Kontakts A
 pin.b = Kontakts B
@@ -186,6 +189,8 @@ pin.push_button = Spiedpogas kontakts
 function.press = Nospiešana
 function.turn_right = Pagriešana pa labi
 function.turn_left = Pagriešana pa kreisi
+function.on = Ieslēgšana
+function.off = Izslēgšana
 parameter.debounce = Atlēcienu novēršana (ms)
 parameter.steps_per_detent = Soļi uz klikšķi
 parameter.reverse = Mainīt virzienu

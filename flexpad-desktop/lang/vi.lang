@@ -105,6 +105,8 @@ message.tile_removed = Đã xóa ô.
 message.pin_pressed = Đã nhấn GPIO {pin} – {target}
 message.encoder_right = Bộ mã hóa trên GPIO {pin} xoay sang phải – {target}
 message.encoder_left = Bộ mã hóa trên GPIO {pin} xoay sang trái – {target}
+message.switch_on = Đã bật công tắc trên GPIO {pin} – {target}
+message.switch_off = Đã tắt công tắc trên GPIO {pin} – {target}
 message.not_assigned = chưa gán
 
 test.sending = Đang gửi…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Chân: {pins}
 
 component.button = Nút
 component.ec11 = Bộ mã hóa xoay EC11
+component.toggle_switch = Công tắc gạt
 pin.switch = Chân
 pin.a = Chân A
 pin.b = Chân B
@@ -186,6 +189,8 @@ pin.push_button = Chân nút nhấn
 function.press = Nhấn
 function.turn_right = Xoay phải
 function.turn_left = Xoay trái
+function.on = Bật
+function.off = Tắt
 parameter.debounce = Chống dội (ms)
 parameter.steps_per_detent = Số bước mỗi nấc
 parameter.reverse = Đảo chiều

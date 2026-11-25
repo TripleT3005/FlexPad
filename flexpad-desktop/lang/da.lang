@@ -105,6 +105,8 @@ message.tile_removed = Flise fjernet.
 message.pin_pressed = GPIO {pin} trykket – {target}
 message.encoder_right = Encoder på GPIO {pin} drejet til højre – {target}
 message.encoder_left = Encoder på GPIO {pin} drejet til venstre – {target}
+message.switch_on = Kontakt på GPIO {pin} tændt – {target}
+message.switch_off = Kontakt på GPIO {pin} slukket – {target}
 message.not_assigned = ikke tildelt
 
 test.sending = Sender…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Ben: {pins}
 
 component.button = Knap
 component.ec11 = EC11-drejeencoder
+component.toggle_switch = Vippekontakt
 pin.switch = Ben
 pin.a = Ben A
 pin.b = Ben B
@@ -186,6 +189,8 @@ pin.push_button = Trykknappens ben
 function.press = Tryk
 function.turn_right = Drej til højre
 function.turn_left = Drej til venstre
+function.on = Tænd
+function.off = Sluk
 parameter.debounce = Afprelning (ms)
 parameter.steps_per_detent = Trin pr. hak
 parameter.reverse = Vend retning

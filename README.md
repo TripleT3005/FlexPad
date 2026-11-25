@@ -6,7 +6,7 @@
 
 ## English
 
-FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial; the firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
+FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts as a USB keyboard and media controller and runs key sequences when a button is pressed, a toggle switch is flipped or an encoder is turned. A cross-platform desktop app written in Rust ([iced](https://iced.rs/)) lets you place buttons, toggle switches and rotary encoders on a canvas, assign GPIO pins and macros, and transfers the configuration to the device over USB serial; the firmware is written in Rust as well ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
 > Feedback and bug reports are welcome as [issues](../../issues). Not affiliated with or endorsed by Espressif Systems.
 
@@ -16,7 +16,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 </p>
 
 ### Features
-- Up to 25 inputs on one ESP32-S3: push buttons and EC11 rotary encoders
+- Up to 25 inputs on one ESP32-S3: push buttons, toggle switches and EC11 rotary encoders
 - Macros made of key presses and releases, delays, media keys and text
 - Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
 - Debounce time, encoder resolution and direction adjustable per tile
@@ -31,6 +31,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 | ESP32-S3 board with native USB | Developed with an ESP32-S3 dev module with 16 MB flash and 8 MB octal PSRAM (N16R8) |
 | Push buttons | One side to a GPIO pin, the other side to GND. Internal pull-ups are used, no resistors needed. |
 | EC11 rotary encoder (optional) | Pins A and B to two GPIO pins, the middle pin C to GND. The push button of the encoder like a normal button. |
+| Toggle switch (optional) | Like a push button: one side to a GPIO pin, the other side to GND. Closed is on, open is off. |
 
 **Usable pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 inputs). Left out on purpose: GPIO 0, 3, 45 and 46 (strapping pins), 19/20 (USB) and 33–37, which modules with octal PSRAM or octal flash (such as N16R8) use internally.
 
@@ -87,16 +88,16 @@ A profile already stored on the device is kept: the image ends before the profil
 2. **Scan**, select the device and **Connect**.
 3. Choose the **Keyboard layout** of the computer the pad is used with; the key names in the macro editor follow it.
 4. **Load Config** reads the configuration stored on the device.
-5. Add tiles with **Add Tile** (button, EC11 encoder or [your own components](#components)), drag them into place and select one to edit it in the **Tile Inspector**:
+5. Add tiles with **Add Tile** (button, EC11 encoder, toggle switch or [your own components](#components)), drag them into place and select one to edit it in the **Tile Inspector**:
    - **Pins**: choose the GPIO pin for each connection of the component (only free, usable pins are offered),
    - **Parameters**: debounce time, and for encoders the steps per detent and the direction,
-   - **Functions** (e.g. press, turn right, turn left): open one to edit its macro,
+   - **Functions** (e.g. press, turn right, turn left; for a toggle switch turn on and turn off): open one to edit its macro,
    - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the macro as raw JSON for editing.
    - **Test** next to a function runs its macro once on the connected device without saving anything; the answer (queued, busy or the reason for an error) is shown at the function. The macro types into the window that has the focus; text uses the keyboard layout of the profile stored on the device.
 6. The **Profile** menu at the end of the profile row holds the profile actions: **Save Profile** stores the profile on your computer, **New Profile** saves a copy under a new name. **Set Config** sends the profile to the device.
 7. To pass a profile on or keep a backup, **Export...** in the same menu saves the current profile as a JSON file wherever you choose. **Import...** reads such a file (older formats are converted), adds it to the profile list and opens it; if a profile with that name already exists, the import gets a new name such as `Desk_2` instead of replacing it. **Open profile folder** opens the profile folder in your file manager. On Linux the file dialogs need `zenity` or `kdialog`.
 
-Wiring test: while the app is connected, pressing a button or turning an encoder briefly highlights its tile on the canvas, and the status bar names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses).
+Wiring test: while the app is connected, pressing a button, flipping a toggle switch or turning an encoder briefly highlights its tile on the canvas, and the status bar names the pin (e.g. "GPIO 12 pressed – not assigned" for a pin no tile uses, or "Switch on GPIO 5 turned off – Light").
 
 #### Updates
 At start and then every 24 hours, the app checks whether a newer release exists and then shows "Version x.y.z available" in the status bar; a click opens the release page. Nothing is downloaded or installed automatically. **Check for updates** in the status bar switches the check off (see [Privacy](#privacy)).
@@ -109,13 +110,13 @@ The translations were generated by Claude (AI). Most of them have not been check
 The texts are plain text files named after the language code, e.g. `de.lang` or `pt-BR.lang`, with one `key = text` per line, in [`flexpad-desktop/lang`](flexpad-desktop/lang). They are built into the app. To add a language or change single texts, put a file with the same format into the folder `lang` next to the settings (on Windows `%APPDATA%\FlexPad\lang`, on macOS `~/Library/Application Support/FlexPad/lang`, on Linux `~/.config/flexpad/lang`); its texts take priority. To start a new language, copy [`en.lang`](flexpad-desktop/lang/en.lang), translate the texts after the `=` and keep the keys and placeholders such as `{name}`. Missing texts are taken from the fallback language (`language.fallback`), otherwise from English.
 
 #### Components
-The components offered by **Add Tile** are described in JSON files: name, pins, functions with their default macros, and parameters. Button and EC11 encoder are built in. To add your own, e.g. another encoder model with different defaults or an encoder without a push button, put a definition into the folder `components` next to the settings (on Windows `%APPDATA%\FlexPad\components`, on macOS `~/Library/Application Support/FlexPad/components`, on Linux `~/.config/flexpad/components`) and restart the app. Each definition uses one of the kinds the firmware knows (`button`, `encoder`), so no new firmware is needed. [docs/components.md](docs/components.md) describes the format.
+The components offered by **Add Tile** are described in JSON files: name, pins, functions with their default macros, and parameters. Button, EC11 encoder and toggle switch are built in. To add your own, e.g. another encoder model with different defaults or an encoder without a push button, put a definition into the folder `components` next to the settings (on Windows `%APPDATA%\FlexPad\components`, on macOS `~/Library/Application Support/FlexPad/components`, on Linux `~/.config/flexpad/components`) and restart the app. Each definition uses one of the kinds the firmware knows (`button`, `encoder`, `switch`), so no new firmware is needed. [docs/components.md](docs/components.md) describes the format.
 
 #### Keyboard layouts
 Text actions are typed for the keyboard layout chosen in the profile: English (US), English (UK), German, German (Switzerland) or French, as on Windows and Linux (macOS places some characters elsewhere). Characters the layout cannot type are skipped by the device; the macro editor names them. Each layout is a file `<code>.layout` in [`layouts`](layouts) with labels and characters per key position; the firmware and the app compile them in, so a new layout needs a new build of both, but no code. [LAYOUTS.md](LAYOUTS.md) describes the format and lists all layouts and whether they have been reviewed. The layout files were generated by Claude (AI); if a character is typed wrongly, please open an [issue](../../issues) or a pull request.
 
 ### How it works
-The firmware polls the configured pins every millisecond, debounces buttons, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
+The firmware polls the configured pins every millisecond, debounces buttons and switches, decodes encoders and runs the assigned macro as USB HID keyboard and consumer control (media keys) reports. The profile is stored as JSON in its own flash partition with two slots and a checksum, so it survives a restart and an interrupted save.
 
 The app and the device talk over the USB serial port of the board (line-based text commands, each terminated with `\n`). The complete protocol and profile format are described in [docs/protocol.md](docs/protocol.md); overview:
 
@@ -198,7 +199,7 @@ Release packages, the installer and the Linux packages include `THIRD-PARTY-LICE
 
 ## Deutsch
 
-FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät; auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
+FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board meldet sich als USB-Tastatur und Mediensteuerung und führt Tastenfolgen aus, wenn ein Taster gedrückt, ein Kippschalter umgelegt oder ein Encoder gedreht wird. Eine plattformübergreifende Desktop-App in Rust ([iced](https://iced.rs/)) platziert Taster, Kippschalter und Drehencoder auf einer Arbeitsfläche, ordnet GPIO-Pins und Makros zu und überträgt die Konfiguration per USB-Seriell auf das Gerät; auch die Firmware ist in Rust geschrieben ([esp-hal](https://github.com/esp-rs/esp-hal), [Embassy](https://embassy.dev/)).
 
 > Rückmeldungen und Fehlerberichte gern als [Issue](../../issues). Keine Verbindung zu Espressif Systems und nicht von Espressif unterstützt.
 
@@ -208,7 +209,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 </p>
 
 ### Funktionen
-- Bis zu 25 Eingänge an einem ESP32-S3: Taster und EC11-Drehencoder
+- Bis zu 25 Eingänge an einem ESP32-S3: Taster, Kippschalter und EC11-Drehencoder
 - Makros aus Drücken und Loslassen von Tasten, Pausen, Medientasten und Text
 - Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
 - Entprellzeit, Encoder-Auflösung und Drehrichtung pro Kachel einstellbar
@@ -223,6 +224,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 | ESP32-S3-Board mit nativem USB | Entwickelt mit einem ESP32-S3-Dev-Module mit 16 MB Flash und 8 MB Octal-PSRAM (N16R8) |
 | Taster | Eine Seite an einen GPIO-Pin, die andere an GND. Die internen Pull-ups werden genutzt, Widerstände sind nicht nötig. |
 | EC11-Drehencoder (optional) | Pins A und B an zwei GPIO-Pins, der mittlere Pin C an GND. Der Taster des Encoders wie ein normaler Taster. |
+| Kippschalter (optional) | Wie ein Taster: eine Seite an einen GPIO-Pin, die andere an GND. Geschlossen ist ein, offen ist aus. |
 
 **Nutzbare Pins:** 1, 2, 4–18, 21, 38–42, 47, 48 (25 Eingänge). Bewusst ausgenommen: GPIO 0, 3, 45 und 46 (Strapping-Pins), 19/20 (USB) und 33–37, die Module mit Octal-PSRAM oder Octal-Flash (z. B. N16R8) intern nutzen.
 
@@ -279,16 +281,16 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
 2. **Scan**, das Gerät auswählen und **Connect**.
 3. Unter **Keyboard layout** das Tastaturlayout des Rechners wählen, an dem das Pad benutzt wird; die Tastennamen im Makro-Editor richten sich danach.
 4. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
-5. Mit **Add Tile** Kacheln hinzufügen (Taster, EC11-Encoder oder [eigene Bauteile](#bauteile)), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
+5. Mit **Add Tile** Kacheln hinzufügen (Taster, EC11-Encoder, Kippschalter oder [eigene Bauteile](#bauteile)), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
    - **Pins**: für jeden Anschluss des Bauteils den GPIO-Pin wählen (angeboten werden nur freie, nutzbare Pins),
    - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung,
-   - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen): aufklappen, um das Makro zu bearbeiten,
+   - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen; beim Kippschalter Einschalten und Ausschalten): aufklappen, um das Makro zu bearbeiten,
    - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt das Makro als rohes JSON zum Bearbeiten.
    - **Test** neben einer Funktion führt ihr Makro einmal auf dem verbundenen Gerät aus, ohne etwas zu speichern; die Antwort (in der Warteschlange, ausgelastet oder der Grund eines Fehlers) erscheint an der Funktion. Das Makro tippt in das Fenster, das den Fokus hat; Text verwendet das Tastaturlayout des auf dem Gerät gespeicherten Profils.
 6. Das Menü **Profile** am Ende der Profilzeile enthält die Profil-Aktionen: **Save Profile** speichert das Profil auf dem Rechner, **New Profile** speichert eine Kopie unter neuem Namen. **Set Config** überträgt das Profil auf das Gerät.
 7. Zum Weitergeben oder Sichern speichert **Export...** im selben Menü das aktuelle Profil als JSON-Datei an einem frei wählbaren Ort. **Import...** liest eine solche Datei (ältere Formate werden umgewandelt), nimmt sie in die Profilliste auf und öffnet sie; gibt es schon ein Profil mit diesem Namen, bekommt der Import einen neuen Namen wie `Desk_2`, statt es zu ersetzen. **Open profile folder** öffnet den Profilordner im Dateimanager. Unter Linux brauchen die Dateidialoge `zenity` oder `kdialog`.
 
-Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statusleiste nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel).
+Verdrahtungstest: Solange die App verbunden ist, hebt ein Tastendruck, das Umlegen eines Kippschalters oder eine Encoder-Drehung die zugehörige Kachel kurz auf der Arbeitsfläche hervor, und die Statusleiste nennt den Pin (z. B. „GPIO 12 pressed – not assigned“ für einen Pin ohne Kachel oder „Switch on GPIO 5 turned off – Light“).
 
 #### Updates
 Beim Start und danach alle 24 Stunden prüft die App, ob es ein neueres Release gibt, und zeigt dann in der Statusleiste „Version x.y.z available“; ein Klick öffnet die Release-Seite. Es wird nichts automatisch heruntergeladen oder installiert. **Check for updates** in der Statusleiste schaltet die Prüfung ab (siehe [Datenschutz](#datenschutz)).
@@ -301,13 +303,13 @@ Die Übersetzungen wurden von Claude (KI) erzeugt. Die meisten hat noch keine Mu
 Die Texte liegen in einfachen Textdateien, benannt nach dem Sprachcode, z. B. `de.lang` oder `pt-BR.lang`, mit einem `Schlüssel = Text` pro Zeile, in [`flexpad-desktop/lang`](flexpad-desktop/lang). Sie sind in die App eingebaut. Um eine Sprache zu ergänzen oder einzelne Texte zu ändern, legst du eine Datei im selben Format in den Ordner `lang` neben den Einstellungen (unter Windows `%APPDATA%\FlexPad\lang`, unter macOS `~/Library/Application Support/FlexPad/lang`, unter Linux `~/.config/flexpad/lang`); ihre Texte haben Vorrang. Für eine neue Sprache kopierst du [`en.lang`](flexpad-desktop/lang/en.lang), übersetzt die Texte nach dem `=` und lässt die Schlüssel und Platzhalter wie `{name}` unverändert. Fehlende Texte kommen aus der Rückfallsprache (`language.fallback`), sonst aus Englisch.
 
 #### Bauteile
-Die Bauteile, die **Add Tile** anbietet, sind in JSON-Dateien beschrieben: Name, Pins, Funktionen mit ihren Standard-Makros und Parameter. Taster und EC11-Encoder sind eingebaut. Für eigene, z. B. ein anderes Encoder-Modell mit anderen Standardwerten oder einen Encoder ohne Drucktaster, legst du eine Definition in den Ordner `components` neben den Einstellungen (unter Windows `%APPDATA%\FlexPad\components`, unter macOS `~/Library/Application Support/FlexPad/components`, unter Linux `~/.config/flexpad/components`) und startest die App neu. Jede Definition nutzt eine der Arten, die die Firmware kennt (`button`, `encoder`), eine neue Firmware ist also nicht nötig. [docs/components.md](docs/components.md) beschreibt das Format.
+Die Bauteile, die **Add Tile** anbietet, sind in JSON-Dateien beschrieben: Name, Pins, Funktionen mit ihren Standard-Makros und Parameter. Taster, EC11-Encoder und Kippschalter sind eingebaut. Für eigene, z. B. ein anderes Encoder-Modell mit anderen Standardwerten oder einen Encoder ohne Drucktaster, legst du eine Definition in den Ordner `components` neben den Einstellungen (unter Windows `%APPDATA%\FlexPad\components`, unter macOS `~/Library/Application Support/FlexPad/components`, unter Linux `~/.config/flexpad/components`) und startest die App neu. Jede Definition nutzt eine der Arten, die die Firmware kennt (`button`, `encoder`, `switch`), eine neue Firmware ist also nicht nötig. [docs/components.md](docs/components.md) beschreibt das Format.
 
 #### Tastaturlayouts
 Textaktionen werden für das im Profil gewählte Tastaturlayout getippt: Englisch (US), Englisch (UK), Deutsch, Deutsch (Schweiz) oder Französisch, wie unter Windows und Linux (macOS legt einige Zeichen auf andere Tasten). Zeichen, die das Layout nicht tippen kann, überspringt das Gerät; der Makro-Editor nennt sie. Jedes Layout ist eine Datei `<code>.layout` in [`layouts`](layouts) mit Beschriftungen und Zeichen pro Tastenposition; Firmware und App binden sie beim Bauen ein, ein neues Layout braucht also einen neuen Build von beiden, aber keinen Code. [LAYOUTS.md](LAYOUTS.md) beschreibt das Format und listet alle Layouts und ob sie geprüft sind. Die Layout-Dateien wurden von Claude (KI) erzeugt; wenn ein Zeichen falsch getippt wird, eröffne gern ein [Issue](../../issues) oder einen Pull Request.
 
 ### Funktionsweise
-Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
+Die Firmware fragt die konfigurierten Pins jede Millisekunde ab, entprellt Taster und Schalter, wertet Encoder aus und führt das zugeordnete Makro als USB-HID-Tastatur- und Mediensteuerungs-Reports aus. Das Profil liegt als JSON in einer eigenen Flash-Partition mit zwei Speicherplätzen und Prüfsumme; es übersteht so einen Neustart und ein unterbrochenes Speichern.
 
 App und Gerät sprechen über den USB-Seriell-Port des Boards miteinander (zeilenbasierte Textbefehle, jeweils mit `\n` abgeschlossen). Das vollständige Protokoll und das Profilformat beschreibt [docs/protocol.md](docs/protocol.md) (auf Englisch); Überblick:
 

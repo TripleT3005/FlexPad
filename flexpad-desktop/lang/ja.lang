@@ -105,6 +105,8 @@ message.tile_removed = タイルを削除しました。
 message.pin_pressed = GPIO {pin} が押されました – {target}
 message.encoder_right = GPIO {pin} のエンコーダーが右に回されました – {target}
 message.encoder_left = GPIO {pin} のエンコーダーが左に回されました – {target}
+message.switch_on = GPIO {pin} のスイッチがオンになりました – {target}
+message.switch_off = GPIO {pin} のスイッチがオフになりました – {target}
 message.not_assigned = 未割り当て
 
 test.sending = 送信中…
@@ -179,6 +181,7 @@ tiles.canvas_pins = ピン: {pins}
 
 component.button = ボタン
 component.ec11 = EC11 ロータリーエンコーダー
+component.toggle_switch = トグルスイッチ
 pin.switch = ピン
 pin.a = ピン A
 pin.b = ピン B
@@ -186,6 +189,8 @@ pin.push_button = プッシュボタンのピン
 function.press = 押下
 function.turn_right = 右回転
 function.turn_left = 左回転
+function.on = オン
+function.off = オフ
 parameter.debounce = チャタリング除去 (ミリ秒)
 parameter.steps_per_detent = クリックあたりのステップ数
 parameter.reverse = 回転方向を反転

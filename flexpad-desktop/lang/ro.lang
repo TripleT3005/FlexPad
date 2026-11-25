@@ -105,6 +105,8 @@ message.tile_removed = Placa a fost eliminată.
 message.pin_pressed = GPIO {pin} apăsat – {target}
 message.encoder_right = Encoderul de pe GPIO {pin} rotit la dreapta – {target}
 message.encoder_left = Encoderul de pe GPIO {pin} rotit la stânga – {target}
+message.switch_on = Comutatorul de pe GPIO {pin} pornit – {target}
+message.switch_off = Comutatorul de pe GPIO {pin} oprit – {target}
 message.not_assigned = neatribuit
 
 test.sending = Se trimite…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pini: {pins}
 
 component.button = Buton
 component.ec11 = Encoder rotativ EC11
+component.toggle_switch = Comutator basculant
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pinul butonului
 function.press = Apăsare
 function.turn_right = Rotire la dreapta
 function.turn_left = Rotire la stânga
+function.on = Pornire
+function.off = Oprire
 parameter.debounce = Antirebond (ms)
 parameter.steps_per_detent = Pași pe treaptă
 parameter.reverse = Inversează sensul

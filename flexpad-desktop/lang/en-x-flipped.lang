@@ -105,6 +105,8 @@ message.tile_removed = ˙sɐʌuɐɔ ɯoɹɟ pǝʌoɯǝɹ ǝlıʇ
 message.pin_pressed = {target} – pǝssǝɹd {pin} oıdƃ
 message.encoder_right = {target} – ʇɥƃıɹ pǝuɹnʇ {pin} oıdƃ uo ɹǝpoɔuǝ
 message.encoder_left = {target} – ʇɟǝl pǝuɹnʇ {pin} oıdƃ uo ɹǝpoɔuǝ
+message.switch_on = {target} – uo pǝuɹnʇ {pin} oıdƃ uo ɥɔʇıʍs
+message.switch_off = {target} – ɟɟo pǝuɹnʇ {pin} oıdƃ uo ɥɔʇıʍs
 message.not_assigned = pǝuƃıssɐ ʇou
 
 test.sending = ˙˙˙ƃuıpuǝs
@@ -179,6 +181,7 @@ tiles.canvas_pins = {pins} :suıd
 
 component.button = uoʇʇnq
 component.ec11 = ɹǝpoɔuǝ ʎɹɐʇoɹ ƖƖɔǝ
+component.toggle_switch = ɥɔʇıʍs ǝlƃƃoʇ
 pin.switch = uıd
 pin.a = ɐ uıd
 pin.b = q uıd
@@ -186,6 +189,8 @@ pin.push_button = uıd uoʇʇnq ɥsnd
 function.press = ssǝɹd
 function.turn_right = ʇɥƃıɹ uɹnʇ
 function.turn_left = ʇɟǝl uɹnʇ
+function.on = uo uɹnʇ
+function.off = ɟɟo uɹnʇ
 parameter.debounce = (sɯ) ǝɔunoqǝp
 parameter.steps_per_detent = ʇuǝʇǝp ɹǝd sdǝʇs
 parameter.reverse = uoıʇɔǝɹıp ǝsɹǝʌǝɹ

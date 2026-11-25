@@ -105,6 +105,8 @@ message.tile_removed = Pločica je uklonjena.
 message.pin_pressed = GPIO {pin} pritisnut – {target}
 message.encoder_right = Enkoder na GPIO {pin} okrenut udesno – {target}
 message.encoder_left = Enkoder na GPIO {pin} okrenut ulevo – {target}
+message.switch_on = Prekidač na GPIO {pin} uključen – {target}
+message.switch_off = Prekidač na GPIO {pin} isključen – {target}
 message.not_assigned = nije dodeljeno
 
 test.sending = Slanje…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinovi: {pins}
 
 component.button = Taster
 component.ec11 = Rotacioni enkoder EC11
+component.toggle_switch = Preklopni prekidač
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin tastera
 function.press = Pritisak
 function.turn_right = Okretanje udesno
 function.turn_left = Okretanje ulevo
+function.on = Uključivanje
+function.off = Isključivanje
 parameter.debounce = Uklanjanje treperenja (ms)
 parameter.steps_per_detent = Koraci po zarezu
 parameter.reverse = Obrni smer

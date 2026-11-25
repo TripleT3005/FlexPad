@@ -105,6 +105,8 @@ message.tile_removed = Ruutu poistettu.
 message.pin_pressed = GPIO {pin} painettu – {target}
 message.encoder_right = GPIO {pin}:n kiertoanturia käännetty oikealle – {target}
 message.encoder_left = GPIO {pin}:n kiertoanturia käännetty vasemmalle – {target}
+message.switch_on = GPIO {pin}:n kytkin käännetty päälle – {target}
+message.switch_off = GPIO {pin}:n kytkin käännetty pois – {target}
 message.not_assigned = ei määritetty
 
 test.sending = Lähetetään…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Nastat: {pins}
 
 component.button = Painike
 component.ec11 = EC11-kiertoanturi
+component.toggle_switch = Vipukytkin
 pin.switch = Nasta
 pin.a = Nasta A
 pin.b = Nasta B
@@ -186,6 +189,8 @@ pin.push_button = Painonapin nasta
 function.press = Painallus
 function.turn_right = Käännä oikealle
 function.turn_left = Käännä vasemmalle
+function.on = Päälle
+function.off = Pois
 parameter.debounce = Värähtelyn suodatus (ms)
 parameter.steps_per_detent = Askeleet naksua kohti
 parameter.reverse = Käännä suunta

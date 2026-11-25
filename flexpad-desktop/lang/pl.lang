@@ -105,6 +105,8 @@ message.tile_removed = Usunięto kafelek.
 message.pin_pressed = GPIO {pin} wciśnięty – {target}
 message.encoder_right = Enkoder na GPIO {pin} obrócony w prawo – {target}
 message.encoder_left = Enkoder na GPIO {pin} obrócony w lewo – {target}
+message.switch_on = Przełącznik na GPIO {pin} włączony – {target}
+message.switch_off = Przełącznik na GPIO {pin} wyłączony – {target}
 message.not_assigned = nieprzypisany
 
 test.sending = Wysyłanie…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Piny: {pins}
 
 component.button = Przycisk
 component.ec11 = Enkoder obrotowy EC11
+component.toggle_switch = Przełącznik dźwigienkowy
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin przycisku
 function.press = Naciśnięcie
 function.turn_right = Obrót w prawo
 function.turn_left = Obrót w lewo
+function.on = Włączenie
+function.off = Wyłączenie
 parameter.debounce = Eliminacja drgań (ms)
 parameter.steps_per_detent = Kroki na zapadkę
 parameter.reverse = Odwróć kierunek

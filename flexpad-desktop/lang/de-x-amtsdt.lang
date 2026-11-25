@@ -106,6 +106,8 @@ message.tile_removed = Die Kachel wurde aus dem Bestand ausgesondert.
 message.pin_pressed = Betätigung von GPIO {pin} festgestellt – {target}
 message.encoder_right = Rechtsdrehung des Drehgebers an GPIO {pin} festgestellt – {target}
 message.encoder_left = Linksdrehung des Drehgebers an GPIO {pin} festgestellt – {target}
+message.switch_on = Einschaltung der Schaltvorrichtung an GPIO {pin} festgestellt – {target}
+message.switch_off = Ausschaltung der Schaltvorrichtung an GPIO {pin} festgestellt – {target}
 message.not_assigned = ohne Zuständigkeit
 
 test.sending = Übermittlung erfolgt …
@@ -180,6 +182,7 @@ tiles.canvas_pins = Anschlüsse: {pins}
 
 component.button = Betätigungseinrichtung
 component.ec11 = Drehgeber der Bauart EC11
+component.toggle_switch = Kippschaltvorrichtung
 pin.switch = Anschluss
 pin.a = Anschluss A
 pin.b = Anschluss B
@@ -187,6 +190,8 @@ pin.push_button = Anschluss der Drucktaste
 function.press = Betätigung
 function.turn_right = Rechtsdrehung
 function.turn_left = Linksdrehung
+function.on = Inbetriebsetzung
+function.off = Außerbetriebsetzung
 parameter.debounce = Entprellungsfrist (ms)
 parameter.steps_per_detent = Schritte je Raststellung
 parameter.reverse = Umkehr der Drehrichtung

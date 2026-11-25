@@ -105,6 +105,8 @@ message.tile_removed = TIEL IZ GONE. I KNOKD IT OFF TEH TABLE.
 message.pin_pressed = GPIO {pin} GOT BOOPD – {target}
 message.encoder_right = KNOB ON GPIO {pin} SPUN RITE – {target}
 message.encoder_left = KNOB ON GPIO {pin} SPUN LEFT – {target}
+message.switch_on = SWITCH ON GPIO {pin} GOT FLIPPD ON – {target}
+message.switch_off = SWITCH ON GPIO {pin} GOT FLIPPD OFF – {target}
 message.not_assigned = NOBODYS
 
 test.sending = SENDIN...
@@ -179,6 +181,7 @@ tiles.canvas_pins = PINZ: {pins}
 
 component.button = BUTTN
 component.ec11 = EC11 SPINNY KNOB
+component.toggle_switch = FLIPPY SWITCH
 pin.switch = PIN
 pin.a = PIN A
 pin.b = PIN B
@@ -186,6 +189,8 @@ pin.push_button = BOOP BUTTN PIN
 function.press = BOOP
 function.turn_right = SPIN RITE
 function.turn_left = SPIN LEFT
+function.on = TURN ON
+function.off = TURN OFF
 parameter.debounce = NO JITTERZ (MS)
 parameter.steps_per_detent = STEPZ PER CLIK
 parameter.reverse = SPIN OTHR WAI

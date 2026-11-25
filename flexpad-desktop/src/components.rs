@@ -17,6 +17,7 @@ mod bundled {
 // Constants
 
 pub const DEFAULT_COMPONENT: &str = "button";
+pub const SWITCH_KIND: &str = "switch";
 const FOLDER: &str = "components";
 const EXTENSION: &str = "json";
 const MAX_FILE_SIZE: u64 = 64 * 1024;
@@ -195,6 +196,28 @@ const KINDS: &[Kind] = &[
                 },
             ),
         ],
+    },
+    Kind {
+        id: SWITCH_KIND,
+        pins: &["switch"],
+        functions: &[
+            KindFunction {
+                id: "on",
+                pins: &["switch"],
+                required: true,
+            },
+            KindFunction {
+                id: "off",
+                pins: &["switch"],
+                required: true,
+            },
+        ],
+        parameters: &[(
+            "debounce_ms",
+            Limit::Number {
+                max: MAX_DEBOUNCE_MS,
+            },
+        )],
     },
 ];
 
@@ -437,6 +460,10 @@ mod tests {
 
     fn definition(id: &str, kind: &str, extra: &str) -> String {
         let (pins, functions) = match kind {
+            "switch" => (
+                r#"[{"id":"switch","label":"Pin"}]"#,
+                r#"[{"id":"on","label":"On"},{"id":"off","label":"Off"}]"#,
+            ),
             "encoder" => (
                 r#"[{"id":"a","label":"A"},{"id":"b","label":"B"}]"#,
                 r#"[{"id":"turn_right","label":"Right"},{"id":"turn_left","label":"Left"}]"#,
@@ -496,7 +523,19 @@ mod tests {
     fn built_in_components_keep_their_defaults() {
         let button = component("button");
         let encoder = component("ec11");
+        let switch = component("toggle-switch");
 
+        assert_eq!(switch.kind, SWITCH_KIND);
+        assert_eq!(
+            switch
+                .functions
+                .iter()
+                .map(|function| function.id.as_str())
+                .collect::<Vec<_>>(),
+            ["on", "off"]
+        );
+        assert!(switch.functions[0].default_macro().actions.is_empty());
+        assert_eq!(switch.parameter("debounce_ms").unwrap().default_value(), 10);
         assert_eq!(button.kind, "button");
         assert_eq!(
             button.functions[0].default_macro(),
@@ -596,6 +635,9 @@ mod tests {
 
     #[test]
     fn accepts_minimal_definitions() {
+        let lever = parse("lever", &definition("lever", "switch", "")).unwrap();
+        assert_eq!(lever.kind, SWITCH_KIND);
+
         let encoder = parse("ky-040", &definition("ky-040", "encoder", "")).unwrap();
         assert!(encoder.parameters.is_empty());
         assert!(encoder.functions[0].default_macro().actions.is_empty());
@@ -616,7 +658,9 @@ mod tests {
         let rejected = [
             ("other", definition("button2", "button", "")),
             ("Big", definition("Big", "button", "")),
-            ("toggle", definition("toggle", "switch", "")),
+            ("joystick", definition("joystick", "joystick", "")),
+            ("lever", r#"{"id":"lever","name":"T","kind":"switch","pins":[{"id":"switch","label":"P"}],"functions":[{"id":"on","label":"On"}]}"#.to_string()),
+            ("toggle", r#"{"id":"toggle","name":"T","kind":"switch","pins":[{"id":"switch","label":"P"}],"functions":[{"id":"press","label":"P"}]}"#.to_string()),
             ("pins", r#"{"id":"pins","name":"T","kind":"button","pins":[{"id":"x","label":"X"}],"functions":[{"id":"press","label":"P"}]}"#.to_string()),
             ("missing", r#"{"id":"missing","name":"T","kind":"encoder","pins":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"functions":[{"id":"turn_right","label":"R"}]}"#.to_string()),
             ("press", r#"{"id":"press","name":"T","kind":"encoder","pins":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"functions":[{"id":"turn_right","label":"R"},{"id":"turn_left","label":"L"},{"id":"press","label":"P"}]}"#.to_string()),
@@ -666,7 +710,7 @@ mod tests {
         fs::remove_dir_all(&directory).unwrap();
 
         let ids: Vec<&str> = components.iter().map(|found| found.id.as_str()).collect();
-        assert_eq!(ids, ["button", "ec11", "ky-040"]);
+        assert_eq!(ids, ["button", "ec11", "toggle-switch", "ky-040"]);
         assert_eq!(components[0].kind, "button");
         assert_eq!(load(Some(&directory)).len(), bundled::BUNDLED.len());
     }

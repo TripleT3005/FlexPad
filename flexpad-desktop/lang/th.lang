@@ -105,6 +105,8 @@ message.tile_removed = ลบไทล์แล้ว
 message.pin_pressed = กด GPIO {pin} – {target}
 message.encoder_right = หมุนเอนโค้ดเดอร์ที่ GPIO {pin} ไปทางขวา – {target}
 message.encoder_left = หมุนเอนโค้ดเดอร์ที่ GPIO {pin} ไปทางซ้าย – {target}
+message.switch_on = เปิดสวิตช์ที่ GPIO {pin} – {target}
+message.switch_off = ปิดสวิตช์ที่ GPIO {pin} – {target}
 message.not_assigned = ยังไม่ได้กำหนด
 
 test.sending = กำลังส่ง…
@@ -179,6 +181,7 @@ tiles.canvas_pins = ขา: {pins}
 
 component.button = ปุ่ม
 component.ec11 = เอนโค้ดเดอร์แบบหมุน EC11
+component.toggle_switch = สวิตช์โยก
 pin.switch = ขา
 pin.a = ขา A
 pin.b = ขา B
@@ -186,6 +189,8 @@ pin.push_button = ขาปุ่มกด
 function.press = กด
 function.turn_right = หมุนขวา
 function.turn_left = หมุนซ้าย
+function.on = เปิด
+function.off = ปิด
 parameter.debounce = ลดการเด้ง (มิลลิวินาที)
 parameter.steps_per_detent = จำนวนขั้นต่อคลิก
 parameter.reverse = กลับทิศทาง

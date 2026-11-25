@@ -105,6 +105,8 @@ message.tile_removed = Kutucuk kaldırıldı.
 message.pin_pressed = GPIO {pin} basıldı – {target}
 message.encoder_right = GPIO {pin} üzerindeki enkoder sağa döndürüldü – {target}
 message.encoder_left = GPIO {pin} üzerindeki enkoder sola döndürüldü – {target}
+message.switch_on = GPIO {pin} üzerindeki anahtar açıldı – {target}
+message.switch_off = GPIO {pin} üzerindeki anahtar kapatıldı – {target}
 message.not_assigned = atanmamış
 
 test.sending = Gönderiliyor…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Pinler: {pins}
 
 component.button = Düğme
 component.ec11 = EC11 döner enkoder
+component.toggle_switch = Geçiş anahtarı
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Basma düğmesi pini
 function.press = Basma
 function.turn_right = Sağa çevirme
 function.turn_left = Sola çevirme
+function.on = Açma
+function.off = Kapatma
 parameter.debounce = Sıçrama önleme (ms)
 parameter.steps_per_detent = Tık başına adım
 parameter.reverse = Yönü ters çevir

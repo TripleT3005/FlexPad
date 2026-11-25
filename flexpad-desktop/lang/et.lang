@@ -105,6 +105,8 @@ message.tile_removed = Paan eemaldati.
 message.pin_pressed = GPIO {pin} vajutatud – {target}
 message.encoder_right = GPIO {pin} pöördandurit keerati paremale – {target}
 message.encoder_left = GPIO {pin} pöördandurit keerati vasakule – {target}
+message.switch_on = GPIO {pin} lüliti lülitati sisse – {target}
+message.switch_off = GPIO {pin} lüliti lülitati välja – {target}
 message.not_assigned = määramata
 
 test.sending = Saatmine…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Viigud: {pins}
 
 component.button = Nupp
 component.ec11 = EC11 pöördandur
+component.toggle_switch = Kanglüliti
 pin.switch = Viik
 pin.a = Viik A
 pin.b = Viik B
@@ -186,6 +189,8 @@ pin.push_button = Surunupu viik
 function.press = Vajutus
 function.turn_right = Keera paremale
 function.turn_left = Keera vasakule
+function.on = Sisse
+function.off = Välja
 parameter.debounce = Põrkevastane viide (ms)
 parameter.steps_per_detent = Sammu kliki kohta
 parameter.reverse = Pööra suund ümber

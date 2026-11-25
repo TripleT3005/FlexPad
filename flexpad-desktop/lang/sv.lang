@@ -105,6 +105,8 @@ message.tile_removed = Rutan togs bort.
 message.pin_pressed = GPIO {pin} nedtryckt – {target}
 message.encoder_right = Pulsgivare på GPIO {pin} vriden åt höger – {target}
 message.encoder_left = Pulsgivare på GPIO {pin} vriden åt vänster – {target}
+message.switch_on = Brytare på GPIO {pin} påslagen – {target}
+message.switch_off = Brytare på GPIO {pin} avslagen – {target}
 message.not_assigned = inte tilldelad
 
 test.sending = Skickar…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Stift: {pins}
 
 component.button = Knapp
 component.ec11 = EC11-pulsgivare
+component.toggle_switch = Vippbrytare
 pin.switch = Stift
 pin.a = Stift A
 pin.b = Stift B
@@ -186,6 +189,8 @@ pin.push_button = Tryckknappens stift
 function.press = Tryck
 function.turn_right = Vrid åt höger
 function.turn_left = Vrid åt vänster
+function.on = Slå på
+function.off = Slå av
 parameter.debounce = Avstudsning (ms)
 parameter.steps_per_detent = Steg per hack
 parameter.reverse = Byt riktning

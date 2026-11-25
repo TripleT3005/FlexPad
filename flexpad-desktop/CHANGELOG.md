@@ -6,6 +6,22 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.7.0] – 2026-11-25
+
+### English
+
+#### Added
+- New component **Toggle switch** in **Add Tile**: one macro for **Turn on** and one for **Turn off**, run once each time the switch is flipped. It needs firmware 1.4.0 or newer, which the app installs with **Update firmware**.
+- The wiring test shows flipping a toggle switch in the status bar, e.g. "Switch on GPIO 5 turned off – Light".
+- Own component definitions can use the new kind `switch`.
+
+### Deutsch
+
+#### Neu
+- Neues Bauteil **Toggle switch** (Kippschalter) unter **Add Tile**: je ein Makro für **Turn on** (Einschalten) und **Turn off** (Ausschalten), das bei jedem Umlegen einmal läuft. Es braucht Firmware 1.4.0 oder neuer, die die App mit **Update firmware** installiert.
+- Der Verdrahtungstest zeigt das Umlegen eines Kippschalters in der Statusleiste, z. B. „Switch on GPIO 5 turned off – Light“.
+- Eigene Bauteil-Definitionen können die neue Art `switch` nutzen.
+
 ## [1.6.0] – 2026-11-25
 
 ### English

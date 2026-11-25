@@ -105,6 +105,8 @@ message.tile_removed = Dlaždica odstránená.
 message.pin_pressed = GPIO {pin} stlačený – {target}
 message.encoder_right = Enkodér na GPIO {pin} otočený doprava – {target}
 message.encoder_left = Enkodér na GPIO {pin} otočený doľava – {target}
+message.switch_on = Prepínač na GPIO {pin} zapnutý – {target}
+message.switch_off = Prepínač na GPIO {pin} vypnutý – {target}
 message.not_assigned = nepriradené
 
 test.sending = Odosiela sa…
@@ -179,6 +181,7 @@ tiles.canvas_pins = Piny: {pins}
 
 component.button = Tlačidlo
 component.ec11 = Rotačný enkodér EC11
+component.toggle_switch = Páčkový prepínač
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -186,6 +189,8 @@ pin.push_button = Pin tlačidla
 function.press = Stlačenie
 function.turn_right = Otočenie doprava
 function.turn_left = Otočenie doľava
+function.on = Zapnutie
+function.off = Vypnutie
 parameter.debounce = Odstránenie zákmitov (ms)
 parameter.steps_per_detent = Kroky na zárez
 parameter.reverse = Obrátiť smer

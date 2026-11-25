@@ -106,6 +106,8 @@ message.tile_removed = Kachl is weg.
 message.pin_pressed = GPIO {pin} druckt – {target}
 message.encoder_right = Drehgeber an GPIO {pin} nach rechts draht – {target}
 message.encoder_left = Drehgeber an GPIO {pin} nach links draht – {target}
+message.switch_on = Schoita an GPIO {pin} eigschoit – {target}
+message.switch_off = Schoita an GPIO {pin} ausgschoit – {target}
 message.not_assigned = ned zuagordnet
 
 test.sending = Werd gschickt …
@@ -180,6 +182,7 @@ tiles.canvas_pins = Pins: {pins}
 
 component.button = Knopf
 component.ec11 = EC11-Drehgeber
+component.toggle_switch = Kippschoita
 pin.switch = Pin
 pin.a = Pin A
 pin.b = Pin B
@@ -187,6 +190,8 @@ pin.push_button = Pin vom Knopf
 function.press = Druckn
 function.turn_right = Nach rechts drahn
 function.turn_left = Nach links drahn
+function.on = Eischoitn
+function.off = Ausschoitn
 parameter.debounce = Entprelln (ms)
 parameter.steps_per_detent = Schritt pro Rastn
 parameter.reverse = Drehrichtung umdrahn
