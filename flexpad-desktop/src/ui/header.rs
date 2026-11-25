@@ -20,6 +20,54 @@ const LANGUAGE_PICKER_WIDTH: f32 = 190.0;
 const PICKER_WIDTH: f32 = 220.0;
 const NAME_WIDTH: f32 = 170.0;
 const GROUP_SPACING: f32 = 24.0;
+const PROFILE_MENU_WIDTH: f32 = 200.0;
+
+// Profile actions
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileAction {
+    New,
+    Save,
+    Import,
+    Export,
+    OpenFolder,
+}
+
+impl ProfileAction {
+    pub const ALL: [Self; 5] = [
+        Self::New,
+        Self::Save,
+        Self::Import,
+        Self::Export,
+        Self::OpenFolder,
+    ];
+
+    pub fn message(self) -> Message {
+        match self {
+            Self::New => Message::NewProfile,
+            Self::Save => Message::SaveCurrentProfile,
+            Self::Import => Message::ImportProfile,
+            Self::Export => Message::ExportProfile,
+            Self::OpenFolder => Message::OpenProfilesFolder,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::New => texts::PROFILE_NEW,
+            Self::Save => texts::PROFILE_SAVE,
+            Self::Import => texts::PROFILE_IMPORT,
+            Self::Export => texts::PROFILE_EXPORT,
+            Self::OpenFolder => texts::PROFILE_OPEN_FOLDER,
+        }
+    }
+}
+
+impl std::fmt::Display for ProfileAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&tr(self.label()))
+    }
+}
 
 // Header
 
@@ -93,8 +141,11 @@ fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
         Some(app.keyboard_layout),
         Message::KeyboardLayoutSelected,
     );
-    let new_btn = label_button(tr(texts::PROFILE_NEW)).on_press(Message::NewProfile);
-    let save_btn = label_button(tr(texts::PROFILE_SAVE)).on_press(Message::SaveCurrentProfile);
+    let profile_menu = pick_list(ProfileAction::ALL, None::<ProfileAction>, |action| {
+        action.message()
+    })
+    .placeholder(tr(texts::PROFILE_LABEL))
+    .width(PROFILE_MENU_WIDTH);
 
     row![
         label(tr(texts::PROFILE_LABEL)),
@@ -103,8 +154,7 @@ fn profile_bar(app: &FlexPadApp) -> Element<'_, Message> {
         text(tr(texts::PROFILE_LAYOUT)).size(13),
         layout_picker,
         Space::new().width(GROUP_SPACING),
-        new_btn,
-        save_btn,
+        profile_menu,
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -282,4 +332,31 @@ fn language_picker(app: &FlexPadApp) -> Element<'_, Message> {
     .spacing(6)
     .align_y(Alignment::Center)
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Profile actions
+
+    #[test]
+    fn profile_menu_lists_every_action_once() {
+        let messages: Vec<String> = ProfileAction::ALL
+            .iter()
+            .map(|action| format!("{:?}", action.message()))
+            .collect();
+
+        assert_eq!(
+            messages,
+            [
+                "NewProfile",
+                "SaveCurrentProfile",
+                "ImportProfile",
+                "ExportProfile",
+                "OpenProfilesFolder"
+            ]
+        );
+        assert_eq!(ProfileAction::Save.to_string(), tr(texts::PROFILE_SAVE));
+    }
 }

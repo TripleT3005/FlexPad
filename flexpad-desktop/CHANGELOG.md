@@ -6,6 +6,28 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.6.0] – 2026-11-25
+
+### English
+
+#### Added
+- **Export...** saves the current profile as a JSON file wherever you choose, e.g. to pass it on or keep a backup.
+- **Import...** adds a profile file to the profile list and opens it. Older formats are converted; if a profile with the same name exists, the imported one gets a new name such as `Desk_2` instead of replacing it.
+- **Open profile folder** opens the profile folder in your file manager.
+
+#### Changed
+- The profile actions are now in one **Profile** menu at the end of the profile row: New Profile, Save Profile, Import, Export and Open profile folder.
+
+### Deutsch
+
+#### Neu
+- **Export...** speichert das aktuelle Profil als JSON-Datei an einem frei wählbaren Ort, z. B. zum Weitergeben oder als Sicherung.
+- **Import...** nimmt eine Profildatei in die Profilliste auf und öffnet sie. Ältere Formate werden umgewandelt; gibt es schon ein Profil mit demselben Namen, bekommt das importierte einen neuen Namen wie `Desk_2`, statt es zu ersetzen.
+- **Open profile folder** öffnet den Profilordner im Dateimanager.
+
+#### Geändert
+- Die Profil-Aktionen liegen jetzt in einem Menü **Profile** am Ende der Profilzeile: Neues Profil, Profil speichern, Importieren, Exportieren und Profilordner öffnen.
+
 ## [1.5.0] – 2026-11-25
 
 ### English

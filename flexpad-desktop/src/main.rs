@@ -6,6 +6,7 @@ mod components;
 mod config;
 mod constants;
 mod device;
+mod file_dialog;
 mod flasher;
 mod i18n;
 mod icon;
