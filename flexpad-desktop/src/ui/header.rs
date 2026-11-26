@@ -7,6 +7,7 @@ use crate::texts;
 use crate::ui::choice::Choice;
 use crate::ui::label_button;
 use crate::update::{self, APP_VERSION};
+use iced::widget::text::Wrapping;
 use iced::widget::{
     Space, Text, button, checkbox, column, container, pick_list, progress_bar, row, text,
     text_input,
@@ -90,7 +91,7 @@ fn device_bar(app: &FlexPadApp) -> Element<'_, Message> {
         Message::DeviceSelected,
     )
     .placeholder(tr(texts::DEVICE_SELECT))
-    .width(PICKER_WIDTH);
+    .width(Length::Shrink);
     let is_connected = app.connected_device.is_some();
     let can_use_device = is_idle && is_connected;
     let scan_btn = label_button(tr(texts::DEVICE_SCAN))
@@ -274,11 +275,13 @@ pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
         (text("●").style(text::danger), texts::STATUS_DISCONNECTED)
     };
     let mut bar = row![
-        row![dot.size(16), text(tr(label)).size(13)]
-            .spacing(6)
-            .align_y(Alignment::Center),
-        text(&app.status_message).size(13),
-        Space::new().width(Length::Fill),
+        row![
+            dot.size(16),
+            text(tr(label)).size(13).wrapping(Wrapping::None)
+        ]
+        .spacing(6)
+        .align_y(Alignment::Center),
+        text(&app.status_message).size(13).width(Length::Fill),
     ]
     .spacing(15)
     .align_y(Alignment::Center);
@@ -290,7 +293,8 @@ pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
                     texts::STATUS_UPDATE_AVAILABLE,
                     &[("version", &release.version)],
                 ))
-                .size(13),
+                .size(13)
+                .wrapping(Wrapping::None),
             )
             .padding(0)
             .style(button::text)
@@ -302,9 +306,14 @@ pub fn view_status_bar(app: &FlexPadApp) -> Element<'_, Message> {
             .label(tr(texts::STATUS_CHECK_UPDATES))
             .size(14)
             .text_size(13)
+            .text_wrapping(Wrapping::None)
             .on_toggle(Message::UpdateCheckToggled),
     )
-    .push(text(format!("v{APP_VERSION}")).size(13))
+    .push(
+        text(format!("v{APP_VERSION}"))
+            .size(13)
+            .wrapping(Wrapping::None),
+    )
     .into()
 }
 
@@ -321,7 +330,9 @@ fn language_picker(app: &FlexPadApp) -> Element<'_, Message> {
         .cloned()
         .or_else(|| choices.first().cloned());
     row![
-        text(tr(texts::LANGUAGE_LABEL)).size(13),
+        text(tr(texts::LANGUAGE_LABEL))
+            .size(13)
+            .wrapping(Wrapping::None),
         pick_list(choices, selected, |choice| Message::LanguageSelected(
             choice.value
         ))

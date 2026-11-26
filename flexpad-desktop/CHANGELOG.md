@@ -6,6 +6,20 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.7.1] – 2026-11-26
+
+### English
+
+#### Fixed
+- Long messages in the status bar wrap onto a second line instead of squeezing the language list, "Check for updates" and the version number.
+- The device list is as wide as the device names, so a name such as `FlexPad-14C19F46A1DC (COM3)` no longer breaks onto two lines.
+
+### Deutsch
+
+#### Behoben
+- Lange Meldungen in der Statusleiste brechen in eine zweite Zeile um, statt die Sprachauswahl, „Check for updates“ und die Versionsnummer zusammenzudrücken.
+- Die Geräteauswahl ist so breit wie die Gerätenamen, ein Name wie `FlexPad-14C19F46A1DC (COM3)` bricht also nicht mehr auf zwei Zeilen um.
+
 ## [1.7.0] – 2026-11-25
 
 ### English
