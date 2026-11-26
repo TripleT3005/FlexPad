@@ -149,6 +149,7 @@ inspector.no_macro = [Koi Makro]
 inspector.actions = [{count} Aktiona]
 inspector.test = Ausprobiera
 inspector.delete = Kächele lösche
+inspector.repeat_unavailable = Wiederhola isch aus, solang des lange Drücka a Makro hot.
 
 macro.sequence = Makroablauf:
 macro.no_actions = (Koine Aktiona)
@@ -192,9 +193,14 @@ function.turn_right = Nach rechts drehe
 function.turn_left = Nach links drehe
 function.on = Eischalta
 function.off = Ausschalta
+function.long_press = Lang drücka
 parameter.debounce = Entprella (ms)
 parameter.steps_per_detent = Schritt pro Rast
 parameter.reverse = Drehrichtong omdrehe
+parameter.long_press = Lang drücka ab (ms)
+parameter.repeat = Beim Heba wiederhola
+parameter.repeat_delay = Wiederhola nach (ms)
+parameter.repeat_interval = Wiederhola älle (ms)
 
 media.vol_up = Lauter
 media.vol_down = Leiser

@@ -149,6 +149,7 @@ inspector.no_macro = [Koa Makro]
 inspector.actions = [{count} Aktiona]
 inspector.test = Ausprobian
 inspector.delete = Kachl löschn
+inspector.repeat_unavailable = Wiederhoin is aus, solang des lange Druckn a Makro hod.
 
 macro.sequence = Makroablauf:
 macro.no_actions = (Koane Aktiona)
@@ -192,9 +193,14 @@ function.turn_right = Nach rechts drahn
 function.turn_left = Nach links drahn
 function.on = Eischoitn
 function.off = Ausschoitn
+function.long_press = Lang druckn
 parameter.debounce = Entprelln (ms)
 parameter.steps_per_detent = Schritt pro Rastn
 parameter.reverse = Drehrichtung umdrahn
+parameter.long_press = Lang druckn ab (ms)
+parameter.repeat = Beim Hoitn wiederhoin
+parameter.repeat_delay = Wiederhoin noch (ms)
+parameter.repeat_interval = Wiederhoin olle (ms)
 
 media.vol_up = Lauta
 media.vol_down = Leisa

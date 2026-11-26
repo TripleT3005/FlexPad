@@ -148,6 +148,7 @@ inspector.no_macro = [Onay acromay]
 inspector.actions = [{count} actionsway]
 inspector.test = Esttay
 inspector.delete = Eleteday Iletay
+inspector.repeat_unavailable = Epeatray isway offway ilewhay ethay onglay esspray ashay away acromay.
 
 macro.sequence = Acromay Equencesay:
 macro.no_actions = (Onay actionsway)
@@ -191,9 +192,14 @@ function.turn_right = Urntay ightray
 function.turn_left = Urntay eftlay
 function.on = Urntay onway
 function.off = Urntay offway
+function.long_press = Onglay esspray
 parameter.debounce = Ebounceday (ms)
 parameter.steps_per_detent = Epsstay erpay etentday
 parameter.reverse = Everseray irectionday
+parameter.long_press = Onglay esspray afterway (ms)
+parameter.repeat = Epeatray ilewhay eldhay
+parameter.repeat_delay = Epeatray afterway (ms)
+parameter.repeat_interval = Epeatray everyway (ms)
 
 media.vol_up = Olumevay Upway
 media.vol_down = Olumevay Ownday

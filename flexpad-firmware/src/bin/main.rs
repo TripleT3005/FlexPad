@@ -10,7 +10,7 @@ use embassy_futures::{
     select::{Either, select},
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, mutex::Mutex};
-use embassy_time::Timer;
+use embassy_time::{Instant, Timer};
 use embassy_usb::{
     Builder,
     class::{
@@ -39,13 +39,15 @@ use esp_storage::{FlashStorage, FlashStorageError};
 use flexpad_firmware::{
     buttons::{DEFAULT_DEBOUNCE_MS, Debouncer, Edge, POLL_INTERVAL_MS},
     config::{
-        self, Bindings, ConfigError, INPUT_PINS, Layout, MAX_CONFIG_SIZE, MAX_ENCODERS, Trigger,
+        self, Bindings, ConfigError, INPUT_PINS, Layout, MAX_CONFIG_SIZE, MAX_ENCODERS, PinRole,
+        Trigger,
     },
     encoder::{DEFAULT_STEPS_PER_DETENT, Decoder, Direction},
     hid::{MAX_REPORT_SIZE, REPORT_DESCRIPTOR},
     layouts::KeyboardLayout,
     macros::MacroBuffer,
     player::{Output, Player},
+    press::{PressAction, PressTimer},
     protocol::{
         self, CONFIG_DATA_PREFIX, Command, DeviceInfo, EMPTY_CONFIG, LineReader, MAX_LINE_LENGTH,
         PRODUCT_NAME, TextBuffer,
@@ -459,6 +461,7 @@ fn enqueue_macro(code: &[u8], keyboard_layout: KeyboardLayout) -> bool {
 struct InputState {
     layout: Layout,
     debouncers: [Debouncer; INPUT_PINS.len()],
+    presses: [PressTimer; INPUT_PINS.len()],
     decoders: [Decoder; MAX_ENCODERS],
 }
 
@@ -470,6 +473,7 @@ impl InputState {
                 .unwrap_or(DEFAULT_DEBOUNCE_MS);
             Debouncer::new(inputs[index].is_low(), debounce_ms)
         });
+        let presses = layout.presses.map(PressTimer::new);
         let decoders = core::array::from_fn(|index| {
             let setup = layout.encoders.get(index).copied();
             match setup.filter(|_| index < layout.encoder_count) {
@@ -485,6 +489,7 @@ impl InputState {
         Self {
             layout,
             debouncers,
+            presses,
             decoders,
         }
     }
@@ -506,17 +511,24 @@ async fn read_inputs(inputs: Inputs, config: &SharedConfig) -> ! {
             state = InputState::new(layout, &inputs);
         }
 
+        let now = Instant::now().as_millis();
         for (index, &pin) in INPUT_PINS.iter().enumerate() {
             let role = state.layout.roles[index];
             if role.debounce_ms().is_none() {
                 continue;
             }
-            let Some(edge) = state.debouncers[index].update(inputs[index].is_low()) else {
-                continue;
-            };
-            let _ = EVENT_QUEUE.try_send(InputEvent::Pin(pin, edge));
-            if let Some(trigger) = role.trigger(pin, edge) {
-                run_trigger(config, trigger).await;
+            let is_button = matches!(role, PinRole::Button { .. });
+            if let Some(edge) = state.debouncers[index].update(inputs[index].is_low()) {
+                let _ = EVENT_QUEUE.try_send(InputEvent::Pin(pin, edge));
+                if let Some(trigger) = role.trigger(pin, edge) {
+                    run_trigger(config, trigger).await;
+                }
+                if is_button && let Some(action) = state.presses[index].edge(edge, now) {
+                    run_press(config, pin, action).await;
+                }
+            }
+            if is_button && let Some(action) = state.presses[index].poll(now) {
+                run_press(config, pin, action).await;
             }
         }
 
@@ -538,6 +550,13 @@ async fn run_trigger(config: &SharedConfig, trigger: Trigger) {
     if let Some(code) = config.bindings.macro_for(trigger) {
         enqueue_macro(code, config.bindings.keyboard_layout());
     }
+}
+
+async fn run_press(config: &SharedConfig, pin: u8, action: PressAction) {
+    if action == PressAction::Repeat && !MACRO_QUEUE.is_empty() {
+        return;
+    }
+    run_trigger(config, Trigger::for_press(pin, action)).await;
 }
 
 async fn run_macros<'d>(keyboard: &mut HidWriter<'d, Driver<'d>, MAX_REPORT_SIZE>) -> ! {

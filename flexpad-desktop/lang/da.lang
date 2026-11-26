@@ -148,6 +148,7 @@ inspector.no_macro = [Ingen makro]
 inspector.actions = [{count} handlinger]
 inspector.test = Test
 inspector.delete = Slet flise
+inspector.repeat_unavailable = Gentagelse er slået fra, så længe langt tryk har en makro.
 
 macro.sequence = Makrosekvens:
 macro.no_actions = (Ingen handlinger)
@@ -191,9 +192,14 @@ function.turn_right = Drej til højre
 function.turn_left = Drej til venstre
 function.on = Tænd
 function.off = Sluk
+function.long_press = Langt tryk
 parameter.debounce = Afprelning (ms)
 parameter.steps_per_detent = Trin pr. hak
 parameter.reverse = Vend retning
+parameter.long_press = Langt tryk efter (ms)
+parameter.repeat = Gentag mens den holdes
+parameter.repeat_delay = Gentag efter (ms)
+parameter.repeat_interval = Gentag hver (ms)
 
 media.vol_up = Lydstyrke op
 media.vol_down = Lydstyrke ned

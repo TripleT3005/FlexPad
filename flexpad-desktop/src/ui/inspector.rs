@@ -14,7 +14,12 @@ use iced::{Element, Length};
 // Constants
 
 const UNASSIGNED: &str = "-";
-const DEBOUNCE_CHOICES: &[u32] = &[0, 5, 10, 15, 20, 30, 50, 100, 150, 200];
+const NUMBER_CHOICES: &[u32] = &[
+    0, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1250, 1500,
+    2000,
+];
+const LONG_PRESS_PARAMETERS: &[&str] = &["long_press_ms"];
+const REPEAT_PARAMETERS: &[&str] = &["repeat_delay_ms", "repeat_interval_ms"];
 
 // Inspector
 
@@ -154,11 +159,32 @@ fn view_parameters<'a>(tile: &'a Tile, component: &'static Component) -> Element
     if component.parameters.is_empty() {
         return column![].into();
     }
+    let has_long_press = !tile.macro_for(components::LONG_PRESS_FUNCTION).is_empty();
     let mut section = column![text(tr(texts::INSPECTOR_PARAMETERS)).size(14)].spacing(6);
     for parameter in &component.parameters {
-        section = section.push(view_parameter(tile, parameter));
+        if parameter.id == components::REPEAT_PARAMETER && has_long_press {
+            section = section.push(text(tr(texts::INSPECTOR_REPEAT_UNAVAILABLE)).size(11));
+        } else if is_parameter_active(tile, &parameter.id, has_long_press) {
+            section = section.push(view_parameter(tile, parameter));
+        }
     }
     section.into()
+}
+
+fn is_parameter_active(tile: &Tile, id: &str, has_long_press: bool) -> bool {
+    if LONG_PRESS_PARAMETERS.contains(&id) {
+        has_long_press
+    } else if id == components::REPEAT_PARAMETER {
+        !has_long_press
+    } else if REPEAT_PARAMETERS.contains(&id) {
+        !has_long_press
+            && tile
+                .parameter(components::REPEAT_PARAMETER)
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false)
+    } else {
+        true
+    }
 }
 
 fn view_parameter<'a>(tile: &'a Tile, parameter: &'static Parameter) -> Element<'a, Message> {
@@ -177,7 +203,7 @@ fn view_parameter<'a>(tile: &'a Tile, parameter: &'static Parameter) -> Element<
             .into(),
         ParameterKind::Number { min, max, .. } => {
             let current = value.as_u64().and_then(|n| u32::try_from(n).ok());
-            let mut options: Vec<u32> = DEBOUNCE_CHOICES
+            let mut options: Vec<u32> = NUMBER_CHOICES
                 .iter()
                 .copied()
                 .filter(|choice| (*min..=*max).contains(choice))
@@ -498,5 +524,64 @@ fn action_label(action: &MacroAction, layout: KeyboardLayout) -> String {
             &[("key", &keys::label_for(key, layout))],
         ),
         other => other.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::macros;
+
+    fn button_tile() -> Tile {
+        let component = components::find("button").unwrap();
+        Tile::new(component, "tile".to_string(), "Tile".to_string(), 0.0, 0.0)
+    }
+
+    #[test]
+    fn repeat_times_show_only_with_repeat() {
+        let mut tile = button_tile();
+
+        assert!(is_parameter_active(&tile, "debounce_ms", false));
+        assert!(is_parameter_active(&tile, "repeat", false));
+        assert!(!is_parameter_active(&tile, "repeat_delay_ms", false));
+        assert!(!is_parameter_active(&tile, "long_press_ms", false));
+
+        tile.parameters.insert("repeat".to_string(), true.into());
+
+        assert!(is_parameter_active(&tile, "repeat_delay_ms", false));
+        assert!(is_parameter_active(&tile, "repeat_interval_ms", false));
+    }
+
+    #[test]
+    fn long_press_macro_replaces_repeat() {
+        let mut tile = button_tile();
+        tile.parameters.insert("repeat".to_string(), true.into());
+        tile.functions.insert(
+            components::LONG_PRESS_FUNCTION.to_string(),
+            macros::media("mute"),
+        );
+        let has_long_press = !tile.macro_for(components::LONG_PRESS_FUNCTION).is_empty();
+
+        assert!(has_long_press);
+        assert!(is_parameter_active(&tile, "long_press_ms", has_long_press));
+        assert!(!is_parameter_active(&tile, "repeat", has_long_press));
+        assert!(!is_parameter_active(
+            &tile,
+            "repeat_interval_ms",
+            has_long_press
+        ));
+    }
+
+    #[test]
+    fn number_choices_cover_every_default() {
+        for component in components::all() {
+            for parameter in &component.parameters {
+                if let ParameterKind::Number { min, max, default } = parameter.kind {
+                    assert!(NUMBER_CHOICES.contains(&default), "{}", parameter.id);
+                    assert!(NUMBER_CHOICES.contains(&min), "{}", parameter.id);
+                    assert!(NUMBER_CHOICES.contains(&max), "{}", parameter.id);
+                }
+            }
+        }
     }
 }

@@ -148,6 +148,7 @@ inspector.no_macro = [Makro puudub]
 inspector.actions = [{count} toimingut]
 inspector.test = Testi
 inspector.delete = Kustuta paan
+inspector.repeat_unavailable = Kordamine on väljas, kuni pikal vajutusel on makro.
 
 macro.sequence = Makro järjestus:
 macro.no_actions = (Toiminguid pole)
@@ -191,9 +192,14 @@ function.turn_right = Keera paremale
 function.turn_left = Keera vasakule
 function.on = Sisse
 function.off = Välja
+function.long_press = Pikk vajutus
 parameter.debounce = Põrkevastane viide (ms)
 parameter.steps_per_detent = Sammu kliki kohta
 parameter.reverse = Pööra suund ümber
+parameter.long_press = Pikk vajutus pärast (ms)
+parameter.repeat = Korda all hoides
+parameter.repeat_delay = Korda pärast (ms)
+parameter.repeat_interval = Korda iga (ms)
 
 media.vol_up = Helitugevus üles
 media.vol_down = Helitugevus alla

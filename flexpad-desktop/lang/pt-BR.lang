@@ -148,6 +148,7 @@ inspector.no_macro = [Sem macro]
 inspector.actions = [{count} ações]
 inspector.test = Testar
 inspector.delete = Excluir bloco
+inspector.repeat_unavailable = A repetição fica desligada enquanto o pressionar longo tiver uma macro.
 
 macro.sequence = Sequência da macro:
 macro.no_actions = (Sem ações)
@@ -191,9 +192,14 @@ function.turn_right = Girar para a direita
 function.turn_left = Girar para a esquerda
 function.on = Ligar
 function.off = Desligar
+function.long_press = Pressionar longo
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Passos por clique
 parameter.reverse = Inverter sentido
+parameter.long_press = Pressionar longo após (ms)
+parameter.repeat = Repetir enquanto pressionado
+parameter.repeat_delay = Repetir após (ms)
+parameter.repeat_interval = Repetir a cada (ms)
 
 media.vol_up = Aumentar volume
 media.vol_down = Diminuir volume

@@ -148,6 +148,7 @@ inspector.no_macro = [Няма макрос]
 inspector.actions = [Действия: {count}]
 inspector.test = Тест
 inspector.delete = Изтриване на плочката
+inspector.repeat_unavailable = Повтарянето е изключено, докато продължителното натискане има макрос.
 
 macro.sequence = Последователност на макроса:
 macro.no_actions = (Няма действия)
@@ -191,9 +192,14 @@ function.turn_right = Завъртане надясно
 function.turn_left = Завъртане наляво
 function.on = Включване
 function.off = Изключване
+function.long_press = Продължително натискане
 parameter.debounce = Потискане на трептенето (мс)
 parameter.steps_per_detent = Стъпки на щракване
 parameter.reverse = Обратна посока
+parameter.long_press = Продължително натискане след (мс)
+parameter.repeat = Повтаряне при задържане
+parameter.repeat_delay = Повтаряне след (мс)
+parameter.repeat_interval = Повтаряне на всеки (мс)
 
 media.vol_up = Усилване
 media.vol_down = Намаляване

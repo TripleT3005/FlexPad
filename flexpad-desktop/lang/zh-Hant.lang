@@ -148,6 +148,7 @@ inspector.no_macro = [無巨集]
 inspector.actions = [{count} 個動作]
 inspector.test = 測試
 inspector.delete = 刪除磚塊
+inspector.repeat_unavailable = 長按設有巨集時，無法使用重複。
 
 macro.sequence = 巨集順序：
 macro.no_actions = （無動作）
@@ -191,9 +192,14 @@ function.turn_right = 向右旋轉
 function.turn_left = 向左旋轉
 function.on = 開啟
 function.off = 關閉
+function.long_press = 長按
 parameter.debounce = 去彈跳（毫秒）
 parameter.steps_per_detent = 每段步數
 parameter.reverse = 反轉方向
+parameter.long_press = 長按時間（毫秒）
+parameter.repeat = 按住時重複
+parameter.repeat_delay = 重複延遲（毫秒）
+parameter.repeat_interval = 重複間隔（毫秒）
 
 media.vol_up = 音量增加
 media.vol_down = 音量降低

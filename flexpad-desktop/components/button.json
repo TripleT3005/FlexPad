@@ -6,9 +6,14 @@
     { "id": "switch", "label": "pin.switch" }
   ],
   "functions": [
-    { "id": "press", "label": "function.press", "default_macro": { "chord": ["ControlLeft", "KeyC"] } }
+    { "id": "press", "label": "function.press", "default_macro": { "chord": ["ControlLeft", "KeyC"] } },
+    { "id": "long_press", "label": "function.long_press" }
   ],
   "parameters": [
-    { "id": "debounce_ms", "label": "parameter.debounce", "type": "number", "min": 0, "max": 200, "default": 10 }
+    { "id": "debounce_ms", "label": "parameter.debounce", "type": "number", "min": 0, "max": 200, "default": 10 },
+    { "id": "long_press_ms", "label": "parameter.long_press", "type": "number", "min": 200, "max": 2000, "default": 500 },
+    { "id": "repeat", "label": "parameter.repeat", "type": "flag", "default": false },
+    { "id": "repeat_delay_ms", "label": "parameter.repeat_delay", "type": "number", "min": 100, "max": 2000, "default": 500 },
+    { "id": "repeat_interval_ms", "label": "parameter.repeat_interval", "type": "number", "min": 20, "max": 1000, "default": 100 }
   ]
 }

@@ -148,6 +148,7 @@ inspector.no_macro = [Tanpa makro]
 inspector.actions = [{count} aksi]
 inspector.test = Uji
 inspector.delete = Hapus petak
+inspector.repeat_unavailable = Pengulangan mati selama tekan lama memiliki makro.
 
 macro.sequence = Urutan makro:
 macro.no_actions = (Tidak ada aksi)
@@ -191,9 +192,14 @@ function.turn_right = Putar ke kanan
 function.turn_left = Putar ke kiri
 function.on = Nyalakan
 function.off = Matikan
+function.long_press = Tekan lama
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Langkah per klik
 parameter.reverse = Balik arah
+parameter.long_press = Tekan lama setelah (ms)
+parameter.repeat = Ulangi selama ditahan
+parameter.repeat_delay = Ulangi setelah (ms)
+parameter.repeat_interval = Ulangi setiap (ms)
 
 media.vol_up = Volume naik
 media.vol_down = Volume turun

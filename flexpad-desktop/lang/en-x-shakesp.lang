@@ -148,6 +148,7 @@ inspector.no_macro = [No macro]
 inspector.actions = [{count} deeds]
 inspector.test = Essay
 inspector.delete = Banish Tile
+inspector.repeat_unavailable = Repeating resteth whilst the long press hath a macro.
 
 macro.sequence = The macro's course:
 macro.no_actions = (No deeds)
@@ -191,9 +192,14 @@ function.turn_right = Turn rightward
 function.turn_left = Turn leftward
 function.on = Turn on
 function.off = Turn off
+function.long_press = Long press
 parameter.debounce = Stillness of the contact (ms)
 parameter.steps_per_detent = Steps per notch
 parameter.reverse = Turn the course about
+parameter.long_press = Long press after (ms)
+parameter.repeat = Repeat whilst held
+parameter.repeat_delay = Repeat after (ms)
+parameter.repeat_interval = Repeat every (ms)
 
 media.vol_up = Louder
 media.vol_down = Softer

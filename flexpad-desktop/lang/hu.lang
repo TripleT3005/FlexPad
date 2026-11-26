@@ -148,6 +148,7 @@ inspector.no_macro = [Nincs makró]
 inspector.actions = [{count} művelet]
 inspector.test = Teszt
 inspector.delete = Csempe törlése
+inspector.repeat_unavailable = Az ismétlés ki van kapcsolva, amíg a hosszú lenyomásnak van makrója.
 
 macro.sequence = Makró sorrendje:
 macro.no_actions = (Nincs művelet)
@@ -191,9 +192,14 @@ function.turn_right = Jobbra forgatás
 function.turn_left = Balra forgatás
 function.on = Bekapcsolás
 function.off = Kikapcsolás
+function.long_press = Hosszú lenyomás
 parameter.debounce = Pergésmentesítés (ms)
 parameter.steps_per_detent = Lépés kattanásonként
 parameter.reverse = Irány megfordítása
+parameter.long_press = Hosszú lenyomás ennyi után (ms)
+parameter.repeat = Ismétlés nyomva tartáskor
+parameter.repeat_delay = Ismétlés ennyi után (ms)
+parameter.repeat_interval = Ismétlés ennyi időnként (ms)
 
 media.vol_up = Hangerő fel
 media.vol_down = Hangerő le

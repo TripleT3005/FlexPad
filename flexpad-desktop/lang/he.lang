@@ -149,6 +149,7 @@ inspector.no_macro = [אין מאקרו]
 inspector.actions = [{count} פעולות]
 inspector.test = בדיקה
 inspector.delete = מחיקת האריח
+inspector.repeat_unavailable = החזרה כבויה כל עוד ללחיצה הארוכה יש מאקרו.
 
 macro.sequence = רצף המאקרו:
 macro.no_actions = (אין פעולות)
@@ -192,9 +193,14 @@ function.turn_right = סיבוב ימינה
 function.turn_left = סיבוב שמאלה
 function.on = הדלקה
 function.off = כיבוי
+function.long_press = לחיצה ארוכה
 parameter.debounce = סינון ריטוט (אלפיות שנייה)
 parameter.steps_per_detent = צעדים לכל נקישה
 parameter.reverse = היפוך כיוון
+parameter.long_press = לחיצה ארוכה אחרי (אלפיות שנייה)
+parameter.repeat = חזרה בזמן החזקה
+parameter.repeat_delay = חזרה אחרי (אלפיות שנייה)
+parameter.repeat_interval = חזרה כל (אלפיות שנייה)
 
 media.vol_up = הגברת עוצמה
 media.vol_down = הנמכת עוצמה

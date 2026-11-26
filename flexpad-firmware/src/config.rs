@@ -5,6 +5,11 @@ use crate::encoder::{DEFAULT_STEPS_PER_DETENT, Direction};
 use crate::json::{JsonError, JsonStr, Parser, remember};
 use crate::layouts::KeyboardLayout;
 use crate::macros::{self, MAX_MACRO_SIZE, MacroError, MacroWriter};
+use crate::press::{
+    DEFAULT_LONG_PRESS_MS, DEFAULT_REPEAT_DELAY_MS, DEFAULT_REPEAT_INTERVAL_MS, MAX_LONG_PRESS_MS,
+    MAX_REPEAT_DELAY_MS, MAX_REPEAT_INTERVAL_MS, MIN_LONG_PRESS_MS, MIN_REPEAT_DELAY_MS,
+    MIN_REPEAT_INTERVAL_MS, PressAction, PressMode,
+};
 
 // Constants
 
@@ -89,6 +94,7 @@ pub struct EncoderSetup {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Layout {
     pub roles: [PinRole; INPUT_PINS.len()],
+    pub presses: [PressMode; INPUT_PINS.len()],
     pub encoders: [EncoderSetup; MAX_ENCODERS],
     pub encoder_count: usize,
 }
@@ -97,6 +103,7 @@ impl Layout {
     pub const fn new() -> Self {
         Self {
             roles: [PinRole::Unused; INPUT_PINS.len()],
+            presses: [PressMode::Instant; INPUT_PINS.len()],
             encoders: [EncoderSetup {
                 a: 0,
                 b: 0,
@@ -109,6 +116,10 @@ impl Layout {
 
     pub fn role(&self, pin: u8) -> PinRole {
         pin_index(pin).map_or(PinRole::Unused, |index| self.roles[index])
+    }
+
+    pub fn press_mode(&self, pin: u8) -> PressMode {
+        pin_index(pin).map_or(PressMode::Instant, |index| self.presses[index])
     }
 
     pub fn encoders(&self) -> &[EncoderSetup] {
@@ -133,7 +144,6 @@ impl PinRole {
 
     pub fn trigger(self, pin: u8, edge: Edge) -> Option<Trigger> {
         match (self, edge) {
-            (PinRole::Button { .. }, Edge::Pressed) => Some(Trigger::Press(pin)),
             (PinRole::Switch { .. }, Edge::Pressed) => Some(Trigger::SwitchOn(pin)),
             (PinRole::Switch { .. }, Edge::Released) => Some(Trigger::SwitchOff(pin)),
             _ => None,
@@ -150,9 +160,19 @@ pub fn pin_index(pin: u8) -> Option<usize> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     Press(u8),
+    LongPress(u8),
     SwitchOn(u8),
     SwitchOff(u8),
     Turn(u8, Direction),
+}
+
+impl Trigger {
+    pub fn for_press(pin: u8, action: PressAction) -> Self {
+        match action {
+            PressAction::Short | PressAction::Repeat => Trigger::Press(pin),
+            PressAction::Long => Trigger::LongPress(pin),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -228,6 +248,24 @@ impl Bindings {
         }
         self.layout.roles[index] = role;
         Ok(())
+    }
+
+    fn set_press_mode(&mut self, pin: u8, tile: &Tile<'_>) {
+        let Some(index) = pin_index(pin) else {
+            return;
+        };
+        self.layout.presses[index] = if self.macro_for(Trigger::LongPress(pin)).is_some() {
+            PressMode::LongPress {
+                after_ms: tile.long_press_ms,
+            }
+        } else if tile.repeat {
+            PressMode::Repeat {
+                delay_ms: tile.repeat_delay_ms,
+                interval_ms: tile.repeat_interval_ms,
+            }
+        } else {
+            PressMode::Instant
+        };
     }
 
     fn add_encoder(&mut self, setup: EncoderSetup) -> Result<u8, ConfigError> {
@@ -334,6 +372,10 @@ struct Tile<'a> {
     debounce_ms: u8,
     steps_per_detent: u8,
     reverse: bool,
+    long_press_ms: u16,
+    repeat: bool,
+    repeat_delay_ms: u16,
+    repeat_interval_ms: u16,
 }
 
 impl<'a> Tile<'a> {
@@ -345,6 +387,10 @@ impl<'a> Tile<'a> {
             debounce_ms: DEFAULT_DEBOUNCE_MS,
             steps_per_detent: DEFAULT_STEPS_PER_DETENT,
             reverse: false,
+            long_press_ms: DEFAULT_LONG_PRESS_MS,
+            repeat: false,
+            repeat_delay_ms: DEFAULT_REPEAT_DELAY_MS,
+            repeat_interval_ms: DEFAULT_REPEAT_INTERVAL_MS,
         }
     }
 
@@ -407,7 +453,7 @@ impl<'a> Tile<'a> {
     }
 
     fn apply_button(&self, bindings: &mut Bindings) -> Result<(), ConfigError> {
-        self.check_names(&["switch"], &["press"])?;
+        self.check_names(&["switch"], &["press", "long_press"])?;
         let pin = self.pin("switch");
         if let Some(pin) = pin {
             bindings.claim_pin(
@@ -417,8 +463,11 @@ impl<'a> Tile<'a> {
                 },
             )?;
         }
-        for (_, value) in self.functions.iter() {
-            bindings.add_macro(pin.map(Trigger::Press), value, pin.unwrap_or(0))?;
+        for (name, value) in self.functions.iter() {
+            bindings.add_macro(press_trigger(name, pin), value, pin.unwrap_or(0))?;
+        }
+        if let Some(pin) = pin {
+            bindings.set_press_mode(pin, self);
         }
         Ok(())
     }
@@ -446,7 +495,10 @@ impl<'a> Tile<'a> {
     }
 
     fn apply_encoder(&self, bindings: &mut Bindings) -> Result<(), ConfigError> {
-        self.check_names(&["a", "b", "switch"], &["turn_right", "turn_left", "press"])?;
+        self.check_names(
+            &["a", "b", "switch"],
+            &["turn_right", "turn_left", "press", "long_press"],
+        )?;
         let encoder = match (self.pin("a"), self.pin("b")) {
             (Some(a), Some(b)) => Some(bindings.add_encoder(EncoderSetup {
                 a,
@@ -472,11 +524,22 @@ impl<'a> Tile<'a> {
             } else if name.eq_str("turn_left") {
                 encoder.map(|index| Trigger::Turn(index, Direction::Left))
             } else {
-                switch.map(Trigger::Press)
+                press_trigger(name, switch)
             };
             bindings.add_macro(trigger, value, error_pin)?;
         }
+        if let Some(pin) = switch {
+            bindings.set_press_mode(pin, self);
+        }
         Ok(())
+    }
+}
+
+fn press_trigger(name: JsonStr<'_>, pin: Option<u8>) -> Option<Trigger> {
+    if name.eq_str("long_press") {
+        pin.map(Trigger::LongPress)
+    } else {
+        pin.map(Trigger::Press)
     }
 }
 
@@ -675,6 +738,22 @@ fn parse_tile_parameters(parser: &mut Parser<'_>, tile: &mut Tile<'_>) -> Result
                 parse_bool(parser)
                     .map(|value| tile.reverse = value)
                     .ok_or(ConfigError::InvalidParameter("reverse"))
+            } else if name.eq_str("long_press_ms") {
+                parse_duration(parser, MIN_LONG_PRESS_MS, MAX_LONG_PRESS_MS)
+                    .map(|value| tile.long_press_ms = value)
+                    .ok_or(ConfigError::InvalidParameter("long_press_ms"))
+            } else if name.eq_str("repeat") {
+                parse_bool(parser)
+                    .map(|value| tile.repeat = value)
+                    .ok_or(ConfigError::InvalidParameter("repeat"))
+            } else if name.eq_str("repeat_delay_ms") {
+                parse_duration(parser, MIN_REPEAT_DELAY_MS, MAX_REPEAT_DELAY_MS)
+                    .map(|value| tile.repeat_delay_ms = value)
+                    .ok_or(ConfigError::InvalidParameter("repeat_delay_ms"))
+            } else if name.eq_str("repeat_interval_ms") {
+                parse_duration(parser, MIN_REPEAT_INTERVAL_MS, MAX_REPEAT_INTERVAL_MS)
+                    .map(|value| tile.repeat_interval_ms = value)
+                    .ok_or(ConfigError::InvalidParameter("repeat_interval_ms"))
             } else {
                 parser.skip_value().map_err(ConfigError::from)
             };
@@ -690,6 +769,23 @@ fn parse_bool(parser: &mut Parser<'_>) -> Option<bool> {
         _ => return None,
     };
     parser.skip_value().ok().map(|_| value)
+}
+
+fn parse_duration(parser: &mut Parser<'_>, min: u16, max: u16) -> Option<u16> {
+    if !matches!(parser.peek(), Some(b'0'..=b'9')) {
+        return None;
+    }
+    let digits = parser.number().ok()?;
+    let digits = digits.as_bytes();
+    if digits.len() > 5 || !digits.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let value = digits
+        .iter()
+        .fold(0u32, |value, digit| value * 10 + u32::from(digit - b'0'));
+    u16::try_from(value)
+        .ok()
+        .filter(|value| (min..=max).contains(value))
 }
 
 fn parse_small_number(parser: &mut Parser<'_>) -> Result<Option<u8>, ConfigError> {
@@ -912,7 +1008,7 @@ mod tests {
         let button = PinRole::Button { debounce_ms: 10 };
         let switch = PinRole::Switch { debounce_ms: 10 };
 
-        assert_eq!(button.trigger(4, Edge::Pressed), Some(Trigger::Press(4)));
+        assert_eq!(button.trigger(4, Edge::Pressed), None);
         assert_eq!(button.trigger(4, Edge::Released), None);
         assert_eq!(switch.trigger(5, Edge::Pressed), Some(Trigger::SwitchOn(5)));
         assert_eq!(
@@ -1118,6 +1214,42 @@ mod tests {
             (
                 r#"{"tiles":[{"kind":"button","functions":{"press":5}}]}"#,
                 ConfigError::InvalidStructure("function"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"long_press_ms":199}}]}"#,
+                ConfigError::InvalidParameter("long_press_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"long_press_ms":2001}}]}"#,
+                ConfigError::InvalidParameter("long_press_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"encoder","parameters":{"long_press_ms":"500"}}]}"#,
+                ConfigError::InvalidParameter("long_press_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"repeat":1}}]}"#,
+                ConfigError::InvalidParameter("repeat"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"repeat_delay_ms":99}}]}"#,
+                ConfigError::InvalidParameter("repeat_delay_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"repeat_delay_ms":-500}}]}"#,
+                ConfigError::InvalidParameter("repeat_delay_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"repeat_interval_ms":1001}}]}"#,
+                ConfigError::InvalidParameter("repeat_interval_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"button","parameters":{"repeat_interval_ms":100000}}]}"#,
+                ConfigError::InvalidParameter("repeat_interval_ms"),
+            ),
+            (
+                r#"{"tiles":[{"kind":"switch","functions":{"long_press":"P:a"}}]}"#,
+                ConfigError::UnknownFunction,
             ),
         ];
         for (json, expected) in cases {
@@ -1335,6 +1467,113 @@ mod tests {
         assert!(result.is_err());
         assert!(bindings.is_empty());
         assert!(bindings.layout().encoders().is_empty());
+    }
+
+    // Long press and repeat
+
+    #[test]
+    fn buttons_press_instantly_by_default() {
+        let bindings = parse(PROFILE).unwrap();
+
+        assert_eq!(bindings.layout().press_mode(4), PressMode::Instant);
+        assert_eq!(bindings.layout().press_mode(17), PressMode::Instant);
+        assert_eq!(bindings.layout().press_mode(5), PressMode::Instant);
+    }
+
+    #[test]
+    fn long_press_macros_switch_to_long_press() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[
+                {"kind":"button","pins":{"switch":4},"parameters":{"long_press_ms":800,"repeat":true},
+                 "functions":{"press":"P:a","long_press":{"actions":[{"media":"mute"}]}}},
+                {"kind":"encoder","pins":{"a":15,"b":16,"switch":17},
+                 "functions":{"press":"P:a","long_press":"MEDIA:vol_up"}}
+            ]}"#,
+        )
+        .unwrap();
+        let layout = bindings.layout();
+
+        assert_eq!(layout.press_mode(4), PressMode::LongPress { after_ms: 800 });
+        assert_eq!(
+            layout.press_mode(17),
+            PressMode::LongPress {
+                after_ms: DEFAULT_LONG_PRESS_MS
+            }
+        );
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::LongPress(4))),
+            Some(vec![MUTE])
+        );
+        assert_eq!(
+            decoded(bindings.macro_for(Trigger::LongPress(17))),
+            Some(vec![VOLUME_UP])
+        );
+        assert!(bindings.macro_for(Trigger::Press(4)).is_some());
+    }
+
+    #[test]
+    fn empty_long_press_macros_keep_the_instant_press() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[{"kind":"button","pins":{"switch":4},
+                "functions":{"press":"P:a","long_press":{"actions":[]}}}]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(bindings.layout().press_mode(4), PressMode::Instant);
+        assert_eq!(bindings.macro_for(Trigger::LongPress(4)), None);
+    }
+
+    #[test]
+    fn repeat_needs_the_flag_and_reads_its_times() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[
+                {"kind":"button","pins":{"switch":4},"parameters":{"repeat":true,"repeat_delay_ms":300,"repeat_interval_ms":50},"functions":{"press":"P:a"}},
+                {"kind":"button","pins":{"switch":5},"parameters":{"repeat":true},"functions":{"press":"P:a"}},
+                {"kind":"button","pins":{"switch":6},"parameters":{"repeat":false,"repeat_delay_ms":300},"functions":{"press":"P:a"}}
+            ]}"#,
+        )
+        .unwrap();
+        let layout = bindings.layout();
+
+        assert_eq!(
+            layout.press_mode(4),
+            PressMode::Repeat {
+                delay_ms: 300,
+                interval_ms: 50
+            }
+        );
+        assert_eq!(
+            layout.press_mode(5),
+            PressMode::Repeat {
+                delay_ms: DEFAULT_REPEAT_DELAY_MS,
+                interval_ms: DEFAULT_REPEAT_INTERVAL_MS
+            }
+        );
+        assert_eq!(layout.press_mode(6), PressMode::Instant);
+    }
+
+    #[test]
+    fn press_actions_become_triggers() {
+        assert_eq!(Trigger::for_press(4, PressAction::Short), Trigger::Press(4));
+        assert_eq!(
+            Trigger::for_press(4, PressAction::Repeat),
+            Trigger::Press(4)
+        );
+        assert_eq!(
+            Trigger::for_press(4, PressAction::Long),
+            Trigger::LongPress(4)
+        );
+    }
+
+    #[test]
+    fn encoders_fit_four_functions() {
+        let bindings = parse(
+            r#"{"format":2,"tiles":[{"kind":"encoder","pins":{"a":15,"b":16,"switch":17},
+                "functions":{"turn_right":"P:a","turn_left":"P:b","press":"P:c","long_press":"P:d"}}]}"#,
+        )
+        .unwrap();
+
+        assert_eq!(bindings.len(), 4);
     }
 
     #[test]

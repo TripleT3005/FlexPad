@@ -149,6 +149,7 @@ inspector.no_macro = [Keen Makro]
 inspector.actions = [{count} Akschonen]
 inspector.test = Utproberen
 inspector.delete = Kachel wegdoon
+inspector.repeat_unavailable = Wedderhalen is ut, so lang dat lange Drücken en Makro hett.
 
 macro.sequence = Makroaflööp:
 macro.no_actions = (Keen Akschonen)
@@ -192,9 +193,14 @@ function.turn_right = Na rechts dreihen
 function.turn_left = Na links dreihen
 function.on = Inschalten
 function.off = Utschalten
+function.long_press = Lang drücken
 parameter.debounce = Entprellen (ms)
 parameter.steps_per_detent = Schreed pro Rast
 parameter.reverse = Dreihrichtung ümdreihen
+parameter.long_press = Lang drücken af (ms)
+parameter.repeat = Bi’t Hollen wedderhalen
+parameter.repeat_delay = Wedderhalen na (ms)
+parameter.repeat_interval = Wedderhalen all (ms)
 
 media.vol_up = Luder
 media.vol_down = Sachter

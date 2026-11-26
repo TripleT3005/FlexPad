@@ -148,6 +148,7 @@ inspector.no_macro = [Nessuna macro]
 inspector.actions = [{count} azioni]
 inspector.test = Prova
 inspector.delete = Elimina riquadro
+inspector.repeat_unavailable = La ripetizione è disattivata finché la pressione lunga ha una macro.
 
 macro.sequence = Sequenza della macro:
 macro.no_actions = (Nessuna azione)
@@ -191,9 +192,14 @@ function.turn_right = Rotazione a destra
 function.turn_left = Rotazione a sinistra
 function.on = Accensione
 function.off = Spegnimento
+function.long_press = Pressione lunga
 parameter.debounce = Antirimbalzo (ms)
 parameter.steps_per_detent = Passi per scatto
 parameter.reverse = Inverti direzione
+parameter.long_press = Pressione lunga dopo (ms)
+parameter.repeat = Ripeti tenendo premuto
+parameter.repeat_delay = Ripeti dopo (ms)
+parameter.repeat_interval = Ripeti ogni (ms)
 
 media.vol_up = Volume su
 media.vol_down = Volume giù

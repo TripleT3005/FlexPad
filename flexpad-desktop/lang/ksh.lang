@@ -149,6 +149,7 @@ inspector.no_macro = [Kei Makro]
 inspector.actions = [{count} Aktione]
 inspector.test = Usprobeere
 inspector.delete = Kachel fottmaache
+inspector.repeat_unavailable = Widderhole es us, solang dat lange Dröcke e Makro hät.
 
 macro.sequence = Makroavlauf:
 macro.no_actions = (Kein Aktione)
@@ -192,9 +193,14 @@ function.turn_right = Noh räächs drieje
 function.turn_left = Noh links drieje
 function.on = Aanmaache
 function.off = Usmaache
+function.long_press = Lang dröcke
 parameter.debounce = Entprelle (ms)
 parameter.steps_per_detent = Schredde pro Rass
 parameter.reverse = Driehrichtung ömdrieje
+parameter.long_press = Lang dröcke av (ms)
+parameter.repeat = Beim Fasshalde widderhole
+parameter.repeat_delay = Widderhole noh (ms)
+parameter.repeat_interval = Widderhole alle (ms)
 
 media.vol_up = Lauter
 media.vol_down = Leiser

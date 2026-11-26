@@ -148,6 +148,7 @@ inspector.no_macro = [Nav makro]
 inspector.actions = [Darbības: {count}]
 inspector.test = Testēt
 inspector.delete = Dzēst flīzi
+inspector.repeat_unavailable = Atkārtošana ir izslēgta, kamēr ilgajai nospiešanai ir makro.
 
 macro.sequence = Makro secība:
 macro.no_actions = (Nav darbību)
@@ -191,9 +192,14 @@ function.turn_right = Pagriešana pa labi
 function.turn_left = Pagriešana pa kreisi
 function.on = Ieslēgšana
 function.off = Izslēgšana
+function.long_press = Ilga nospiešana
 parameter.debounce = Atlēcienu novēršana (ms)
 parameter.steps_per_detent = Soļi uz klikšķi
 parameter.reverse = Mainīt virzienu
+parameter.long_press = Ilga nospiešana pēc (ms)
+parameter.repeat = Atkārtot, kamēr tur
+parameter.repeat_delay = Atkārtot pēc (ms)
+parameter.repeat_interval = Atkārtot ik pēc (ms)
 
 media.vol_up = Skaļāk
 media.vol_down = Klusāk

@@ -148,6 +148,7 @@ inspector.no_macro = [Không có macro]
 inspector.actions = [{count} thao tác]
 inspector.test = Thử
 inspector.delete = Xóa ô
+inspector.repeat_unavailable = Lặp lại bị tắt khi nhấn giữ có macro.
 
 macro.sequence = Trình tự macro:
 macro.no_actions = (Không có thao tác)
@@ -191,9 +192,14 @@ function.turn_right = Xoay phải
 function.turn_left = Xoay trái
 function.on = Bật
 function.off = Tắt
+function.long_press = Nhấn giữ
 parameter.debounce = Chống dội (ms)
 parameter.steps_per_detent = Số bước mỗi nấc
 parameter.reverse = Đảo chiều
+parameter.long_press = Nhấn giữ sau (ms)
+parameter.repeat = Lặp lại khi giữ
+parameter.repeat_delay = Lặp lại sau (ms)
+parameter.repeat_interval = Lặp lại mỗi (ms)
 
 media.vol_up = Tăng âm lượng
 media.vol_down = Giảm âm lượng

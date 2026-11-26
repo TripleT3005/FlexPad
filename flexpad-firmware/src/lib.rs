@@ -9,5 +9,6 @@ pub mod keys;
 pub mod layouts;
 pub mod macros;
 pub mod player;
+pub mod press;
 pub mod protocol;
 pub mod storage;

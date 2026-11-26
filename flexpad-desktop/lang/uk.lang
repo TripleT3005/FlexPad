@@ -148,6 +148,7 @@ inspector.no_macro = [Немає макросу]
 inspector.actions = [Дій: {count}]
 inspector.test = Перевірити
 inspector.delete = Видалити плитку
+inspector.repeat_unavailable = Повтор вимкнено, доки довге натискання має макрос.
 
 macro.sequence = Послідовність макросу:
 macro.no_actions = (Немає дій)
@@ -191,9 +192,14 @@ function.turn_right = Поворот праворуч
 function.turn_left = Поворот ліворуч
 function.on = Увімкнення
 function.off = Вимкнення
+function.long_press = Довге натискання
 parameter.debounce = Усунення брязкоту (мс)
 parameter.steps_per_detent = Кроків на клацання
 parameter.reverse = Зворотний напрямок
+parameter.long_press = Довге натискання через (мс)
+parameter.repeat = Повтор під час утримання
+parameter.repeat_delay = Повтор через (мс)
+parameter.repeat_interval = Повтор кожні (мс)
 
 media.vol_up = Гучніше
 media.vol_down = Тихіше

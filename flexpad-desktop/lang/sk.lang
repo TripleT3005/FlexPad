@@ -148,6 +148,7 @@ inspector.no_macro = [Žiadne makro]
 inspector.actions = [Akcie: {count}]
 inspector.test = Otestovať
 inspector.delete = Odstrániť dlaždicu
+inspector.repeat_unavailable = Opakovanie je vypnuté, kým má dlhé stlačenie makro.
 
 macro.sequence = Priebeh makra:
 macro.no_actions = (Žiadne akcie)
@@ -191,9 +192,14 @@ function.turn_right = Otočenie doprava
 function.turn_left = Otočenie doľava
 function.on = Zapnutie
 function.off = Vypnutie
+function.long_press = Dlhé stlačenie
 parameter.debounce = Odstránenie zákmitov (ms)
 parameter.steps_per_detent = Kroky na zárez
 parameter.reverse = Obrátiť smer
+parameter.long_press = Dlhé stlačenie po (ms)
+parameter.repeat = Opakovať pri držaní
+parameter.repeat_delay = Opakovať po (ms)
+parameter.repeat_interval = Opakovať každých (ms)
 
 media.vol_up = Zosilniť
 media.vol_down = Zoslabiť

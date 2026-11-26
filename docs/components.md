@@ -12,11 +12,13 @@ A definition only chooses names, pins, functions, default macros and parameters.
 
 | Kind | Pins | Functions | Parameters |
 |---|---|---|---|
-| `button` | `switch` (required) | `press` (required) | `debounce_ms`: number, 0 to 200 |
-| `encoder` | `a`, `b` (required), `switch` | `turn_right`, `turn_left` (required), `press` (needs the pin `switch`) | `steps_per_detent`: choice of 1, 2, 4; `reverse`: flag; `debounce_ms`: number, 0 to 200 |
+| `button` | `switch` (required) | `press` (required), `long_press` | `debounce_ms`: number, 0 to 200; `long_press_ms`: number, 200 to 2000; `repeat`: flag; `repeat_delay_ms`: number, 100 to 2000; `repeat_interval_ms`: number, 20 to 1000 |
+| `encoder` | `a`, `b` (required), `switch` | `turn_right`, `turn_left` (required), `press`, `long_press` (both need the pin `switch`) | `steps_per_detent`: choice of 1, 2, 4; `reverse`: flag; `debounce_ms`, `long_press_ms`, `repeat`, `repeat_delay_ms`, `repeat_interval_ms` as for `button` |
 | `switch` | `switch` (required) | `on`, `off` (required) | `debounce_ms`: number, 0 to 200 |
 
 A `switch` is a toggle switch: `on` runs when it is switched on (closed), `off` when it is switched off (open). It needs firmware 1.4.0 or newer.
+
+`long_press` runs when a button is held for `long_press_ms`; `press` then runs on a short release instead of on press. `repeat` repeats `press` while the button is held and only applies without a `long_press` macro. Both need firmware 1.5.0 or newer; see [Kinds](protocol.md#kinds) in the protocol.
 
 ### File format
 
@@ -60,11 +62,13 @@ Eine Definition legt nur Namen, Pins, Funktionen, Standard-Makros und Parameter 
 
 | Art | Pins | Funktionen | Parameter |
 |---|---|---|---|
-| `button` | `switch` (Pflicht) | `press` (Pflicht) | `debounce_ms`: Zahl von 0 bis 200 |
-| `encoder` | `a`, `b` (Pflicht), `switch` | `turn_right`, `turn_left` (Pflicht), `press` (braucht den Pin `switch`) | `steps_per_detent`: Auswahl aus 1, 2, 4; `reverse`: Schalter; `debounce_ms`: Zahl von 0 bis 200 |
+| `button` | `switch` (Pflicht) | `press` (Pflicht), `long_press` | `debounce_ms`: Zahl von 0 bis 200; `long_press_ms`: Zahl von 200 bis 2000; `repeat`: Schalter; `repeat_delay_ms`: Zahl von 100 bis 2000; `repeat_interval_ms`: Zahl von 20 bis 1000 |
+| `encoder` | `a`, `b` (Pflicht), `switch` | `turn_right`, `turn_left` (Pflicht), `press`, `long_press` (beide brauchen den Pin `switch`) | `steps_per_detent`: Auswahl aus 1, 2, 4; `reverse`: Schalter; `debounce_ms`, `long_press_ms`, `repeat`, `repeat_delay_ms`, `repeat_interval_ms` wie bei `button` |
 | `switch` | `switch` (Pflicht) | `on`, `off` (Pflicht) | `debounce_ms`: Zahl von 0 bis 200 |
 
 Ein `switch` ist ein Kippschalter: `on` läuft beim Einschalten (geschlossen), `off` beim Ausschalten (offen). Die Art braucht Firmware 1.4.0 oder neuer.
+
+`long_press` läuft, wenn ein Taster `long_press_ms` lang gehalten wird; `press` läuft dann beim kurzen Loslassen statt beim Drücken. `repeat` wiederholt `press`, solange der Taster gedrückt ist, und gilt nur ohne Makro für `long_press`. Beides braucht Firmware 1.5.0 oder neuer; Details unter [Kinds](protocol.md#kinds) im Protokoll.
 
 ### Dateiformat
 

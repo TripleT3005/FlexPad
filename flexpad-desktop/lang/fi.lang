@@ -148,6 +148,7 @@ inspector.no_macro = [Ei makroa]
 inspector.actions = [{count} toimintoa]
 inspector.test = Testaa
 inspector.delete = Poista ruutu
+inspector.repeat_unavailable = Toisto on pois päältä, kun pitkällä painalluksella on makro.
 
 macro.sequence = Makron vaiheet:
 macro.no_actions = (Ei toimintoja)
@@ -191,9 +192,14 @@ function.turn_right = Käännä oikealle
 function.turn_left = Käännä vasemmalle
 function.on = Päälle
 function.off = Pois
+function.long_press = Pitkä painallus
 parameter.debounce = Värähtelyn suodatus (ms)
 parameter.steps_per_detent = Askeleet naksua kohti
 parameter.reverse = Käännä suunta
+parameter.long_press = Pitkä painallus kun (ms)
+parameter.repeat = Toista pidettäessä
+parameter.repeat_delay = Toista kun (ms)
+parameter.repeat_interval = Toista välein (ms)
 
 media.vol_up = Äänenvoimakkuus ylös
 media.vol_down = Äänenvoimakkuus alas

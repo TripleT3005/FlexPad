@@ -148,6 +148,7 @@ inspector.no_macro = [Makro yok]
 inspector.actions = [{count} eylem]
 inspector.test = Test et
 inspector.delete = Kutucuğu sil
+inspector.repeat_unavailable = Uzun basmanın makrosu olduğu sürece tekrar kapalıdır.
 
 macro.sequence = Makro sırası:
 macro.no_actions = (Eylem yok)
@@ -191,9 +192,14 @@ function.turn_right = Sağa çevirme
 function.turn_left = Sola çevirme
 function.on = Açma
 function.off = Kapatma
+function.long_press = Uzun basma
 parameter.debounce = Sıçrama önleme (ms)
 parameter.steps_per_detent = Tık başına adım
 parameter.reverse = Yönü ters çevir
+parameter.long_press = Uzun basma süresi (ms)
+parameter.repeat = Basılı tutarken tekrarla
+parameter.repeat_delay = Tekrar başlangıcı (ms)
+parameter.repeat_interval = Tekrar aralığı (ms)
 
 media.vol_up = Sesi aç
 media.vol_down = Sesi kıs

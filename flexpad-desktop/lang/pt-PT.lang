@@ -148,6 +148,7 @@ inspector.no_macro = [Sem macro]
 inspector.actions = [{count} ações]
 inspector.test = Testar
 inspector.delete = Eliminar mosaico
+inspector.repeat_unavailable = A repetição fica desligada enquanto o premir longo tiver uma macro.
 
 macro.sequence = Sequência da macro:
 macro.no_actions = (Sem ações)
@@ -191,9 +192,14 @@ function.turn_right = Rodar para a direita
 function.turn_left = Rodar para a esquerda
 function.on = Ligar
 function.off = Desligar
+function.long_press = Premir longo
 parameter.debounce = Antirressalto (ms)
 parameter.steps_per_detent = Passos por clique
 parameter.reverse = Inverter sentido
+parameter.long_press = Premir longo após (ms)
+parameter.repeat = Repetir enquanto premido
+parameter.repeat_delay = Repetir após (ms)
+parameter.repeat_interval = Repetir a cada (ms)
 
 media.vol_up = Aumentar volume
 media.vol_down = Diminuir volume

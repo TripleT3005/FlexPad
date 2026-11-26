@@ -6,6 +6,22 @@ Alle wichtigen Änderungen am FlexPad-Konfigurator (Desktop-App), gegliedert nac
 
 ## [Unreleased]
 
+## [1.8.0] – 2026-11-26
+
+### English
+
+#### Added
+- Buttons and the push button of the EC11 encoder have a second function **Long press**. Once it has a macro, a short press runs on release and a long press as soon as **Long press after (ms)** is reached (default 500 ms); without one, a button still runs its macro right when it is pressed.
+- New parameter **Repeat while held** for buttons and the push button of the encoder: the macro runs again every **Repeat every (ms)** after **Repeat after (ms)** until the button is released, e.g. for volume or arrow keys. It is hidden while the long press has a macro.
+- Both need firmware 1.5.0 or newer, which the app installs with **Update firmware**. Own component definitions can use `long_press` and the new parameters.
+
+### Deutsch
+
+#### Neu
+- Taster und der Drucktaster des EC11-Encoders haben eine zweite Funktion **Long press** (Lang drücken). Sobald sie ein Makro hat, läuft das kurze Drücken beim Loslassen und das lange, sobald **Long press after (ms)** erreicht ist (Standard 500 ms); ohne löst ein Taster wie bisher sofort beim Drücken aus.
+- Neuer Parameter **Repeat while held** (Beim Halten wiederholen) für Taster und den Drucktaster des Encoders: Das Makro läuft nach **Repeat after (ms)** alle **Repeat every (ms)** erneut, bis der Taster losgelassen wird, z. B. für Lautstärke oder Pfeiltasten. Er ist ausgeblendet, solange langes Drücken ein Makro hat.
+- Beides braucht Firmware 1.5.0 oder neuer, die die App mit **Update firmware** installiert. Eigene Bauteil-Definitionen können `long_press` und die neuen Parameter nutzen.
+
 ## [1.7.1] – 2026-11-26
 
 ### English
