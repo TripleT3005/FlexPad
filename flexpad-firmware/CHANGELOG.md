@@ -6,6 +6,20 @@ Alle wichtigen Änderungen an der FlexPad-Firmware für den ESP32-S3, gegliedert
 
 ## [Unreleased]
 
+## [1.5.0] – 2026-11-26
+
+### English
+
+#### Added
+- Long press for buttons and the push button of an encoder (function `long_press`, time `long_press_ms`, 200–2000 ms, default 500). With a long-press macro, a short press runs on release and a long press as soon as the time is reached; without one, a button still runs its macro right when it is pressed.
+- Repeat while held (`repeat`, `repeat_delay_ms` 100–2000 ms, default 500, `repeat_interval_ms` 20–1000 ms, default 100): the macro of a button runs again and again until it is released, e.g. for volume or arrow keys. Repeat only applies without a long-press macro.
+
+### Deutsch
+
+#### Neu
+- Langes Drücken für Taster und den Drucktaster eines Encoders (Funktion `long_press`, Zeit `long_press_ms`, 200–2000 ms, Standard 500). Mit Makro für langes Drücken läuft das kurze Drücken beim Loslassen und das lange, sobald die Zeit erreicht ist; ohne löst ein Taster wie bisher sofort beim Drücken aus.
+- Wiederholen beim Halten (`repeat`, `repeat_delay_ms` 100–2000 ms, Standard 500, `repeat_interval_ms` 20–1000 ms, Standard 100): Das Makro eines Tasters läuft immer wieder, bis er losgelassen wird, z. B. für Lautstärke oder Pfeiltasten. Wiederholen gilt nur ohne Makro für langes Drücken.
+
 ## [1.4.0] – 2026-11-25
 
 ### English
