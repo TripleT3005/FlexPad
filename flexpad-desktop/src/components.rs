@@ -18,6 +18,8 @@ mod bundled {
 
 pub const DEFAULT_COMPONENT: &str = "button";
 pub const SWITCH_KIND: &str = "switch";
+pub const LONG_PRESS_FUNCTION: &str = "long_press";
+pub const REPEAT_PARAMETER: &str = "repeat";
 const FOLDER: &str = "components";
 const EXTENSION: &str = "json";
 const MAX_FILE_SIZE: u64 = 64 * 1024;
@@ -142,29 +144,47 @@ struct KindFunction {
 }
 
 enum Limit {
-    Number { max: u32 },
+    Number { min: u32, max: u32 },
     Choice(&'static [u32]),
     Flag,
 }
 
-const MAX_DEBOUNCE_MS: u32 = 200;
+const DEBOUNCE_MS: Limit = Limit::Number { min: 0, max: 200 };
+const LONG_PRESS_MS: Limit = Limit::Number {
+    min: 200,
+    max: 2000,
+};
+const REPEAT_DELAY_MS: Limit = Limit::Number {
+    min: 100,
+    max: 2000,
+};
+const REPEAT_INTERVAL_MS: Limit = Limit::Number { min: 20, max: 1000 };
 const STEPS_PER_DETENT: &[u32] = &[1, 2, 4];
+const PRESS_PARAMETERS: [(&str, Limit); 5] = [
+    ("debounce_ms", DEBOUNCE_MS),
+    ("long_press_ms", LONG_PRESS_MS),
+    (REPEAT_PARAMETER, Limit::Flag),
+    ("repeat_delay_ms", REPEAT_DELAY_MS),
+    ("repeat_interval_ms", REPEAT_INTERVAL_MS),
+];
 
 const KINDS: &[Kind] = &[
     Kind {
         id: "button",
         pins: &["switch"],
-        functions: &[KindFunction {
-            id: "press",
-            pins: &["switch"],
-            required: true,
-        }],
-        parameters: &[(
-            "debounce_ms",
-            Limit::Number {
-                max: MAX_DEBOUNCE_MS,
+        functions: &[
+            KindFunction {
+                id: "press",
+                pins: &["switch"],
+                required: true,
             },
-        )],
+            KindFunction {
+                id: LONG_PRESS_FUNCTION,
+                pins: &["switch"],
+                required: false,
+            },
+        ],
+        parameters: &PRESS_PARAMETERS,
     },
     Kind {
         id: "encoder",
@@ -185,16 +205,20 @@ const KINDS: &[Kind] = &[
                 pins: &["switch"],
                 required: false,
             },
+            KindFunction {
+                id: LONG_PRESS_FUNCTION,
+                pins: &["switch"],
+                required: false,
+            },
         ],
         parameters: &[
             ("steps_per_detent", Limit::Choice(STEPS_PER_DETENT)),
             ("reverse", Limit::Flag),
-            (
-                "debounce_ms",
-                Limit::Number {
-                    max: MAX_DEBOUNCE_MS,
-                },
-            ),
+            ("debounce_ms", DEBOUNCE_MS),
+            ("long_press_ms", LONG_PRESS_MS),
+            (REPEAT_PARAMETER, Limit::Flag),
+            ("repeat_delay_ms", REPEAT_DELAY_MS),
+            ("repeat_interval_ms", REPEAT_INTERVAL_MS),
         ],
     },
     Kind {
@@ -212,12 +236,7 @@ const KINDS: &[Kind] = &[
                 required: true,
             },
         ],
-        parameters: &[(
-            "debounce_ms",
-            Limit::Number {
-                max: MAX_DEBOUNCE_MS,
-            },
-        )],
+        parameters: &[("debounce_ms", DEBOUNCE_MS)],
     },
 ];
 
@@ -416,9 +435,13 @@ fn validate_parameters(component: &Component, kind: &Kind) -> Result<(), String>
             return Err(format!("parameter '{}' has no label", parameter.id));
         }
         let fits = match (&parameter.kind, limit) {
-            (ParameterKind::Number { min, max, default }, Limit::Number { max: limit }) => {
-                min <= default && default <= max && max <= limit
-            }
+            (
+                ParameterKind::Number { min, max, default },
+                Limit::Number {
+                    min: lowest,
+                    max: highest,
+                },
+            ) => lowest <= min && min <= default && default <= max && max <= highest,
             (ParameterKind::Choice { options, default }, Limit::Choice(allowed)) => {
                 !options.is_empty()
                     && options.iter().all(|option| allowed.contains(option))
@@ -443,6 +466,7 @@ mod tests {
 
     const FIRMWARE_CONFIG: &str = include_str!("../../flexpad-firmware/src/config.rs");
     const FIRMWARE_BUTTONS: &str = include_str!("../../flexpad-firmware/src/buttons.rs");
+    const FIRMWARE_PRESS: &str = include_str!("../../flexpad-firmware/src/press.rs");
     const ENGLISH: &str = include_str!("../lang/en.lang");
     const DOCUMENT: &str = include_str!("../../docs/components.md");
 
@@ -556,9 +580,48 @@ mod tests {
                 .iter()
                 .map(|function| function.id.as_str())
                 .collect::<Vec<_>>(),
-            ["turn_right", "turn_left", "press"]
+            ["turn_right", "turn_left", "press", LONG_PRESS_FUNCTION]
         );
         assert_eq!(encoder.functions[2].default_macro(), macros::media("mute"));
+        assert!(encoder.functions[3].default_macro().actions.is_empty());
+        assert_eq!(
+            button
+                .functions
+                .iter()
+                .map(|function| function.id.as_str())
+                .collect::<Vec<_>>(),
+            ["press", LONG_PRESS_FUNCTION]
+        );
+        for component in [button, encoder] {
+            assert_eq!(
+                component
+                    .parameter("long_press_ms")
+                    .unwrap()
+                    .default_value(),
+                500
+            );
+            assert_eq!(
+                component
+                    .parameter(REPEAT_PARAMETER)
+                    .unwrap()
+                    .default_value(),
+                false
+            );
+            assert_eq!(
+                component
+                    .parameter("repeat_delay_ms")
+                    .unwrap()
+                    .default_value(),
+                500
+            );
+            assert_eq!(
+                component
+                    .parameter("repeat_interval_ms")
+                    .unwrap()
+                    .default_value(),
+                100
+            );
+        }
     }
 
     #[test]
@@ -576,8 +639,33 @@ mod tests {
 
     // Firmware
 
+    fn compact(code: &str) -> String {
+        code.split_whitespace()
+            .collect::<String>()
+            .replace(",)", ")")
+    }
+
+    fn firmware_constant(name: &str) -> Option<u32> {
+        FIRMWARE_BUTTONS
+            .lines()
+            .chain(FIRMWARE_PRESS.lines())
+            .find_map(|line| {
+                let rest = line.trim().strip_prefix("pub const ")?;
+                let (constant, value) = rest.split_once(':')?;
+                (constant == name)
+                    .then_some(value)?
+                    .split_once('=')?
+                    .1
+                    .trim()
+                    .trim_end_matches(';')
+                    .parse()
+                    .ok()
+            })
+    }
+
     #[test]
     fn kinds_match_the_firmware() {
+        let firmware = compact(FIRMWARE_CONFIG);
         for kind in KINDS {
             let quoted = |names: &mut dyn Iterator<Item = &str>| {
                 names
@@ -588,15 +676,33 @@ mod tests {
             let pins = quoted(&mut kind.pins.iter().copied());
             let functions = quoted(&mut kind.functions.iter().map(|function| function.id));
             let call = format!("self.check_names(&[{pins}], &[{functions}])");
-            assert!(FIRMWARE_CONFIG.contains(&call), "{call}");
+            assert!(firmware.contains(&compact(&call)), "{call}");
             assert!(FIRMWARE_CONFIG.contains(&format!("kind.eq_str({:?})", kind.id)));
             for (parameter, _) in kind.parameters {
                 assert!(FIRMWARE_CONFIG.contains(&format!("name.eq_str({parameter:?})")));
             }
         }
-        assert!(FIRMWARE_BUTTONS.contains(&format!(
-            "pub const MAX_DEBOUNCE_MS: u8 = {MAX_DEBOUNCE_MS};"
-        )));
+        let limits = [
+            ("DEBOUNCE_MS", &DEBOUNCE_MS),
+            ("LONG_PRESS_MS", &LONG_PRESS_MS),
+            ("REPEAT_DELAY_MS", &REPEAT_DELAY_MS),
+            ("REPEAT_INTERVAL_MS", &REPEAT_INTERVAL_MS),
+        ];
+        for (name, limit) in limits {
+            let Limit::Number { min, max } = limit else {
+                unreachable!();
+            };
+            assert_eq!(
+                firmware_constant(&format!("MAX_{name}")),
+                Some(*max),
+                "{name}"
+            );
+            assert_eq!(
+                firmware_constant(&format!("MIN_{name}")).unwrap_or(0),
+                *min,
+                "{name}"
+            );
+        }
         let steps = STEPS_PER_DETENT
             .iter()
             .map(u32::to_string)
@@ -666,6 +772,10 @@ mod tests {
             ("press", r#"{"id":"press","name":"T","kind":"encoder","pins":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"functions":[{"id":"turn_right","label":"R"},{"id":"turn_left","label":"L"},{"id":"press","label":"P"}]}"#.to_string()),
             ("twice", r#"{"id":"twice","name":"T","kind":"button","pins":[{"id":"switch","label":"P"},{"id":"switch","label":"P"}],"functions":[{"id":"press","label":"P"}]}"#.to_string()),
             ("range", definition("range", "button", r#","parameters":[{"id":"debounce_ms","label":"D","type":"number","min":0,"max":255,"default":10}]"#)),
+            ("short", definition("short", "button", r#","parameters":[{"id":"long_press_ms","label":"L","type":"number","min":100,"max":2000,"default":500}]"#)),
+            ("fast", definition("fast", "encoder", r#","parameters":[{"id":"repeat_interval_ms","label":"I","type":"number","min":20,"max":5000,"default":100}]"#)),
+            ("toggle_repeat", definition("toggle_repeat", "switch", r#","parameters":[{"id":"repeat","label":"R","type":"flag","default":false}]"#)),
+            ("long", r#"{"id":"long","name":"T","kind":"encoder","pins":[{"id":"a","label":"A"},{"id":"b","label":"B"}],"functions":[{"id":"turn_right","label":"R"},{"id":"turn_left","label":"L"},{"id":"long_press","label":"P"}]}"#.to_string()),
             ("steps", definition("steps", "encoder", r#","parameters":[{"id":"steps_per_detent","label":"S","type":"choice","options":[3],"default":3}]"#)),
             ("type", definition("type", "encoder", r#","parameters":[{"id":"reverse","label":"R","type":"number","min":0,"max":1,"default":0}]"#)),
             ("key", r#"{"id":"key","name":"T","kind":"button","pins":[{"id":"switch","label":"P"}],"functions":[{"id":"press","label":"P","default_macro":{"chord":["NoSuchKey"]}}]}"#.to_string()),

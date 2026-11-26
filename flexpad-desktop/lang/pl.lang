@@ -148,6 +148,7 @@ inspector.no_macro = [Brak makra]
 inspector.actions = [Akcje: {count}]
 inspector.test = Testuj
 inspector.delete = Usuń kafelek
+inspector.repeat_unavailable = Powtarzanie jest wyłączone, dopóki długie naciśnięcie ma makro.
 
 macro.sequence = Sekwencja makra:
 macro.no_actions = (Brak akcji)
@@ -191,9 +192,14 @@ function.turn_right = Obrót w prawo
 function.turn_left = Obrót w lewo
 function.on = Włączenie
 function.off = Wyłączenie
+function.long_press = Długie naciśnięcie
 parameter.debounce = Eliminacja drgań (ms)
 parameter.steps_per_detent = Kroki na zapadkę
 parameter.reverse = Odwróć kierunek
+parameter.long_press = Długie naciśnięcie po (ms)
+parameter.repeat = Powtarzaj podczas przytrzymania
+parameter.repeat_delay = Powtarzaj po (ms)
+parameter.repeat_interval = Powtarzaj co (ms)
 
 media.vol_up = Głośniej
 media.vol_down = Ciszej

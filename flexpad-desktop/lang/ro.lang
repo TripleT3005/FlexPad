@@ -148,6 +148,7 @@ inspector.no_macro = [Fără macro]
 inspector.actions = [{count} acțiuni]
 inspector.test = Testează
 inspector.delete = Șterge placa
+inspector.repeat_unavailable = Repetarea este oprită cât timp apăsarea lungă are un macro.
 
 macro.sequence = Secvența macro-ului:
 macro.no_actions = (Nicio acțiune)
@@ -191,9 +192,14 @@ function.turn_right = Rotire la dreapta
 function.turn_left = Rotire la stânga
 function.on = Pornire
 function.off = Oprire
+function.long_press = Apăsare lungă
 parameter.debounce = Antirebond (ms)
 parameter.steps_per_detent = Pași pe treaptă
 parameter.reverse = Inversează sensul
+parameter.long_press = Apăsare lungă după (ms)
+parameter.repeat = Repetă cât timp e ținut
+parameter.repeat_delay = Repetă după (ms)
+parameter.repeat_interval = Repetă la fiecare (ms)
 
 media.vol_up = Volum mai tare
 media.vol_down = Volum mai încet

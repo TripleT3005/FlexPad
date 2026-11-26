@@ -148,6 +148,7 @@ inspector.no_macro = [NO MACRO]
 inspector.actions = [{count} AKSHUNZ]
 inspector.test = TEST
 inspector.delete = KNOK TIEL OFF TABLE
+inspector.repeat_unavailable = NO AGAIN WHILE LONG BOOP HAZ MACRO.
 
 macro.sequence = MACRO STEPZ:
 macro.no_actions = (NO AKSHUNZ)
@@ -191,9 +192,14 @@ function.turn_right = SPIN RITE
 function.turn_left = SPIN LEFT
 function.on = TURN ON
 function.off = TURN OFF
+function.long_press = LONG BOOP
 parameter.debounce = NO JITTERZ (MS)
 parameter.steps_per_detent = STEPZ PER CLIK
 parameter.reverse = SPIN OTHR WAI
+parameter.long_press = LONG BOOP AFTR (MS)
+parameter.repeat = BOOP AGAIN WHILE HOLDIN
+parameter.repeat_delay = AGAIN AFTR (MS)
+parameter.repeat_interval = AGAIN EVRY (MS)
 
 media.vol_up = MOAR LOUD
 media.vol_down = LES LOUD

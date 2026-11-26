@@ -148,6 +148,7 @@ inspector.no_macro = [Nema makronaredbe]
 inspector.actions = [Radnje: {count}]
 inspector.test = Isprobaj
 inspector.delete = Izbriši pločicu
+inspector.repeat_unavailable = Ponavljanje je isključeno dok dugi pritisak ima makronaredbu.
 
 macro.sequence = Slijed makronaredbe:
 macro.no_actions = (Nema radnji)
@@ -191,9 +192,14 @@ function.turn_right = Okretanje udesno
 function.turn_left = Okretanje ulijevo
 function.on = Uključivanje
 function.off = Isključivanje
+function.long_press = Dugi pritisak
 parameter.debounce = Uklanjanje titranja (ms)
 parameter.steps_per_detent = Koraci po zarezu
 parameter.reverse = Obrni smjer
+parameter.long_press = Dugi pritisak nakon (ms)
+parameter.repeat = Ponavljaj dok se drži
+parameter.repeat_delay = Ponavljaj nakon (ms)
+parameter.repeat_interval = Ponavljaj svakih (ms)
 
 media.vol_up = Pojačaj
 media.vol_down = Utišaj

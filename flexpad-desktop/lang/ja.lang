@@ -148,6 +148,7 @@ inspector.no_macro = [マクロなし]
 inspector.actions = [{count} 件の操作]
 inspector.test = テスト
 inspector.delete = タイルを削除
+inspector.repeat_unavailable = 長押しにマクロがある間はくり返しは無効です。
 
 macro.sequence = マクロの手順:
 macro.no_actions = (操作なし)
@@ -191,9 +192,14 @@ function.turn_right = 右回転
 function.turn_left = 左回転
 function.on = オン
 function.off = オフ
+function.long_press = 長押し
 parameter.debounce = チャタリング除去 (ミリ秒)
 parameter.steps_per_detent = クリックあたりのステップ数
 parameter.reverse = 回転方向を反転
+parameter.long_press = 長押しと判定するまで (ミリ秒)
+parameter.repeat = 押している間くり返す
+parameter.repeat_delay = くり返し開始まで (ミリ秒)
+parameter.repeat_interval = くり返し間隔 (ミリ秒)
 
 media.vol_up = 音量を上げる
 media.vol_down = 音量を下げる

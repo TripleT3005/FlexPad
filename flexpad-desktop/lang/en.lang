@@ -142,6 +142,7 @@ inspector.no_macro = [No macro]
 inspector.actions = [{count} actions]
 inspector.test = Test
 inspector.delete = Delete Tile
+inspector.repeat_unavailable = Repeat is off while the long press has a macro.
 
 macro.sequence = Macro Sequence:
 macro.no_actions = (No actions)
@@ -185,9 +186,14 @@ function.turn_right = Turn right
 function.turn_left = Turn left
 function.on = Turn on
 function.off = Turn off
+function.long_press = Long press
 parameter.debounce = Debounce (ms)
 parameter.steps_per_detent = Steps per detent
 parameter.reverse = Reverse direction
+parameter.long_press = Long press after (ms)
+parameter.repeat = Repeat while held
+parameter.repeat_delay = Repeat after (ms)
+parameter.repeat_interval = Repeat every (ms)
 
 media.vol_up = Volume Up
 media.vol_down = Volume Down

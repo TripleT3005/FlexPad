@@ -148,6 +148,7 @@ inspector.no_macro = [无宏]
 inspector.actions = [{count} 个操作]
 inspector.test = 测试
 inspector.delete = 删除磁贴
+inspector.repeat_unavailable = 长按设有宏时，重复不可用。
 
 macro.sequence = 宏序列：
 macro.no_actions = （无操作）
@@ -191,9 +192,14 @@ function.turn_right = 向右旋转
 function.turn_left = 向左旋转
 function.on = 打开
 function.off = 关闭
+function.long_press = 长按
 parameter.debounce = 消抖（毫秒）
 parameter.steps_per_detent = 每格步数
 parameter.reverse = 反转方向
+parameter.long_press = 长按时间（毫秒）
+parameter.repeat = 按住时重复
+parameter.repeat_delay = 重复延迟（毫秒）
+parameter.repeat_interval = 重复间隔（毫秒）
 
 media.vol_up = 音量加
 media.vol_down = 音量减

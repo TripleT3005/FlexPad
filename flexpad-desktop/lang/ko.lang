@@ -148,6 +148,7 @@ inspector.no_macro = [매크로 없음]
 inspector.actions = [동작 {count}개]
 inspector.test = 테스트
 inspector.delete = 타일 삭제
+inspector.repeat_unavailable = 길게 누르기에 매크로가 있으면 반복은 꺼집니다.
 
 macro.sequence = 매크로 순서:
 macro.no_actions = (동작 없음)
@@ -191,9 +192,14 @@ function.turn_right = 오른쪽으로 돌리기
 function.turn_left = 왼쪽으로 돌리기
 function.on = 켜기
 function.off = 끄기
+function.long_press = 길게 누르기
 parameter.debounce = 디바운스 (ms)
 parameter.steps_per_detent = 딸깍당 단계 수
 parameter.reverse = 방향 반전
+parameter.long_press = 길게 누르기 판정 시간 (ms)
+parameter.repeat = 누르고 있는 동안 반복
+parameter.repeat_delay = 반복 시작까지 (ms)
+parameter.repeat_interval = 반복 간격 (ms)
 
 media.vol_up = 볼륨 높이기
 media.vol_down = 볼륨 낮추기

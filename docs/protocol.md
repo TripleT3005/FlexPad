@@ -136,11 +136,15 @@ The profile is written by the app, stored on the device unchanged and read back 
 
 | Kind | Pin roles | Functions | Parameters (default) |
 |---|---|---|---|
-| `button` | `switch` | `press` | `debounce_ms` 0–200 (10) |
-| `encoder` | `a`, `b`, `switch` (optional) | `turn_right`, `turn_left`, `press` | `steps_per_detent` 1, 2 or 4 (4); `reverse` (false); `debounce_ms` for the switch (10) |
+| `button` | `switch` | `press`, `long_press` | `debounce_ms` 0–200 (10); `long_press_ms` 200–2000 (500); `repeat` (false); `repeat_delay_ms` 100–2000 (500); `repeat_interval_ms` 20–1000 (100) |
+| `encoder` | `a`, `b`, `switch` (optional) | `turn_right`, `turn_left`, `press`, `long_press` | `steps_per_detent` 1, 2 or 4 (4); `reverse` (false); for the switch: `debounce_ms` (10), `long_press_ms`, `repeat`, `repeat_delay_ms`, `repeat_interval_ms` as for `button` |
 | `switch` | `switch` | `on`, `off` | `debounce_ms` 0–200 (10) |
 
 - Buttons are wired between the pin and GND; internal pull-ups are used.
+- Without a `long_press` macro, `press` runs as soon as a button (or the push button of an encoder) is pressed.
+- With a `long_press` macro, the firmware waits: if the button is released before `long_press_ms`, `press` runs on release; if it is held for `long_press_ms`, `long_press` runs right then, while it is still held, and releasing it runs nothing more.
+- With `repeat` set and no `long_press` macro, `press` runs on press and then again every `repeat_interval_ms` once the button has been held for `repeat_delay_ms`, until it is released. A repeat is skipped while macros are still waiting, so a slow macro does not pile up and keep running after release. With a `long_press` macro, `repeat` is ignored.
+- `long_press`, `long_press_ms` and the `repeat` parameters need firmware 1.5.0 or newer. Older firmware answers `unknown_function` for a `long_press` macro and ignores the parameters.
 - A `switch` (toggle switch) is wired like a button: closed (pin at GND) is on, open is off. `on` runs once when it is switched on, `off` once when it is switched off, both debounced like a button. At start and after a new profile, the firmware only takes note of the current position and runs no macro. The kind needs firmware 1.4.0 or newer; older firmware answers `unknown_kind`.
 - An encoder needs both `a` and `b` for turning. `steps_per_detent` is 4 for encoders that go through a full A/B cycle per detent (like the common EC11), 2 or 1 for others. `reverse` swaps the directions.
 

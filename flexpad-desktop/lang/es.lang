@@ -148,6 +148,7 @@ inspector.no_macro = [Sin macro]
 inspector.actions = [{count} acciones]
 inspector.test = Probar
 inspector.delete = Eliminar mosaico
+inspector.repeat_unavailable = La repetición está desactivada mientras la pulsación larga tenga una macro.
 
 macro.sequence = Secuencia de la macro:
 macro.no_actions = (Sin acciones)
@@ -191,9 +192,14 @@ function.turn_right = Girar a la derecha
 function.turn_left = Girar a la izquierda
 function.on = Encender
 function.off = Apagar
+function.long_press = Pulsación larga
 parameter.debounce = Antirrebote (ms)
 parameter.steps_per_detent = Pasos por muesca
 parameter.reverse = Invertir sentido
+parameter.long_press = Pulsación larga tras (ms)
+parameter.repeat = Repetir mientras se mantiene
+parameter.repeat_delay = Repetir tras (ms)
+parameter.repeat_interval = Repetir cada (ms)
 
 media.vol_up = Subir volumen
 media.vol_down = Bajar volumen

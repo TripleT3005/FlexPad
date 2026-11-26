@@ -148,6 +148,7 @@ inspector.no_macro = [Aucune macro]
 inspector.actions = [{count} actions]
 inspector.test = Tester
 inspector.delete = Supprimer la tuile
+inspector.repeat_unavailable = La répétition est désactivée tant que l’appui long a une macro.
 
 macro.sequence = Séquence de la macro :
 macro.no_actions = (Aucune action)
@@ -191,9 +192,14 @@ function.turn_right = Rotation à droite
 function.turn_left = Rotation à gauche
 function.on = Allumer
 function.off = Éteindre
+function.long_press = Appui long
 parameter.debounce = Anti-rebond (ms)
 parameter.steps_per_detent = Pas par cran
 parameter.reverse = Inverser le sens
+parameter.long_press = Appui long après (ms)
+parameter.repeat = Répéter tant que maintenu
+parameter.repeat_delay = Répéter après (ms)
+parameter.repeat_interval = Répéter toutes les (ms)
 
 media.vol_up = Volume +
 media.vol_down = Volume −

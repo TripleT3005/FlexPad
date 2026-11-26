@@ -148,6 +148,7 @@ inspector.no_macro = [Geen macro]
 inspector.actions = [{count} acties]
 inspector.test = Testen
 inspector.delete = Tegel verwijderen
+inspector.repeat_unavailable = Herhalen staat uit zolang lang indrukken een macro heeft.
 
 macro.sequence = Macroreeks:
 macro.no_actions = (Geen acties)
@@ -191,9 +192,14 @@ function.turn_right = Naar rechts draaien
 function.turn_left = Naar links draaien
 function.on = Inschakelen
 function.off = Uitschakelen
+function.long_press = Lang indrukken
 parameter.debounce = Ontdendering (ms)
 parameter.steps_per_detent = Stappen per klik
 parameter.reverse = Draairichting omkeren
+parameter.long_press = Lang indrukken na (ms)
+parameter.repeat = Herhalen bij ingedrukt houden
+parameter.repeat_delay = Herhalen na (ms)
+parameter.repeat_interval = Herhalen elke (ms)
 
 media.vol_up = Volume omhoog
 media.vol_down = Volume omlaag

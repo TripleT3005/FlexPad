@@ -148,6 +148,7 @@ inspector.no_macro = [Нет макроса]
 inspector.actions = [Действий: {count}]
 inspector.test = Проверить
 inspector.delete = Удалить плитку
+inspector.repeat_unavailable = Повтор выключен, пока у долгого нажатия есть макрос.
 
 macro.sequence = Последовательность макроса:
 macro.no_actions = (Нет действий)
@@ -191,9 +192,14 @@ function.turn_right = Поворот вправо
 function.turn_left = Поворот влево
 function.on = Включение
 function.off = Выключение
+function.long_press = Долгое нажатие
 parameter.debounce = Подавление дребезга (мс)
 parameter.steps_per_detent = Шагов на щелчок
 parameter.reverse = Обратное направление
+parameter.long_press = Долгое нажатие через (мс)
+parameter.repeat = Повтор при удержании
+parameter.repeat_delay = Повтор через (мс)
+parameter.repeat_interval = Повтор каждые (мс)
 
 media.vol_up = Громче
 media.vol_down = Тише

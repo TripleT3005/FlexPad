@@ -148,6 +148,7 @@ inspector.no_macro = [oɹɔɐɯ ou]
 inspector.actions = [suoıʇɔɐ {count}]
 inspector.test = ʇsǝʇ
 inspector.delete = ǝlıʇ ǝʇǝlǝp
+inspector.repeat_unavailable = ˙oɹɔɐɯ ɐ sɐɥ ssǝɹd ƃuol ǝɥʇ ǝlıɥʍ ɟɟo sı ʇɐǝdǝɹ
 
 macro.sequence = :ǝɔuǝnbǝs oɹɔɐɯ
 macro.no_actions = (suoıʇɔɐ ou)
@@ -191,9 +192,14 @@ function.turn_right = ʇɥƃıɹ uɹnʇ
 function.turn_left = ʇɟǝl uɹnʇ
 function.on = uo uɹnʇ
 function.off = ɟɟo uɹnʇ
+function.long_press = ssǝɹd ƃuol
 parameter.debounce = (sɯ) ǝɔunoqǝp
 parameter.steps_per_detent = ʇuǝʇǝp ɹǝd sdǝʇs
 parameter.reverse = uoıʇɔǝɹıp ǝsɹǝʌǝɹ
+parameter.long_press = (sɯ) ɹǝʇɟɐ ssǝɹd ƃuol
+parameter.repeat = plǝɥ ǝlıɥʍ ʇɐǝdǝɹ
+parameter.repeat_delay = (sɯ) ɹǝʇɟɐ ʇɐǝdǝɹ
+parameter.repeat_interval = (sɯ) ʎɹǝʌǝ ʇɐǝdǝɹ
 
 media.vol_up = dn ǝɯnloʌ
 media.vol_down = uʍop ǝɯnloʌ

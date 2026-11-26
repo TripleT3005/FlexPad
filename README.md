@@ -20,6 +20,7 @@ FlexPad is a freely configurable macro pad based on the ESP32-S3. The board acts
 - Macros made of key presses and releases, delays, media keys and text
 - Visual editor: place tiles on a canvas, assign pins and build macros from presets or step by step
 - Debounce time, encoder resolution and direction adjustable per tile
+- Buttons with a second macro on a long press, or repeating their macro while held (e.g. for volume or arrow keys)
 - Profiles stored locally and on the device; the device works without the app once configured
 - Text typed for five keyboard layouts: English (US and UK), German, German (Switzerland) and French
 - App in 51 languages, including German dialects and a few fun languages
@@ -90,8 +91,8 @@ A profile already stored on the device is kept: the image ends before the profil
 4. **Load Config** reads the configuration stored on the device.
 5. Add tiles with **Add Tile** (button, EC11 encoder, toggle switch or [your own components](#components)), drag them into place and select one to edit it in the **Tile Inspector**:
    - **Pins**: choose the GPIO pin for each connection of the component (only free, usable pins are offered),
-   - **Parameters**: debounce time, and for encoders the steps per detent and the direction,
-   - **Functions** (e.g. press, turn right, turn left; for a toggle switch turn on and turn off): open one to edit its macro,
+   - **Parameters**: debounce time, and for encoders the steps per detent and the direction. For buttons and the push button of an encoder: **Repeat while held** with the time until the first repeat and the time between repeats, or, once the long press has a macro, the time after which a press counts as long (default 500 ms),
+   - **Functions** (e.g. press, long press, turn right, turn left; for a toggle switch turn on and turn off): open one to edit its macro. Without a long-press macro, a button runs its macro right when it is pressed; with one, a short press runs on release and a long press as soon as the time is reached. Long press and repeat exclude each other,
    - in a function, build the macro from **Presets** or add actions (Press, Release, Delay, Media, Text) one by one. **Advanced View** shows the macro as raw JSON for editing.
    - **Test** next to a function runs its macro once on the connected device without saving anything; the answer (queued, busy or the reason for an error) is shown at the function. The macro types into the window that has the focus; text uses the keyboard layout of the profile stored on the device.
 6. The **Profile** menu at the end of the profile row holds the profile actions: **Save Profile** stores the profile on your computer, **New Profile** saves a copy under a new name. **Set Config** sends the profile to the device.
@@ -213,6 +214,7 @@ FlexPad ist ein frei konfigurierbares Makropad auf Basis des ESP32-S3. Das Board
 - Makros aus Drücken und Loslassen von Tasten, Pausen, Medientasten und Text
 - Grafischer Editor: Kacheln auf einer Arbeitsfläche platzieren, Pins zuordnen und Makros aus Vorlagen oder Schritt für Schritt erstellen
 - Entprellzeit, Encoder-Auflösung und Drehrichtung pro Kachel einstellbar
+- Taster mit einem zweiten Makro für langes Drücken oder mit Wiederholen, solange sie gedrückt sind (z. B. für Lautstärke oder Pfeiltasten)
 - Profile lokal und auf dem Gerät gespeichert; einmal eingerichtet, arbeitet das Gerät ohne die App
 - Text für fünf Tastaturlayouts: Englisch (US und UK), Deutsch, Deutsch (Schweiz) und Französisch
 - App in 51 Sprachen, darunter deutsche Dialekte und einige Spaßsprachen
@@ -283,8 +285,8 @@ Ein bereits gespeichertes Profil bleibt erhalten: Das Image endet vor der Profil
 4. **Load Config** liest die auf dem Gerät gespeicherte Konfiguration.
 5. Mit **Add Tile** Kacheln hinzufügen (Taster, EC11-Encoder, Kippschalter oder [eigene Bauteile](#bauteile)), an die gewünschte Stelle ziehen und zum Bearbeiten im **Tile Inspector** auswählen:
    - **Pins**: für jeden Anschluss des Bauteils den GPIO-Pin wählen (angeboten werden nur freie, nutzbare Pins),
-   - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung,
-   - **Funktionen** (z. B. Drücken, Rechts drehen, Links drehen; beim Kippschalter Einschalten und Ausschalten): aufklappen, um das Makro zu bearbeiten,
+   - **Parameter**: Entprellzeit, bei Encodern zusätzlich Schritte pro Raste und Drehrichtung. Bei Tastern und dem Drucktaster eines Encoders: **Repeat while held** mit der Zeit bis zur ersten Wiederholung und der Zeit zwischen den Wiederholungen oder, sobald langes Drücken ein Makro hat, die Zeit, ab der ein Druck als lang gilt (Standard 500 ms),
+   - **Funktionen** (z. B. Drücken, Lang drücken, Rechts drehen, Links drehen; beim Kippschalter Einschalten und Ausschalten): aufklappen, um das Makro zu bearbeiten. Ohne Makro für langes Drücken löst ein Taster sofort beim Drücken aus; mit einem läuft das kurze Drücken beim Loslassen und das lange, sobald die Zeit erreicht ist. Langes Drücken und Wiederholen schließen sich aus,
    - in einer Funktion das Makro aus **Presets** übernehmen oder Aktionen (Press, Release, Delay, Media, Text) einzeln hinzufügen. **Advanced View** zeigt das Makro als rohes JSON zum Bearbeiten.
    - **Test** neben einer Funktion führt ihr Makro einmal auf dem verbundenen Gerät aus, ohne etwas zu speichern; die Antwort (in der Warteschlange, ausgelastet oder der Grund eines Fehlers) erscheint an der Funktion. Das Makro tippt in das Fenster, das den Fokus hat; Text verwendet das Tastaturlayout des auf dem Gerät gespeicherten Profils.
 6. Das Menü **Profile** am Ende der Profilzeile enthält die Profil-Aktionen: **Save Profile** speichert das Profil auf dem Rechner, **New Profile** speichert eine Kopie unter neuem Namen. **Set Config** überträgt das Profil auf das Gerät.

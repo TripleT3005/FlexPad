@@ -149,6 +149,7 @@ inspector.no_macro = [Kein Makro]
 inspector.actions = [{count} Aktionen]
 inspector.test = Testen
 inspector.delete = Kachel löschen
+inspector.repeat_unavailable = Wiederholen ist aus, solange langes Drücken ein Makro hat.
 
 macro.sequence = Makroablauf:
 macro.no_actions = (Keine Aktionen)
@@ -192,9 +193,14 @@ function.turn_right = Nach rechts drehen
 function.turn_left = Nach links drehen
 function.on = Einschalten
 function.off = Ausschalten
+function.long_press = Lang drücken
 parameter.debounce = Entprellen (ms)
 parameter.steps_per_detent = Schritte pro Raste
 parameter.reverse = Drehrichtung umkehren
+parameter.long_press = Lang drücken ab (ms)
+parameter.repeat = Beim Halten wiederholen
+parameter.repeat_delay = Wiederholen nach (ms)
+parameter.repeat_interval = Wiederholen alle (ms)
 
 media.vol_up = Lauter
 media.vol_down = Leiser

@@ -149,6 +149,7 @@ inspector.no_macro = [لا يوجد ماكرو]
 inspector.actions = [{count} إجراءات]
 inspector.test = اختبار
 inspector.delete = حذف المربع
+inspector.repeat_unavailable = التكرار متوقف ما دام للضغط المطوّل ماكرو.
 
 macro.sequence = تسلسل الماكرو:
 macro.no_actions = (لا توجد إجراءات)
@@ -192,9 +193,14 @@ function.turn_right = تدوير إلى اليمين
 function.turn_left = تدوير إلى اليسار
 function.on = تشغيل
 function.off = إيقاف
+function.long_press = ضغط مطوّل
 parameter.debounce = إزالة الارتداد (مللي ثانية)
 parameter.steps_per_detent = خطوات لكل نقرة
 parameter.reverse = عكس الاتجاه
+parameter.long_press = ضغط مطوّل بعد (مللي ثانية)
+parameter.repeat = التكرار أثناء الضغط
+parameter.repeat_delay = التكرار بعد (مللي ثانية)
+parameter.repeat_interval = التكرار كل (مللي ثانية)
 
 media.vol_up = رفع الصوت
 media.vol_down = خفض الصوت

@@ -148,6 +148,7 @@ inspector.no_macro = [Inget makro]
 inspector.actions = [{count} åtgärder]
 inspector.test = Testa
 inspector.delete = Ta bort ruta
+inspector.repeat_unavailable = Upprepning är av så länge långt tryck har ett makro.
 
 macro.sequence = Makrosekvens:
 macro.no_actions = (Inga åtgärder)
@@ -191,9 +192,14 @@ function.turn_right = Vrid åt höger
 function.turn_left = Vrid åt vänster
 function.on = Slå på
 function.off = Slå av
+function.long_press = Långt tryck
 parameter.debounce = Avstudsning (ms)
 parameter.steps_per_detent = Steg per hack
 parameter.reverse = Byt riktning
+parameter.long_press = Långt tryck efter (ms)
+parameter.repeat = Upprepa medan den hålls
+parameter.repeat_delay = Upprepa efter (ms)
+parameter.repeat_interval = Upprepa var (ms)
 
 media.vol_up = Volym upp
 media.vol_down = Volym ned

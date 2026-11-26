@@ -149,6 +149,7 @@ inspector.no_macro = [Kein Makro hinterlegt]
 inspector.actions = [{count} Verfahrensschritte]
 inspector.test = Prüfen
 inspector.delete = Kachel aussondern
+inspector.repeat_unavailable = Die Wiederholung ruht, solange für die andauernde Betätigung ein Makro hinterlegt ist.
 
 macro.sequence = Verfahrensablauf:
 macro.no_actions = (Keine Verfahrensschritte)
@@ -192,9 +193,14 @@ function.turn_right = Rechtsdrehung
 function.turn_left = Linksdrehung
 function.on = Inbetriebsetzung
 function.off = Außerbetriebsetzung
+function.long_press = Andauernde Betätigung
 parameter.debounce = Entprellungsfrist (ms)
 parameter.steps_per_detent = Schritte je Raststellung
 parameter.reverse = Umkehr der Drehrichtung
+parameter.long_press = Andauernde Betätigung ab (ms)
+parameter.repeat = Wiederholung bei fortgesetzter Betätigung
+parameter.repeat_delay = Wiederholungsbeginn nach (ms)
+parameter.repeat_interval = Wiederholungstakt (ms)
 
 media.vol_up = Anhebung der Lautstärke
 media.vol_down = Absenkung der Lautstärke

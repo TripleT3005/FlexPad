@@ -148,6 +148,7 @@ inspector.no_macro = [Χωρίς μακροεντολή]
 inspector.actions = [{count} ενέργειες]
 inspector.test = Δοκιμή
 inspector.delete = Διαγραφή πλακιδίου
+inspector.repeat_unavailable = Η επανάληψη είναι ανενεργή όσο το παρατεταμένο πάτημα έχει μακροεντολή.
 
 macro.sequence = Ακολουθία μακροεντολής:
 macro.no_actions = (Καμία ενέργεια)
@@ -191,9 +192,14 @@ function.turn_right = Περιστροφή δεξιά
 function.turn_left = Περιστροφή αριστερά
 function.on = Ενεργοποίηση
 function.off = Απενεργοποίηση
+function.long_press = Παρατεταμένο πάτημα
 parameter.debounce = Αντιαναπήδηση (ms)
 parameter.steps_per_detent = Βήματα ανά εγκοπή
 parameter.reverse = Αντιστροφή κατεύθυνσης
+parameter.long_press = Παρατεταμένο πάτημα μετά από (ms)
+parameter.repeat = Επανάληψη όσο κρατιέται
+parameter.repeat_delay = Επανάληψη μετά από (ms)
+parameter.repeat_interval = Επανάληψη κάθε (ms)
 
 media.vol_up = Αύξηση έντασης
 media.vol_down = Μείωση έντασης

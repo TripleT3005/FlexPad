@@ -148,6 +148,7 @@ inspector.no_macro = [Ingen makro]
 inspector.actions = [{count} handlinger]
 inspector.test = Test
 inspector.delete = Slett flis
+inspector.repeat_unavailable = Gjentakelse er av så lenge langt trykk har en makro.
 
 macro.sequence = Makrosekvens:
 macro.no_actions = (Ingen handlinger)
@@ -191,9 +192,14 @@ function.turn_right = Vri mot høyre
 function.turn_left = Vri mot venstre
 function.on = Slå på
 function.off = Slå av
+function.long_press = Langt trykk
 parameter.debounce = Avprelling (ms)
 parameter.steps_per_detent = Steg per hakk
 parameter.reverse = Snu retning
+parameter.long_press = Langt trykk etter (ms)
+parameter.repeat = Gjenta mens den holdes
+parameter.repeat_delay = Gjenta etter (ms)
+parameter.repeat_interval = Gjenta hvert (ms)
 
 media.vol_up = Volum opp
 media.vol_down = Volum ned

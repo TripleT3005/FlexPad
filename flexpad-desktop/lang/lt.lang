@@ -148,6 +148,7 @@ inspector.no_macro = [Nėra makrokomandos]
 inspector.actions = [Veiksmų: {count}]
 inspector.test = Išbandyti
 inspector.delete = Ištrinti plytelę
+inspector.repeat_unavailable = Kartojimas išjungtas, kol ilgas paspaudimas turi makrokomandą.
 
 macro.sequence = Makrokomandos seka:
 macro.no_actions = (Nėra veiksmų)
@@ -191,9 +192,14 @@ function.turn_right = Pasukimas į dešinę
 function.turn_left = Pasukimas į kairę
 function.on = Įjungimas
 function.off = Išjungimas
+function.long_press = Ilgas paspaudimas
 parameter.debounce = Virpesių slopinimas (ms)
 parameter.steps_per_detent = Žingsniai per spragtelėjimą
 parameter.reverse = Apversti kryptį
+parameter.long_press = Ilgas paspaudimas po (ms)
+parameter.repeat = Kartoti laikant
+parameter.repeat_delay = Kartoti po (ms)
+parameter.repeat_interval = Kartoti kas (ms)
 
 media.vol_up = Garsiau
 media.vol_down = Tyliau

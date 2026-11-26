@@ -148,6 +148,7 @@ inspector.no_macro = [ไม่มีมาโคร]
 inspector.actions = [{count} การกระทำ]
 inspector.test = ทดสอบ
 inspector.delete = ลบไทล์
+inspector.repeat_unavailable = การทำซ้ำปิดอยู่ตราบที่การกดค้างมีมาโคร
 
 macro.sequence = ลำดับมาโคร:
 macro.no_actions = (ไม่มีการกระทำ)
@@ -191,9 +192,14 @@ function.turn_right = หมุนขวา
 function.turn_left = หมุนซ้าย
 function.on = เปิด
 function.off = ปิด
+function.long_press = กดค้าง
 parameter.debounce = ลดการเด้ง (มิลลิวินาที)
 parameter.steps_per_detent = จำนวนขั้นต่อคลิก
 parameter.reverse = กลับทิศทาง
+parameter.long_press = กดค้างหลังจาก (มิลลิวินาที)
+parameter.repeat = ทำซ้ำขณะกดค้าง
+parameter.repeat_delay = ทำซ้ำหลังจาก (มิลลิวินาที)
+parameter.repeat_interval = ทำซ้ำทุก (มิลลิวินาที)
 
 media.vol_up = เพิ่มเสียง
 media.vol_down = ลดเสียง

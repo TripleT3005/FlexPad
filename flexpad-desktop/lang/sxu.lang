@@ -149,6 +149,7 @@ inspector.no_macro = [Gee Magro]
 inspector.actions = [{count} Aggdsjon’n]
 inspector.test = Ausbrobiern
 inspector.delete = Gachl lösch’n
+inspector.repeat_unavailable = Widderholn is aus, solange das lange Drüggn ä Magro had.
 
 macro.sequence = Magroablauf:
 macro.no_actions = (Geene Aggdsjon’n)
@@ -192,9 +193,14 @@ function.turn_right = Nach rechds drehn
 function.turn_left = Nach linggs drehn
 function.on = Einschaldn
 function.off = Ausschaldn
+function.long_press = Lang drüggn
 parameter.debounce = Endbrelln (ms)
 parameter.steps_per_detent = Schridde bro Rasde
 parameter.reverse = Drehrichdung umdrehn
+parameter.long_press = Lang drüggn ab (ms)
+parameter.repeat = Beim Haldn widderholn
+parameter.repeat_delay = Widderholn nach (ms)
+parameter.repeat_interval = Widderholn alle (ms)
 
 media.vol_up = Laudor
 media.vol_down = Leisor
